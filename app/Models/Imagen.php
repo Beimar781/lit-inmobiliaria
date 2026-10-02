@@ -11,11 +11,11 @@ class Imagen extends Model
     protected $primaryKey = 'idimagen';
     public $timestamps = false;
 
-    protected $fillable = ['idpropiedad', 'nombre', 'ruta'];
+    protected $fillable = ['idpropiedad', 'nombre', 'ruta', 'portada'];
 
     protected function casts(): array
     {
-        return ['fechacarga' => 'datetime'];
+        return ['fechacarga' => 'datetime', 'portada' => 'boolean'];
     }
 
     public function propiedad(): BelongsTo

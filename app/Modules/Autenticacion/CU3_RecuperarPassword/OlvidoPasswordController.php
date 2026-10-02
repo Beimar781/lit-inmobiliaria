@@ -3,6 +3,7 @@
 namespace App\Modules\Autenticacion\CU3_RecuperarPassword;
 
 use App\Http\Controllers\Controller;
+use App\Services\BitacoraService;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,8 @@ class OlvidoPasswordController extends Controller
         $estado = Password::sendResetLink($request->only('email'));
 
         if ($estado === Password::RESET_LINK_SENT) {
+            BitacoraService::registrar('RECUPERACION_SOLICITADA', 'Autenticación', 'Solicitó recuperar la contraseña de ' . $request->input('email'), null, null);
+
             return back()->with('status', 'Te enviamos un enlace de recuperación a tu correo.');
         }
 

@@ -67,6 +67,12 @@ class Propiedad extends Model
         return $this->hasMany(Imagen::class, 'idpropiedad', 'idpropiedad');
     }
 
+    /** Imagen de portada: la marcada como portada o, si no hay ninguna, la primera. */
+    public function getImagenPrincipalAttribute(): ?Imagen
+    {
+        return $this->imagenes->firstWhere('portada', true) ?? $this->imagenes->first();
+    }
+
     public function historial(): HasMany
     {
         return $this->hasMany(Historial::class, 'idpropiedad', 'idpropiedad');

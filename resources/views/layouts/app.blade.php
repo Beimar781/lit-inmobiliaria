@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('titulo', 'LIT Inmobiliaria')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    @stack('estilos')
 </head>
 <body class="bg-light">
 
@@ -14,6 +15,7 @@
 
         @auth
             <div class="d-flex align-items-center gap-3">
+                <a href="{{ route('panel') }}" class="text-white-50 small text-decoration-none">Panel</a>
                 <span class="text-white small">
                     {{ auth()->user()->nombre }}
                     <span class="badge text-bg-secondary">{{ auth()->user()->rol->nombre }}</span>
@@ -34,9 +36,13 @@
     @if (session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
     @endif
+    @if (session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
 
     @yield('contenido')
 </main>
 
+@stack('scripts')
 </body>
 </html>
