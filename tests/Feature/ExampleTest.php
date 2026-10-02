@@ -2,18 +2,29 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Pruebas básicas del acceso al sistema (no necesitan base de datos).
+ * Ejecutar con: php artisan test
+ */
 class ExampleTest extends TestCase
 {
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
+    /** Quien no ha iniciado sesión es llevado al login. */
+    public function test_la_raiz_redirige_al_login_si_no_hay_sesion(): void
     {
-        $response = $this->get('/');
+        $this->get('/')->assertRedirect(route('login'));
+    }
 
-        $response->assertStatus(200);
+    public function test_la_pantalla_de_login_se_muestra(): void
+    {
+        $this->get('/login')->assertOk()->assertSee('Iniciar sesión');
+    }
+
+    public function test_las_secciones_protegidas_piden_iniciar_sesion(): void
+    {
+        $this->get('/propiedades')->assertRedirect(route('login'));
+        $this->get('/usuarios')->assertRedirect(route('login'));
+        $this->get('/bitacora')->assertRedirect(route('login'));
     }
 }
