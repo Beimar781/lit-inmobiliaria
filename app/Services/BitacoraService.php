@@ -48,7 +48,7 @@ class BitacoraService
                 'accion' => $accion,
                 'modulo' => $modulo,
                 'descripcion' => $descripcion,
-                'detalle' => $detalle ? json_encode($detalle, JSON_UNESCAPED_UNICODE) : null,
+                'detalle' => $detalle ?: null, // el cast 'array' del modelo lo convierte a JSON
                 'ip' => request()->ip(),
                 'fecha' => now(),
             ]);
