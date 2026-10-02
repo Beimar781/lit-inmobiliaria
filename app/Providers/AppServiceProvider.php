@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\VerificarCuentaActiva;
 use App\Models\Usuario;
 use App\Services\BitacoraService;
 use Illuminate\Support\Facades\Route;
@@ -45,7 +46,7 @@ class AppServiceProvider extends ServiceProvider
             View::addNamespace(strtolower(basename($carpeta)), $carpeta);
 
             if (file_exists($carpeta . '/routes.php')) {
-                Route::middleware('web')->group($carpeta . '/routes.php');
+                Route::middleware(['web', VerificarCuentaActiva::class])->group($carpeta . '/routes.php');
             }
         }
     }

@@ -164,6 +164,11 @@ class PropiedadSeeder extends Seeder
         $carpeta = 'uploads/propiedades/' . $propiedad->idpropiedad;
         File::ensureDirectoryExists(public_path($carpeta));
 
+        if (! $reemplazar) {
+            // Propiedad nueva: borra restos de pruebas anteriores (por ejemplo, después de migrate:fresh).
+            File::cleanDirectory(public_path($carpeta));
+        }
+
         if ($reemplazar) {
             foreach (Imagen::where('idpropiedad', $propiedad->idpropiedad)->get() as $img) {
                 File::delete(public_path($img->ruta));

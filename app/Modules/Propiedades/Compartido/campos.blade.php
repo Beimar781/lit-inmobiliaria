@@ -158,11 +158,11 @@
 @endpush
 
 @push('estilos')
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="{{ asset('vendor/leaflet/leaflet.css') }}">
 @endpush
 
 @push('scripts')
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ asset('vendor/leaflet/leaflet.js') }}"></script>
     <script>
         (function () {
             // ----- Propietario: mostrar los campos del nuevo solo si no se elige uno existente -----

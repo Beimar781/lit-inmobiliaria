@@ -6,6 +6,12 @@
 <h1 class="h3 mb-1">Bienvenido, {{ auth()->user()->nombre }}</h1>
 <p class="text-muted">Rol: {{ auth()->user()->rol->nombre }}</p>
 
+@unless (auth()->user()->tieneRol('Administrador', 'Agente Inmobiliario'))
+    <div class="alert alert-info">
+        Por ahora tu rol no tiene opciones disponibles en esta versión del sistema.
+    </div>
+@endunless
+
 <div class="row g-3">
     {{-- Usuarios (CU4): solo aparece si la ruta está disponible --}}
     @if (auth()->user()->tieneRol('Administrador') && Route::has('usuarios.index'))
