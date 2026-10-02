@@ -10,6 +10,7 @@ Tecnologías: **Laravel (PHP) + MySQL + Blade (Bootstrap)**. Desarrollo por cicl
 ## Instalación rápida (sin escribir comandos)
 
 1. Instala **Laragon Full** (https://laragon.org), ábrelo y pulsa **Iniciar todo**.
+   (Si ya usas **XAMPP** también sirve: enciende **MySQL** desde su panel e instala **Composer** desde https://getcomposer.org. Necesitas PHP 8.3 o superior: `php -v`.)
 2. Descarga el proyecto: en GitHub pulsa el botón verde **Code → Download ZIP** y descomprímelo (o usa `git clone`, ver más abajo).
 3. Abre la carpeta del proyecto y haz **doble clic en `instalar.bat`**. Instala todo, crea la base de datos y carga los datos de ejemplo (necesita internet, tarda unos minutos).
 4. Haz **doble clic en `iniciar.bat`**. Se abre el navegador en http://127.0.0.1:8000.
@@ -191,6 +192,7 @@ Nunca subas el archivo `.env` (ya está ignorado por Git).
 
 | Mensaje / síntoma | Solución |
 |---|---|
+| `Failed opening required '.../vendor/autoload.php'` | Falta instalar las librerías: ejecuta `instalar.bat` o, en el terminal de la carpeta del proyecto, `composer install` |
 | `could not find driver` | Falta activar la extensión de MySQL de PHP. Laragon → **Menú → PHP → Extensiones** → marca `pdo_mysql` y `mysqli`, y reinicia |
 | `SQLSTATE[HY000] [2002] Connection refused` | MySQL está apagado. Laragon → **Iniciar todo** |
 | `Unknown database 'lit_inmobiliaria'` | Falta el paso 3.4 (crear la base de datos) |
