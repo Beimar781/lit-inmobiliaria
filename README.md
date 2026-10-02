@@ -7,6 +7,19 @@ Tecnologías: **Laravel (PHP) + MySQL + Blade (Bootstrap)**. Desarrollo por cicl
 
 ---
 
+## Instalación rápida (sin escribir comandos)
+
+1. Instala **Laragon Full** (https://laragon.org), ábrelo y pulsa **Iniciar todo**.
+2. Descarga el proyecto: en GitHub pulsa el botón verde **Code → Download ZIP** y descomprímelo (o usa `git clone`, ver más abajo).
+3. Abre la carpeta del proyecto y haz **doble clic en `instalar.bat`**. Instala todo, crea la base de datos y carga los datos de ejemplo (necesita internet, tarda unos minutos).
+4. Haz **doble clic en `iniciar.bat`**. Se abre el navegador en http://127.0.0.1:8000.
+
+Las siguientes veces solo necesitas Laragon encendido y `iniciar.bat`. Si algo falla, mira la tabla de **Problemas frecuentes** al final.
+
+Si prefieres hacerlo paso a paso con VS Code, sigue las secciones 1 a 3.
+
+---
+
 ## 1. Programas que necesitas (una sola vez)
 
 | Programa | Para qué sirve | Dónde conseguirlo |
