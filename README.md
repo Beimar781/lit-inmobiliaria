@@ -27,6 +27,7 @@ php artisan migrate:fresh --seed
 php artisan serve
 ```
 Abre http://127.0.0.1:8000. Las siguientes veces solo necesitas `php artisan serve` (dentro de `backend`) con PostgreSQL encendido.
+Para comprobar que tu instalación está bien, `php artisan test` debe terminar en `passed` (sección 3.6). Si algo falla, mira la sección 8.
 
 **No hay scripts ni programas extra:** el proyecto se corre solo con estos comandos.
 
@@ -49,10 +50,18 @@ Al instalar PostgreSQL anota la **contraseña** que eliges para el usuario `post
 **Primero comprueba si ya lo tienes.** Abre un terminal (PowerShell o el de VS Code) y ejecuta:
 ```
 php -v
-php -m | findstr /i pgsql
+php -m | findstr /i "pgsql sqlite gd"
 ```
-- Si `php -v` muestra **8.3 o superior** y el segundo comando muestra `pdo_pgsql` y `pgsql`, **ya está listo**: pasa a la sección 1.2.
-- Si muestra 8.3+ pero **no aparece `pgsql`**, solo falta activar la extensión: mira el paso 3 de abajo.
+- Si `php -v` muestra **8.3 o superior** y el segundo comando muestra estas **cinco** líneas, **ya está listo**: pasa a la sección 1.2.
+  ```
+  gd
+  pdo_pgsql
+  pdo_sqlite
+  pgsql
+  sqlite3
+  ```
+  (el orden puede variar; lo importante es que estén las cinco: `pgsql` es para la base de datos, `sqlite` y `gd` para las pruebas automáticas y las fotos).
+- Si muestra 8.3+ pero **falta alguna de las cinco**, solo falta activar esa extensión: mira el paso 3 de abajo.
 - Si dice que `php` no se reconoce, o es una versión menor a 8.3, instálalo desde cero así:
 
 **Instalar PHP desde cero (Windows):**
@@ -85,9 +94,11 @@ php -m | findstr /i pgsql
    ```
    $p = [Environment]::GetEnvironmentVariable("Path","User"); [Environment]::SetEnvironmentVariable("Path", "$p;C:\php", "User")
    ```
-5. **Cierra y vuelve a abrir** PowerShell y VS Code, y repite `php -v` y `php -m | findstr /i pgsql`.
+5. **Cierra y vuelve a abrir** PowerShell y VS Code, y repite `php -v` y `php -m | findstr /i "pgsql sqlite gd"` (deben salir las cinco líneas de arriba).
 
-Si ya tenías PHP pero no encuentra el `php.ini`, `php --ini` te muestra cuál usa (línea *Loaded Configuration File*).
+**Si al ejecutar PHP aparece "Unable to load dynamic library ..."**: falta la línea `extension_dir = "ext"` sin `;` o el `php.ini` no está en `C:\php`. Revisa el paso 3.
+
+Si ya tenías PHP pero no encuentra el `php.ini`, `php --ini` te muestra cuál usa (línea *Loaded Configuration File*). Si dice `(none)`, todavía no existe: haz el paso 3.
 Si tienes **varios PHP** instalados (por ejemplo uno viejo de otro programa), `where.exe php` muestra cuál se usa: el primero de la lista. Debe ser `C:\php\php.exe`; si no, quita del PATH la carpeta del otro PHP.
 
 ### 1.2. Composer
@@ -166,6 +177,15 @@ php artisan serve
 Abre en el navegador: **http://127.0.0.1:8000**
 
 Para apagarlo: en el terminal presiona **Ctrl + C**. Para volver a encenderlo: `php artisan serve` (dentro de `backend`).
+
+**3.6. Comprobar que todo quedó bien (opcional, recomendado)**
+
+Con el sistema apagado (o en otro terminal), ejecuta las pruebas automáticas, dentro de `backend`:
+```
+php artisan test
+```
+Debe terminar con **`207 passed`** (el número puede crecer cuando se agreguen casos de uso). Es normal que en Windows aparezcan algunos avisos `!` con `rmdir(...)` en las pruebas de CU5 y CU6: son archivos temporales que Windows no deja borrar al instante y no son errores. Si aparecen líneas rojas `FAIL`, mira la sección 8.
+Las pruebas usan una base temporal en memoria: **no tocan tus datos de PostgreSQL**.
 
 ## 4. Usuarios de prueba
 
@@ -263,7 +283,16 @@ Nunca subas el archivo `.env` (ya está ignorado por Git).
 | Mensaje / síntoma | Solución |
 |---|---|
 | `Failed opening required '.../vendor/autoload.php'` | Falta instalar las librerías: en el terminal, dentro de `backend`, ejecuta `composer install` |
-| `could not find driver` | Falta activar la extensión de PostgreSQL de PHP (sección 1.1, paso 3). Ejecuta `php --ini` para ver cuál es tu `php.ini`, ábrelo, quita el `;` de las líneas `extension=pdo_pgsql` y `extension=pgsql`, guarda y abre un terminal nuevo. Comprueba con `php -m \| findstr /i pgsql` |
+| `could not find driver` | Falta activar una extensión de base de datos de PHP. Si ocurre al correr el sistema, son `pdo_pgsql` y `pgsql`; si ocurre en `php artisan test`, son `pdo_sqlite` y `sqlite3`. Ejecuta `php --ini` para ver cuál es tu `php.ini`, ábrelo, quita el `;` de esas líneas `extension=...`, guarda y abre un terminal nuevo. Comprueba con `php -m \| findstr /i "pgsql sqlite gd"` (deben salir las cinco) |
+| `GD extension is not installed` (en `php artisan test`) | Falta `extension=gd` en el `php.ini`. Quita el `;`, guarda, abre un terminal nuevo y comprueba con `php -m \| findstr /i gd` |
+| Quité el `;` del `php.ini` pero sigue sin funcionar | Casi siempre es un **segundo PHP** (Laragon, XAMPP, etc.) que va primero en el PATH. Ejecuta `where.exe php` y `php --ini`: el PHP y el `php.ini` que aparecen deben ser los de `C:\php`. Si no, edita ese `php.ini` o quita del PATH la carpeta del otro PHP. Después **cierra y abre** el terminal y VS Code |
+| Cambié el `php.ini` y al rato vuelve a estar como antes | Tenías el `php.ini` abierto en VS Code con una versión vieja y la guardó encima. Cierra esa pestaña sin guardar, vuelve a abrir el archivo, repite el cambio y guarda con **Ctrl + S** |
+| `Your PHP version ... does not satisfy` / `ext-... is missing` al hacer `composer install` | Tu PHP es menor a 8.3 o falta una extensión (`mbstring`, `openssl`, `fileinfo`, `zip`, `curl`). Revisa la sección 1.1 y `php -v` |
+| `cd backend` dice que no existe la carpeta | Tu copia es de la estructura vieja. Dentro de `lit-inmobiliaria` ejecuta `git pull` y revisa con `git branch` que estás en la rama que indique el equipo |
+| `VCRUNTIME140.dll` o el PHP se cierra sin mensaje | Instala el *Visual C++ Redistributable x64* de Microsoft y vuelve a abrir el terminal |
+| `No application encryption key has been specified` | Falta `php artisan key:generate` (dentro de `backend`, después de crear el `.env`) |
+| `could not translate host name` / `SQLSTATE[HY000] [2002]` | `DB_HOST` en tu `.env` debe ser `127.0.0.1` y PostgreSQL debe estar encendido |
+| Error de permisos al escribir `storage/logs/laravel.log` o `bootstrap/cache` | Mueve el proyecto a una carpeta simple como `C:\proyectos` (fuera de OneDrive y de *Archivos de programa*) y cierra programas que la tengan abierta (antivirus, OneDrive) |
 | `SQLSTATE[08006] ... Connection refused` | PostgreSQL está apagado o el puerto no es 5432. Abre *Servicios* de Windows, busca `postgresql-x64-...` y pulsa **Iniciar** |
 | `database "lit_inmobiliaria" does not exist` | Falta el paso 3.1 (crear la base de datos en pgAdmin) |
 | `password authentication failed for user "postgres"` | La contraseña de `DB_PASSWORD` en `backend/.env` no es la de tu PostgreSQL |
