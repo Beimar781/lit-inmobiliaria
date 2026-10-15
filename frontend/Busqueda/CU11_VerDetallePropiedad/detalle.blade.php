@@ -78,7 +78,7 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
                     <h2 class="h5">Ubicación</h2>
-                    <p class="text-muted small mb-2">{{ $propiedad->ubicacion->direccion }} (referencial)</p>
+                    <p class="text-muted small mb-2">{{ $propiedad->ubicacion->direccion }}{{ str_contains(mb_strtolower($propiedad->ubicacion->direccion), 'referencial') ? '' : ' (referencial)' }}</p>
                     <div id="mapa" style="height: 300px" class="rounded border"></div>
                 </div>
             </div>

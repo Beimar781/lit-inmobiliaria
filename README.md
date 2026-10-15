@@ -7,6 +7,8 @@ Tecnologías: **Laravel (PHP) + PostgreSQL + Blade (Bootstrap)**. Desarrollo por
 
 **Ciclo II:** CU8 Cambiar estado de propiedad · CU9 Buscar propiedades · CU10 Filtrar propiedades · CU11 Ver detalle de propiedad · CU12 Registrar cliente interesado · CU13 Gestionar prospectos CRM.
 
+**Sistema desplegado (Railway):** https://lit-inmobiliaria-production.up.railway.app — el catálogo es público; para el resto del sistema inicia sesión con los usuarios de la sección 4. Es un ambiente compartido: los cambios que se hagan ahí (usuarios, propiedades, fotos) se guardan en su propia base y no modifican los datos de este repositorio.
+
 El repositorio tiene dos carpetas principales: **`backend/`** (el proyecto Laravel: lógica, base de datos, rutas) y **`frontend/`** (las pantallas: vistas Blade). Ver la sección 6.
 
 ---
