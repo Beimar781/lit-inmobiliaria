@@ -57,7 +57,7 @@ php -m | findstr /i pgsql
 
 **Instalar PHP desde cero (Windows):**
 
-1. Descarga el zip de PHP desde https://windows.php.net/download/ : elige **8.3** (o la más nueva) → **VS16/VS17 x64 Thread Safe** → *Zip*.
+1. Descarga el zip de PHP desde https://www.php.net/downloads.php?os=windows : en la página elige *Windows*, *ZIP Downloads* y **versión 8.3** (o la más nueva). Baja la sección **x64 Non Thread Safe** (la recomendada para usar PHP desde el terminal; la *Thread Safe* también funciona) y descarga el **Zip**.
    Si al ejecutar PHP aparece un error de `VCRUNTIME140.dll`, instala el *Visual C++ Redistributable x64* de Microsoft.
 2. Crea la carpeta `C:\php` y extrae ahí todo el contenido del zip (debe quedar `C:\php\php.exe`).
 3. En `C:\php` copia el archivo `php.ini-development` y pégalo con el nombre **`php.ini`**. Ábrelo con el Bloc de notas o VS Code y quita el `;` del inicio de estas líneas (búscalas con Ctrl + F):
@@ -65,13 +65,22 @@ php -m | findstr /i pgsql
    extension_dir = "ext"
    extension=curl
    extension=fileinfo
+   extension=gd
    extension=mbstring
    extension=openssl
    extension=pdo_pgsql
    extension=pgsql
+   extension=pdo_sqlite
+   extension=sqlite3
    extension=zip
    ```
-   (`extension_dir` aparece como `; extension_dir = "ext"`: quita solo el `;`). Guarda el archivo.
+   (`extension_dir` aparece como `; extension_dir = "ext"`: quita solo el `;`).
+   Busca también estas dos líneas y cámbialas (las fotos de las propiedades pesan más que el límite por defecto de PHP):
+   ```
+   upload_max_filesize = 8M
+   post_max_size = 40M
+   ```
+   Guarda el archivo.
 4. Agrega PHP al PATH. Abre **PowerShell** y pega esto (no necesita administrador):
    ```
    $p = [Environment]::GetEnvironmentVariable("Path","User"); [Environment]::SetEnvironmentVariable("Path", "$p;C:\php", "User")
@@ -79,6 +88,7 @@ php -m | findstr /i pgsql
 5. **Cierra y vuelve a abrir** PowerShell y VS Code, y repite `php -v` y `php -m | findstr /i pgsql`.
 
 Si ya tenías PHP pero no encuentra el `php.ini`, `php --ini` te muestra cuál usa (línea *Loaded Configuration File*).
+Si tienes **varios PHP** instalados (por ejemplo uno viejo de otro programa), `where.exe php` muestra cuál se usa: el primero de la lista. Debe ser `C:\php\php.exe`; si no, quita del PATH la carpeta del otro PHP.
 
 ### 1.2. Composer
 
