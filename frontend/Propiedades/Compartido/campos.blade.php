@@ -36,16 +36,6 @@
     <div class="col-md-2"><x-campo name="antiguedad" label="Antigüedad (años)" type="number" min="0" :valor="$propiedad?->antiguedad" /></div>
 </div>
 
-@if ($editando)
-    <div class="row">
-        <div class="col-md-4">
-            <x-seleccion name="estadopropiedad" label="Estado de la propiedad"
-                         :opciones="['DISPONIBLE' => 'Disponible', 'RESERVADO' => 'Reservado', 'VENDIDO' => 'Vendido', 'ALQUILADO' => 'Alquilado']"
-                         :valor="$propiedad->estadopropiedad" />
-        </div>
-    </div>
-@endif
-
 <hr class="my-4">
 <h2 class="h5 mb-3">Propietario</h2>
 <x-seleccion name="idpropietario" label="Propietario" :opciones="$propietarios"

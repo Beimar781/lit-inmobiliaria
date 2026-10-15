@@ -22,7 +22,8 @@ use Illuminate\View\View;
  *  1. El usuario busca y selecciona la propiedad en el inventario  -> listado en Compartido/index.blade.php
  *  2. Selecciona "Modificar propiedad"                              -> editar()
  *  3. El sistema carga los datos actuales en un formulario editable -> editar.blade.php
- *  4-5. Actualiza los campos (precio, estado, descripción...) y confirma
+ *  4-5. Actualiza los campos (precio, descripción, ubicación, imágenes...) y confirma
+ *       (el estado de la propiedad ya no se cambia aquí: es el CU8)
  *  6. El sistema valida, actualiza y genera un registro en el historial -> actualizar()
  * Excepción: propiedad no encontrada o dada de baja -> error 404.
  */
@@ -76,7 +77,6 @@ class ModificarPropiedadController extends Controller
                 'descripcion' => $request->input('descripcion'),
                 'precio' => $request->input('precio'),
                 'tipopropiedad' => $request->input('tipopropiedad'),
-                'estadopropiedad' => $request->input('estadopropiedad'),
                 'superficie' => $request->input('superficie'),
                 'areaconstruida' => $request->input('areaconstruida'),
                 'habitaciones' => $request->input('habitaciones'),

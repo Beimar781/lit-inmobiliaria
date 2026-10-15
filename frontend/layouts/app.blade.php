@@ -13,8 +13,16 @@
     <div class="container">
         <a class="navbar-brand" href="{{ url('/') }}">LIT Inmobiliaria</a>
 
+        @guest
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ route('catalogo.index') }}" class="text-white-50 small text-decoration-none">Catálogo</a>
+                <a href="{{ route('login') }}" class="btn btn-outline-light btn-sm">Iniciar sesión</a>
+            </div>
+        @endguest
+
         @auth
             <div class="d-flex align-items-center gap-3">
+                <a href="{{ route('catalogo.index') }}" class="text-white-50 small text-decoration-none">Catálogo</a>
                 <a href="{{ route('panel') }}" class="text-white-50 small text-decoration-none">Panel</a>
                 <span class="text-white small">
                     {{ auth()->user()->nombre }}

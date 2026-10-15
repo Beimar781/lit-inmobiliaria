@@ -16,7 +16,7 @@
         <select name="idrol" class="form-select">
             <option value="">Todos los roles</option>
             @foreach ($roles as $id => $nombre)
-                <option value="{{ $id }}" @selected((string) request('idrol') === (string) $id)>{{ $nombre }}</option>
+                <option value="{{ $id }}" @selected(request('idrol') == $id)>{{ $nombre }}</option>
             @endforeach
         </select>
     </div>

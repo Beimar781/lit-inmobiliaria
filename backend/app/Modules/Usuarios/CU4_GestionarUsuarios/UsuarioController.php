@@ -8,6 +8,7 @@ use App\Models\Usuario;
 use App\Services\BitacoraService;
 use App\Services\HistorialService;
 use Illuminate\Http\RedirectResponse;
+use App\Support\ParametrosConsulta;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -24,7 +25,8 @@ class UsuarioController extends Controller
 {
     public function index(Request $request): View
     {
-        $busqueda = trim((string) $request->query('q'));
+        $busqueda = ParametrosConsulta::texto($request, 'q');
+        $idrol = ParametrosConsulta::entero($request, 'idrol');
 
         $usuarios = Usuario::with('rol')
             ->when($busqueda !== '', function ($consulta) use ($busqueda) {
@@ -33,7 +35,7 @@ class UsuarioController extends Controller
                         ->orWhereLike('email', "%{$busqueda}%");
                 });
             })
-            ->when($request->filled('idrol'), fn ($consulta) => $consulta->where('idrol', $request->query('idrol')))
+            ->when($idrol !== null, fn ($consulta) => $consulta->where('idrol', $idrol))
             ->orderBy('nombre')
             ->paginate(10)
             ->withQueryString();

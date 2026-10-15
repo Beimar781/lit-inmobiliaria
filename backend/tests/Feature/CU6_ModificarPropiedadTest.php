@@ -50,7 +50,8 @@ class CU6_ModificarPropiedadTest extends SistemaTestCase
                 ->assertSee('Departamento Sirari')
                 ->assertSee('120000.00')
                 ->assertSee('Equipetrol')
-                ->assertSee('Estado de la propiedad');
+                // El estado ya no se edita aquí: tiene su propio caso de uso (CU8)
+                ->assertDontSee('Estado de la propiedad');
         }
     }
 
@@ -68,7 +69,7 @@ class CU6_ModificarPropiedadTest extends SistemaTestCase
         $this->actingAs($this->agente());
 
         $this->get(route('propiedades.edit', $baja))->assertNotFound();
-        $this->actualizar($baja, ['estadopropiedad' => Propiedad::DISPONIBLE, 'precio' => '1'])->assertNotFound();
+        $this->actualizar($baja, ['precio' => '1'])->assertNotFound();
 
         $this->assertSame(Propiedad::BAJA, $baja->fresh()->estadopropiedad);
     }
@@ -117,26 +118,18 @@ class CU6_ModificarPropiedadTest extends SistemaTestCase
         $this->assertSame($otraCategoria->idcategoria, $propiedad->idcategoria);
     }
 
-    public function test_se_cambia_el_estado_de_la_propiedad(): void
+    public function test_modificar_no_cambia_el_estado_aunque_se_envie(): void
     {
+        // El estado se cambia solo desde CU8; CU6 lo ignora.
         $propiedad = $this->propiedad();
         $this->actingAs($this->agente());
 
-        foreach ([Propiedad::RESERVADO, Propiedad::VENDIDO, Propiedad::ALQUILADO, Propiedad::DISPONIBLE] as $estado) {
-            $this->actualizar($propiedad, ['estadopropiedad' => $estado])->assertSessionHasNoErrors();
-            $this->assertSame($estado, $propiedad->fresh()->estadopropiedad);
-        }
-    }
+        $this->actualizar($propiedad, ['precio' => '91000', 'estadopropiedad' => Propiedad::VENDIDO])
+            ->assertSessionHasNoErrors();
 
-    public function test_el_estado_baja_no_se_puede_elegir_aqui(): void
-    {
-        $propiedad = $this->propiedad();
-        $this->actingAs($this->admin());
-
-        $this->actualizar($propiedad, ['estadopropiedad' => Propiedad::BAJA])->assertSessionHasErrors('estadopropiedad');
-        $this->actualizar($propiedad, ['estadopropiedad' => 'INVENTADO'])->assertSessionHasErrors('estadopropiedad');
-
-        $this->assertSame(Propiedad::DISPONIBLE, $propiedad->fresh()->estadopropiedad);
+        $propiedad->refresh();
+        $this->assertSame('91000.00', (string) $propiedad->precio);
+        $this->assertSame(Propiedad::DISPONIBLE, $propiedad->estadopropiedad);
     }
 
     public function test_el_agente_a_cargo_no_cambia_al_modificar(): void
@@ -220,8 +213,8 @@ class CU6_ModificarPropiedadTest extends SistemaTestCase
 
         $this->actualizar($propiedad, [
             'titulo' => '', 'precio' => '-4', 'tipopropiedad' => 'Permuta', 'idcategoria' => 9999,
-            'zona' => '', 'direccion' => '', 'estadopropiedad' => '',
-        ])->assertSessionHasErrors(['titulo', 'precio', 'tipopropiedad', 'idcategoria', 'zona', 'direccion', 'estadopropiedad']);
+            'zona' => '', 'direccion' => '',
+        ])->assertSessionHasErrors(['titulo', 'precio', 'tipopropiedad', 'idcategoria', 'zona', 'direccion']);
 
         $this->assertSame('Casa de prueba', $propiedad->fresh()->titulo);
     }
@@ -242,14 +235,14 @@ class CU6_ModificarPropiedadTest extends SistemaTestCase
         $propiedad = $this->propiedad();
         $this->actingAs($agente);
 
-        $this->actualizar($propiedad, ['precio' => '99000', 'estadopropiedad' => Propiedad::RESERVADO]);
+        $this->actualizar($propiedad, ['precio' => '99000', 'titulo' => 'Casa remodelada']);
 
         $registro = Historial::where('idpropiedad', $propiedad->idpropiedad)->first();
         $this->assertNotNull($registro);
         $this->assertSame(Historial::MODIFICACION, $registro->tipo);
         $this->assertSame($agente->idusuario, $registro->idusuario);
-        $this->assertSame(['precio' => '85000.00', 'estado' => 'DISPONIBLE'], json_decode($registro->valoranterior, true));
-        $this->assertSame(['precio' => '99000.00', 'estado' => 'RESERVADO'], json_decode($registro->valoractual, true));
+        $this->assertSame(['titulo' => 'Casa de prueba', 'precio' => '85000.00'], json_decode($registro->valoranterior, true));
+        $this->assertSame(['titulo' => 'Casa remodelada', 'precio' => '99000.00'], json_decode($registro->valoractual, true));
     }
 
     public function test_el_cambio_de_ubicacion_tambien_queda_en_el_historial(): void

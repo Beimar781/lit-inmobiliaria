@@ -17,7 +17,7 @@
             <select name="idusuario" class="form-select form-select-sm">
                 <option value="">Todos</option>
                 @foreach ($usuarios as $id => $nombre)
-                    <option value="{{ $id }}" @selected((string) request('idusuario') === (string) $id)>{{ $nombre }}</option>
+                    <option value="{{ $id }}" @selected(request('idusuario') == $id)>{{ $nombre }}</option>
                 @endforeach
             </select>
         </div>
@@ -41,11 +41,11 @@
         </div>
         <div class="col-md-2">
             <label class="form-label small mb-1">Desde</label>
-            <input type="date" name="desde" value="{{ request('desde') }}" class="form-control form-control-sm">
+            <input type="date" name="desde" value="{{ is_string(request('desde')) ? request('desde') : '' }}" class="form-control form-control-sm">
         </div>
         <div class="col-md-2">
             <label class="form-label small mb-1">Hasta</label>
-            <input type="date" name="hasta" value="{{ request('hasta') }}" class="form-control form-control-sm">
+            <input type="date" name="hasta" value="{{ is_string(request('hasta')) ? request('hasta') : '' }}" class="form-control form-control-sm">
         </div>
         <div class="col-md-8">
             <input type="text" name="q" value="{{ $busqueda }}" class="form-control form-control-sm"

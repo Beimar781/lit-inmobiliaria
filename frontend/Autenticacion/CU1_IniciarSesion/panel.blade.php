@@ -31,7 +31,31 @@
             <a href="{{ route('propiedades.index') }}" class="card text-decoration-none h-100 shadow-sm">
                 <div class="card-body">
                     <h2 class="h5">Propiedades</h2>
-                    <p class="mb-0 text-muted">Registrar, modificar y dar de baja propiedades</p>
+                    <p class="mb-0 text-muted">Registrar, modificar, cambiar el estado y dar de baja propiedades</p>
+                </div>
+            </a>
+        </div>
+    @endif
+
+    {{-- CU12 y CU13: prospectos del CRM --}}
+    @if (auth()->user()->tieneRol('Administrador', 'Agente Inmobiliario') && Route::has('prospectos.index'))
+        <div class="col-md-4">
+            <a href="{{ route('prospectos.index') }}" class="card text-decoration-none h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 class="h5">Prospectos CRM</h2>
+                    <p class="mb-0 text-muted">Clientes interesados y su seguimiento</p>
+                </div>
+            </a>
+        </div>
+    @endif
+
+    {{-- CU9, CU10 y CU11: catálogo público --}}
+    @if (Route::has('catalogo.index'))
+        <div class="col-md-4">
+            <a href="{{ route('catalogo.index') }}" class="card text-decoration-none h-100 shadow-sm">
+                <div class="card-body">
+                    <h2 class="h5">Catálogo</h2>
+                    <p class="mb-0 text-muted">Buscar y ver las propiedades disponibles como las ve el público</p>
                 </div>
             </a>
         </div>

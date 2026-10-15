@@ -2,9 +2,7 @@
 
 namespace App\Modules\Propiedades\CU6_ModificarPropiedad;
 
-use App\Models\Propiedad;
 use App\Modules\Propiedades\Compartido\PropiedadRequestBase;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class ModificarPropiedadRequest extends PropiedadRequestBase
@@ -12,10 +10,7 @@ class ModificarPropiedadRequest extends PropiedadRequestBase
     public function rules(): array
     {
         return array_merge($this->reglasBase(), [
-            // BAJA no se elige aquí: se hace con el CU7.
-            'estadopropiedad' => ['required', Rule::in([
-                Propiedad::DISPONIBLE, Propiedad::RESERVADO, Propiedad::VENDIDO, Propiedad::ALQUILADO,
-            ])],
+            // El estado ya no se edita aquí: se cambia con el CU8 y la baja con el CU7.
             'imagenes' => ['nullable', 'array', 'max:8'],
             'eliminar_imagenes' => ['nullable', 'array'],
             'eliminar_imagenes.*' => ['integer'],

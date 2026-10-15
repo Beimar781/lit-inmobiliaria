@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\Categoria;
+use App\Models\Cliente;
+use App\Models\Interes;
 use App\Models\Historial;
 use App\Models\Propiedad;
 use App\Models\Propietario;
 use App\Models\Rol;
 use App\Models\Usuario;
 use App\Modules\Propiedades\Compartido\LimiteCuartoAnillo;
+use Database\Seeders\ClienteSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\PropiedadSeeder;
 use Illuminate\Support\Facades\Hash;
@@ -106,5 +109,17 @@ class DatosDeEjemploTest extends SistemaTestCase
 
         $this->actingAs($admin)->get(route('propiedades.index'))
             ->assertViewHas('propiedades', fn ($p) => $p->total() === 8 && $p->count() === 8);
+    }
+
+    public function test_hay_prospectos_de_ejemplo_y_se_pueden_cargar_varias_veces(): void
+    {
+        $this->assertSame(4, Cliente::count());
+        $this->assertSame(4, Interes::count());
+        $this->assertSame(1, Cliente::whereNull('idusuario')->count());
+
+        $this->seed(ClienteSeeder::class);
+
+        $this->assertSame(4, Cliente::count());
+        $this->assertSame(4, Interes::count());
     }
 }

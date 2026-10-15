@@ -13,6 +13,7 @@ class Historial extends Model
 
     public const REGISTRO = 'REGISTRO';
     public const MODIFICACION = 'MODIFICACION';
+    public const CAMBIO_ESTADO = 'CAMBIO_ESTADO'; // CU8
     public const BAJA = 'BAJA';
 
     protected $fillable = ['tipo', 'valoranterior', 'valoractual', 'motivo', 'idusuario', 'idpropiedad'];

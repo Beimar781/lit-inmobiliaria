@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             UsuarioSeeder::class,
             CatalogoSeeder::class,
             PropiedadSeeder::class,
+            ClienteSeeder::class,
         ]);
     }
 }

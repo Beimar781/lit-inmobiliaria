@@ -6,12 +6,13 @@ use App\Modules\Propiedades\Compartido\PropiedadController;
 use App\Modules\Propiedades\CU5_RegistrarPropiedad\RegistrarPropiedadController;
 use App\Modules\Propiedades\CU6_ModificarPropiedad\ModificarPropiedadController;
 use App\Modules\Propiedades\CU7_EliminarPropiedad\EliminarPropiedadController;
+use App\Modules\Propiedades\CU8_CambiarEstado\CambiarEstadoController;
 use Illuminate\Support\Facades\Route;
 
 // Paquete P2 - Gestión de Propiedades
 Route::middleware('auth')->group(function () {
 
-    // Administrador y Agente: inventario, registrar (CU5) y modificar (CU6)
+    // Administrador y Agente: inventario, registrar (CU5), modificar (CU6) y cambiar estado (CU8)
     Route::middleware(RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE)->group(function () {
         Route::get('/propiedades', [PropiedadController::class, 'index'])->name('propiedades.index');
 
@@ -22,6 +23,10 @@ Route::middleware('auth')->group(function () {
         // CU6: Modificar propiedad
         Route::get('/propiedades/{propiedad}/editar', [ModificarPropiedadController::class, 'editar'])->name('propiedades.edit');
         Route::put('/propiedades/{propiedad}', [ModificarPropiedadController::class, 'actualizar'])->name('propiedades.update');
+
+        // CU8: Cambiar estado (el Agente solo en las propiedades que él registró: se comprueba en el controlador)
+        Route::get('/propiedades/{propiedad}/estado', [CambiarEstadoController::class, 'mostrar'])->name('propiedades.estado');
+        Route::put('/propiedades/{propiedad}/estado', [CambiarEstadoController::class, 'actualizar'])->name('propiedades.estado.actualizar');
     });
 
     // Solo Administrador: CU7 Eliminar (dar de baja) propiedad

@@ -5,6 +5,8 @@ Tecnologías: **Laravel (PHP) + PostgreSQL + Blade (Bootstrap)**. Desarrollo por
 
 **Ciclo I (terminado):** CU1 Iniciar sesión · CU2 Cerrar sesión · CU3 Recuperar contraseña · CU4 Gestionar usuarios · CU5 Registrar propiedad · CU6 Modificar propiedad · CU7 Eliminar propiedad (baja lógica).
 
+**Ciclo II:** CU8 Cambiar estado de propiedad · CU9 Buscar propiedades · CU10 Filtrar propiedades · CU11 Ver detalle de propiedad · CU12 Registrar cliente interesado · CU13 Gestionar prospectos CRM.
+
 El repositorio tiene dos carpetas principales: **`backend/`** (el proyecto Laravel: lógica, base de datos, rutas) y **`frontend/`** (las pantallas: vistas Blade). Ver la sección 6.
 
 ---
@@ -176,7 +178,7 @@ Si la carpeta `database/datos` no existe, el comando carga en su lugar los 4 usu
 ```
 php artisan serve
 ```
-Abre en el navegador: **http://127.0.0.1:8000**
+Abre en el navegador: **http://127.0.0.1:8000** (el **catálogo público** de propiedades está en **http://127.0.0.1:8000/catalogo** y no pide iniciar sesión).
 
 Para apagarlo: en el terminal presiona **Ctrl + C**. Para volver a encenderlo: `php artisan serve` (dentro de `backend`).
 
@@ -195,12 +197,12 @@ Contraseña de todos: `Lit2026*`
 
 | Rol | Correo | Qué puede hacer |
 |---|---|---|
-| Administrador | jgarcia@inmobiliaria.com | Todo: usuarios, propiedades, baja de propiedades y **bitácora** |
-| Agente Inmobiliario | mtorrez@inmobiliaria.com | Registrar y modificar propiedades |
-| Asistente Administrativo | rjustiniano@inmobiliaria.com | Solo inicia sesión (sin módulos en el Ciclo I) |
-| Cliente | croca@gmail.com | Solo inicia sesión (sin módulos en el Ciclo I) |
+| Administrador | jgarcia@inmobiliaria.com | Todo: usuarios, propiedades (incluido el cambio de estado y la baja), **todos** los prospectos del CRM (puede reasignarlos) y **bitácora** |
+| Agente Inmobiliario | mtorrez@inmobiliaria.com | Registrar y modificar propiedades, cambiar el estado de las suyas, registrar clientes interesados y gestionar **sus** prospectos del CRM |
+| Asistente Administrativo | rjustiniano@inmobiliaria.com | Solo inicia sesión (sin módulos todavía) |
+| Cliente | croca@gmail.com | Solo inicia sesión (sin módulos todavía) |
 
-Los correos se guardan y se buscan siempre en **minúsculas**. Si el equipo creó más usuarios, los ves en el menú *Usuarios* con el administrador.
+El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con o sin sesión. Los correos se guardan y se buscan siempre en **minúsculas**. Si el equipo creó más usuarios, los ves en el menú *Usuarios* con el administrador.
 
 **Recuperar contraseña (CU3) en local:** el correo no se envía de verdad. El enlace queda guardado en el archivo
 `backend/storage/logs/laravel.log`. Ábrelo en VS Code, presiona **Ctrl + F**, busca `ENLACE DE RECUPERACION` y copia el enlace en el navegador.
@@ -210,6 +212,10 @@ Los correos se guardan y se buscan siempre en **minúsculas**. Si el equipo cre�
 - **Alcance geográfico:** solo se pueden registrar propiedades en **Santa Cruz de la Sierra, dentro del 4.º anillo**. El mapa de "Registrar/Modificar propiedad" muestra el límite; fuera de él el sistema rechaza la propiedad. La configuración está en `backend/config/santacruz.php`.
 - **Precios en dólares (USD $).**
 - **Baja lógica:** "Eliminar propiedad" no borra el registro, lo pasa a estado *Baja* y guarda el motivo. Una propiedad *Reservada* no puede darse de baja.
+- **Estados de una propiedad (CU8):** Disponible, Reservado y Vendido (si es venta) o Alquilado (si es alquiler o anticrético). La baja se hace solo con el CU7. Para volver a dejar *Disponible* una propiedad vendida o alquilada hay que escribir el motivo. El Agente solo cambia el estado de las propiedades que él registró.
+- **Catálogo público (CU9–CU11):** solo muestra propiedades en estado *Disponible*. Se busca por título, zona, dirección o código (por ejemplo `LIT-0007`) y se filtra por tipo, categoría, precio, zona, superficie, habitaciones y baños.
+- **Clientes interesados (CU12):** el formulario "Me interesa" de la ficha no pide iniciar sesión (máximo 6 envíos por minuto). Pide el nombre y al menos el correo o el teléfono. Si la persona ya existe (mismo correo o teléfono) no se duplica: se le suma el interés. El prospecto queda asignado al agente de la propiedad; si no tiene agente activo, queda *sin asignar* para que el administrador lo reasigne.
+- **Seguimiento de prospectos (CU13):** Nuevo → Contactado → En negociación → Cerrado o Descartado. Las notas y el historial de contactos llegan con el CU18.
 - **Imagen de portada:** cada propiedad tiene una imagen principal que se muestra en el listado.
 - **Historial de propiedades:** cada registro, cambio y baja de una propiedad queda guardado en la tabla `historial`.
 - **Bitácora (Administrador):** registra quién hizo qué, cuándo y desde qué IP (inicios de sesión, intentos fallidos, cambios en usuarios y propiedades). Menú Panel → Bitácora.
@@ -233,7 +239,16 @@ lit-inmobiliaria/
 │   │   │   ├── CU5_RegistrarPropiedad/
 │   │   │   ├── CU6_ModificarPropiedad/
 │   │   │   ├── CU7_EliminarPropiedad/
-│   │   │   └── Compartido/          ← lo que usan CU5, CU6 y CU7 (formulario, listado, mapa, imágenes)
+│   │   │   ├── CU8_CambiarEstado/
+│   │   │   └── Compartido/          ← lo que usan CU5 a CU8 (formulario, listado, mapa, imágenes)
+│   │   ├── Busqueda/                ← Paquete: Búsqueda y consulta de inmuebles (catálogo público)
+│   │   │   ├── CU9_BuscarPropiedades/
+│   │   │   ├── CU10_FiltrarPropiedades/
+│   │   │   ├── CU11_VerDetallePropiedad/
+│   │   │   └── Compartido/          ← la búsqueda que comparten el catálogo y el inventario
+│   │   ├── Crm/                     ← Paquete: CRM y gestión de clientes
+│   │   │   ├── CU12_RegistrarClienteInteresado/
+│   │   │   └── CU13_GestionarProspectos/
 │   │   └── Reportes/Bitacora/       ← bitácora del administrador
 │   ├── app/Models/                  ← una clase por tabla del diagrama de clases
 │   ├── app/Services/                ← HistorialService, BitacoraService e InstantaneaDatos (datos compartidos)
@@ -242,7 +257,7 @@ lit-inmobiliaria/
 │   ├── database/seeders/            ← cargan los datos compartidos (o los de ejemplo si no existen)
 │   └── tests/                       ← pruebas automáticas
 └── frontend/                        ← pantallas (Blade + Bootstrap)
-    ├── Autenticacion/ · Usuarios/ · Propiedades/ · Reportes/   ← pantalla de cada CU, misma ruta que en backend
+    ├── Autenticacion/ · Usuarios/ · Propiedades/ · Busqueda/ · Crm/ · Reportes/   ← pantalla de cada CU, misma ruta que en backend
     ├── layouts/                     ← diseño general (menú, estructura de la página)
     ├── components/                  ← campos reutilizables
     └── errors/                      ← pantallas de error (403, 404, 419, 429)
@@ -267,9 +282,10 @@ git pull
 composer install
 php artisan migrate
 ```
-- `php artisan migrate` solo agrega las tablas/columnas nuevas, **no borra datos**.
+- `php artisan migrate` solo agrega las tablas/columnas nuevas, **no borra datos**. El Ciclo II agrega las tablas `cliente` e `interes` (CRM).
 - Para volver a empezar de cero (borra TODOS tus datos locales y recarga los datos compartidos del equipo): `php artisan migrate:fresh --seed`. Si el equipo actualizó los datos compartidos (`database/datos`), ejecútalo también después del `git pull` para recibirlos.
 - `php artisan db:seed` **no** carga los datos compartidos si tu base ya tiene datos (avisa y no toca nada): así no pierdes lo que hiciste.
+- **Datos de prueba del CRM (Ciclo II):** `php artisan db:seed --class=DemoCrmSeeder` agrega 2 agentes más (`csuarez@inmobiliaria.com` y `dvaca@inmobiliaria.com`, clave `Lit2026*`), una propiedad para cada uno y varios prospectos repartidos. Sirve para probar la reasignación de prospectos y que cada agente vea solo lo suyo. **No borra ni cambia nada de lo que ya tienes** y se puede ejecutar varias veces.
 - **No uses** `php artisan db:seed --class=PropiedadSeeder`: reemplaza las fotos de las propiedades por las fotos de ejemplo de `database/seeders/imagenes`.
 - Lo que cada uno crea desde el sistema (propiedades, fotos, usuarios, bitácora) queda **solo en su computadora**: las fotos subidas están en `backend/public/uploads`, que Git ignora. Para que el resto del equipo reciba esos datos hay que actualizar los datos compartidos (siguiente punto).
 

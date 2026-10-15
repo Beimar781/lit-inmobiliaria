@@ -36,10 +36,42 @@ class Propiedad extends Model
         ];
     }
 
-    /** Propiedades que no están dadas de baja (las que se ven en el catálogo). */
+    /** Propiedades que no están dadas de baja (las del inventario interno). */
     public function scopeVigentes(Builder $query): Builder
     {
         return $query->where('estadopropiedad', '!=', self::BAJA);
+    }
+
+    /** Propiedades que se ofrecen en el catálogo público (CU9 y CU10): solo las disponibles. */
+    public function scopeDisponibles(Builder $query): Builder
+    {
+        return $query->where('estadopropiedad', self::DISPONIBLE);
+    }
+
+    /** Estados a los que se puede pasar según el tipo de operación (CU8). */
+    public static function estadosPermitidos(?string $tipo): array
+    {
+        $cierre = $tipo === 'Venta' ? self::VENDIDO : self::ALQUILADO;
+
+        return [self::DISPONIBLE, self::RESERVADO, $cierre];
+    }
+
+    /** Código visible de la propiedad: LIT-0001 (es su número de ID con ceros a la izquierda). */
+    public function getCodigoAttribute(): string
+    {
+        return 'LIT-' . str_pad((string) $this->idpropiedad, 4, '0', STR_PAD_LEFT);
+    }
+
+    /** Enlace de WhatsApp al agente a cargo (Bolivia, +591), o null si no hay teléfono. */
+    public function getWhatsappAttribute(): ?string
+    {
+        $digitos = preg_replace('/\D+/', '', (string) $this->agente?->telefono);
+
+        if ($digitos === '') {
+            return null;
+        }
+
+        return 'https://wa.me/' . (strlen($digitos) <= 8 ? '591' . $digitos : $digitos);
     }
 
     public function propietario(): BelongsTo
@@ -71,6 +103,11 @@ class Propiedad extends Model
     public function getImagenPrincipalAttribute(): ?Imagen
     {
         return $this->imagenes->firstWhere('portada', true) ?? $this->imagenes->first();
+    }
+
+    public function intereses(): HasMany
+    {
+        return $this->hasMany(Interes::class, 'idpropiedad', 'idpropiedad');
     }
 
     public function historial(): HasMany

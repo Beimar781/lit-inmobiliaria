@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Bitacora;
 use App\Models\Usuario;
 use App\Services\BitacoraService;
+use App\Support\ParametrosConsulta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -21,14 +22,17 @@ class BitacoraController extends Controller
 {
     public function index(Request $request): View
     {
-        $busqueda = trim((string) $request->query('q'));
-        $desde = $this->fecha($request->query('desde'));
-        $hasta = $this->fecha($request->query('hasta'));
+        $busqueda = ParametrosConsulta::texto($request, 'q');
+        $desde = $this->fecha(ParametrosConsulta::texto($request, 'desde'));
+        $hasta = $this->fecha(ParametrosConsulta::texto($request, 'hasta'));
+        $idusuario = ParametrosConsulta::entero($request, 'idusuario');
+        $modulo = ParametrosConsulta::texto($request, 'modulo');
+        $accion = ParametrosConsulta::texto($request, 'accion');
 
         $registros = Bitacora::with('usuario')
-            ->when($request->filled('idusuario'), fn ($c) => $c->where('idusuario', $request->query('idusuario')))
-            ->when($request->filled('modulo'), fn ($c) => $c->where('modulo', $request->query('modulo')))
-            ->when($request->filled('accion'), fn ($c) => $c->where('accion', $request->query('accion')))
+            ->when($idusuario !== null, fn ($c) => $c->where('idusuario', $idusuario))
+            ->when($modulo !== '', fn ($c) => $c->where('modulo', $modulo))
+            ->when($accion !== '', fn ($c) => $c->where('accion', $accion))
             ->when($desde, fn ($c) => $c->where('fecha', '>=', $desde->copy()->startOfDay()))
             ->when($hasta, fn ($c) => $c->where('fecha', '<=', $hasta->copy()->endOfDay()))
             ->when($busqueda !== '', function ($c) use ($busqueda) {

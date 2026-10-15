@@ -10,7 +10,7 @@
 
 <form method="GET" action="{{ route('propiedades.index') }}" class="row g-2 mb-4">
     <div class="col-md-4">
-        <input type="text" name="q" value="{{ $busqueda }}" class="form-control" placeholder="Buscar por título">
+        <input type="text" name="q" value="{{ $busqueda }}" class="form-control" placeholder="Buscar por título, zona o código">
     </div>
     <div class="col-md-3">
         <select name="tipo" class="form-select">
@@ -48,6 +48,7 @@
                 @endif
 
                 <div class="card-body">
+                    <p class="text-muted small mb-1">{{ $p->codigo }}</p>
                     <div class="d-flex justify-content-between align-items-start">
                         <h2 class="h6 mb-1">{{ $p->titulo }}</h2>
                         <span class="badge text-bg-{{ $colores[$p->estadopropiedad] ?? 'secondary' }}">
@@ -63,6 +64,10 @@
 
                 <div class="card-footer bg-white d-flex gap-2">
                     <a href="{{ route('propiedades.edit', $p) }}" class="btn btn-sm btn-outline-primary">Modificar</a>
+                    {{-- CU8: el Agente solo la ve en las propiedades que él registró --}}
+                    @if (auth()->user()->tieneRol('Administrador') || $p->idusuario === auth()->id())
+                        <a href="{{ route('propiedades.estado', $p) }}" class="btn btn-sm btn-outline-secondary">Cambiar estado</a>
+                    @endif
                     @if (auth()->user()->tieneRol('Administrador'))
                         <a href="{{ route('propiedades.baja', $p) }}" class="btn btn-sm btn-outline-danger">Dar de baja</a>
                     @endif
