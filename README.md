@@ -208,6 +208,8 @@ El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con
 **Recuperar contraseña (CU3) en local:** el correo no se envía de verdad. El enlace queda guardado en el archivo
 `backend/storage/logs/laravel.log`. Ábrelo en VS Code, presiona **Ctrl + F**, busca `ENLACE DE RECUPERACION` y copia el enlace en el navegador.
 
+**Recuperar contraseña (CU3) en Railway:** el correo sí se envía de verdad, por la API de Brevo (`MAIL_MAILER=brevo`, `BREVO_API_KEY` y `MAIL_FROM_ADDRESS` en las variables del servicio). Railway bloquea el correo SMTP en los planes gratuitos, por eso se usa una API web. El correo llega al correo registrado del usuario; si no aparece, revisa la carpeta de spam.
+
 ## 5. Reglas importantes del sistema
 
 - **Alcance geográfico:** solo se pueden registrar propiedades en **Santa Cruz de la Sierra, dentro del 4.º anillo**. El mapa de "Registrar/Modificar propiedad" muestra el límite; fuera de él el sistema rechaza la propiedad. La configuración está en `backend/config/santacruz.php`.

@@ -5,6 +5,10 @@ namespace App\Providers;
 use App\Http\Middleware\VerificarCuentaActiva;
 use App\Models\Usuario;
 use App\Services\BitacoraService;
+use App\Support\BrevoTransport;
+use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -31,7 +35,34 @@ class AppServiceProvider extends ServiceProvider
         // La bitácora escucha inicios/cierres de sesión y cambios de contraseña.
         BitacoraService::escuchar();
 
+        // Correo real en producción (MAIL_MAILER=brevo): envío por la API web de Brevo.
+        Mail::extend('brevo', fn (array $config) => new BrevoTransport(config('services.brevo.key')));
+
+        $this->correoDeRecuperacion();
+
         $this->cargarModulos();
+    }
+
+    /** CU3: texto en español del correo con el enlace para recuperar la contraseña. */
+    private function correoDeRecuperacion(): void
+    {
+        ResetPassword::toMailUsing(function ($usuario, string $token) {
+            // Si el CU3 definió cómo armar el enlace (por ejemplo, para dejarlo en el log en local), se respeta.
+            $url = ResetPassword::$createUrlCallback
+                ? call_user_func(ResetPassword::$createUrlCallback, $usuario, $token)
+                : route('password.reset', ['token' => $token, 'email' => $usuario->getEmailForPasswordReset()]);
+
+            $minutos = config('auth.passwords.' . config('auth.defaults.passwords') . '.expire');
+
+            return (new MailMessage)
+                ->subject('Recupera tu contraseña - LIT Inmobiliaria')
+                ->greeting('Hola, ' . $usuario->nombre)
+                ->line('Recibimos una solicitud para restablecer la contraseña de tu cuenta.')
+                ->action('Restablecer contraseña', $url)
+                ->line("Este enlace vence en {$minutos} minutos.")
+                ->line('Si no solicitaste el cambio, ignora este correo: tu contraseña seguirá igual.')
+                ->salutation('LIT Inmobiliaria');
+        });
     }
 
     /**

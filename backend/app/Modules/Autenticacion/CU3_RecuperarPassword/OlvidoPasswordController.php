@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\View\View;
+use Throwable;
 
 /**
  * CU3: Recuperar contraseña (parte 1: solicitar el enlace)
@@ -18,8 +19,8 @@ use Illuminate\View\View;
  *  4. El sistema valida que la cuenta exista              -> Password::sendResetLink()
  *  5. El sistema envía un enlace de recuperación          -> enviar()
  *
- * En local el correo NO se envía de verdad: queda en storage/logs/laravel.log
- * (buscar "ENLACE DE RECUPERACION").
+ * En local el correo NO se envía de verdad (MAIL_MAILER=log): el enlace queda en storage/logs/laravel.log
+ * (buscar "ENLACE DE RECUPERACION"). En producción (Railway) se envía por Brevo (MAIL_MAILER=brevo).
  */
 class OlvidoPasswordController extends Controller
 {
@@ -41,7 +42,14 @@ class OlvidoPasswordController extends Controller
             return $url;
         });
 
-        $estado = Password::sendResetLink($request->only('email'));
+        try {
+            $estado = Password::sendResetLink($request->only('email'));
+        } catch (Throwable $e) {
+            // El proveedor de correo falló (clave inválida, remitente no verificado, sin red...): no se muestra un error 500.
+            Log::error('No se pudo enviar el correo de recuperación: ' . $e->getMessage());
+
+            return back()->withInput()->withErrors(['email' => 'No pudimos enviar el correo en este momento. Inténtalo de nuevo en unos minutos.']);
+        }
 
         if ($estado === Password::RESET_LINK_SENT) {
             BitacoraService::registrar('RECUPERACION_SOLICITADA', 'Autenticación', 'Solicitó recuperar la contraseña de ' . $request->input('email'), null, null);
