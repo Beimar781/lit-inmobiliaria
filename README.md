@@ -170,7 +170,7 @@ Si en el futuro se agregan variables nuevas a `.env.example`, cópialas a tu `.e
 ```
 php artisan migrate:fresh --seed
 ```
-Esto crea las tablas y carga los **datos compartidos del equipo**: los usuarios (incluidos los 4 de prueba de la sección 4), las categorías, los propietarios, las **propiedades con sus fotos**, el historial y la **bitácora**. Todo se guarda solo en tu computadora, en tu PostgreSQL y en `backend/public/uploads`. Esos datos vienen en el repositorio, en `backend/database/datos` (sección 7). Podrás ver las tablas en pgAdmin: *lit_inmobiliaria → Schemas → public → Tables*.
+Esto crea las tablas y carga los **datos compartidos del equipo**: los usuarios (incluidos los de prueba de la sección 4), las categorías, los propietarios, las **propiedades con sus fotos**, el historial, la **bitácora** y el **CRM del Ciclo II** (clientes interesados y sus intereses). Todo se guarda solo en tu computadora, en tu PostgreSQL y en `backend/public/uploads`. Esos datos vienen en el repositorio, en `backend/database/datos` (sección 7). Podrás ver las tablas en pgAdmin: *lit_inmobiliaria → Schemas → public → Tables*.
 
 Si la carpeta `database/datos` no existe, el comando carga en su lugar los 4 usuarios de prueba y 8 propiedades de ejemplo.
 
@@ -199,6 +199,7 @@ Contraseña de todos: `Lit2026*`
 |---|---|---|
 | Administrador | jgarcia@inmobiliaria.com | Todo: usuarios, propiedades (incluido el cambio de estado y la baja), **todos** los prospectos del CRM (puede reasignarlos) y **bitácora** |
 | Agente Inmobiliario | mtorrez@inmobiliaria.com | Registrar y modificar propiedades, cambiar el estado de las suyas, registrar clientes interesados y gestionar **sus** prospectos del CRM |
+| Agente Inmobiliario | csuarez@inmobiliaria.com (Carla Suárez) y dvaca@inmobiliaria.com (Diego Vaca) | Igual que el agente anterior. Existen para probar el CRM con varios agentes: cada uno ve solo **sus** prospectos y no puede cambiar el estado de las propiedades de otro |
 | Asistente Administrativo | rjustiniano@inmobiliaria.com | Solo inicia sesión (sin módulos todavía) |
 | Cliente | croca@gmail.com | Solo inicia sesión (sin módulos todavía) |
 
@@ -285,7 +286,7 @@ php artisan migrate
 - `php artisan migrate` solo agrega las tablas/columnas nuevas, **no borra datos**. El Ciclo II agrega las tablas `cliente` e `interes` (CRM).
 - Para volver a empezar de cero (borra TODOS tus datos locales y recarga los datos compartidos del equipo): `php artisan migrate:fresh --seed`. Si el equipo actualizó los datos compartidos (`database/datos`), ejecútalo también después del `git pull` para recibirlos.
 - `php artisan db:seed` **no** carga los datos compartidos si tu base ya tiene datos (avisa y no toca nada): así no pierdes lo que hiciste.
-- **Datos de prueba del CRM (Ciclo II):** `php artisan db:seed --class=DemoCrmSeeder` agrega 2 agentes más (`csuarez@inmobiliaria.com` y `dvaca@inmobiliaria.com`, clave `Lit2026*`), una propiedad para cada uno y varios prospectos repartidos. Sirve para probar la reasignación de prospectos y que cada agente vea solo lo suyo. **No borra ni cambia nada de lo que ya tienes** y se puede ejecutar varias veces.
+- **Datos de prueba del CRM (Ciclo II):** `php artisan db:seed --class=DemoCrmSeeder` agrega 2 agentes más (`csuarez@inmobiliaria.com` y `dvaca@inmobiliaria.com`, clave `Lit2026*`), una propiedad para cada uno y varios prospectos repartidos. Sirve para probar la reasignación de prospectos y que cada agente vea solo lo suyo. **Quien cargó los datos compartidos con `migrate:fresh --seed` ya los tiene**: este comando solo hace falta si tu base se creó antes de esos datos. **No borra ni cambia nada de lo que ya tienes** y se puede ejecutar varias veces.
 - **No uses** `php artisan db:seed --class=PropiedadSeeder`: reemplaza las fotos de las propiedades por las fotos de ejemplo de `database/seeders/imagenes`.
 - Lo que cada uno crea desde el sistema (propiedades, fotos, usuarios, bitácora) queda **solo en su computadora**: las fotos subidas están en `backend/public/uploads`, que Git ignora. Para que el resto del equipo reciba esos datos hay que actualizar los datos compartidos (siguiente punto).
 
