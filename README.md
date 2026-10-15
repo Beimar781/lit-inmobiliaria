@@ -164,11 +164,13 @@ El `.env` guarda la configuración **de tu computadora** (por ejemplo tu contras
 
 Si en el futuro se agregan variables nuevas a `.env.example`, cópialas a tu `.env` (el equipo avisará).
 
-**3.4. Crear las tablas y cargar los datos de ejemplo**
+**3.4. Crear las tablas y cargar los datos del equipo**
 ```
 php artisan migrate:fresh --seed
 ```
-Esto crea las tablas, los 4 usuarios de prueba, las categorías y **8 propiedades de ejemplo con imágenes**. Podrás ver las tablas en pgAdmin: *lit_inmobiliaria → Schemas → public → Tables*.
+Esto crea las tablas y carga los **datos compartidos del equipo**: los usuarios (incluidos los 4 de prueba de la sección 4), las categorías, los propietarios, las **propiedades con sus fotos**, el historial y la **bitácora**. Todo se guarda solo en tu computadora, en tu PostgreSQL y en `backend/public/uploads`. Esos datos vienen en el repositorio, en `backend/database/datos` (sección 7). Podrás ver las tablas en pgAdmin: *lit_inmobiliaria → Schemas → public → Tables*.
+
+Si la carpeta `database/datos` no existe, el comando carga en su lugar los 4 usuarios de prueba y 8 propiedades de ejemplo.
 
 **3.5. Encender el sistema**
 ```
@@ -184,7 +186,7 @@ Con el sistema apagado (o en otro terminal), ejecuta las pruebas automáticas, d
 ```
 php artisan test
 ```
-Debe terminar con **`207 passed`** (el número puede crecer cuando se agreguen casos de uso). Es normal que en Windows aparezcan algunos avisos `!` con `rmdir(...)` en las pruebas de CU5 y CU6: son archivos temporales que Windows no deja borrar al instante y no son errores. Si aparecen líneas rojas `FAIL`, mira la sección 8.
+Debe terminar con todas las pruebas en verde, por ejemplo **`Tests: 231 passed`** (el número crece cuando se agregan casos de uso), **sin avisos ni pruebas omitidas**. Si aparecen líneas rojas `FAIL` o avisos `!`, mira la sección 8.
 Las pruebas usan una base temporal en memoria: **no tocan tus datos de PostgreSQL**.
 
 ## 4. Usuarios de prueba
@@ -198,7 +200,7 @@ Contraseña de todos: `Lit2026*`
 | Asistente Administrativo | rjustiniano@inmobiliaria.com | Solo inicia sesión (sin módulos en el Ciclo I) |
 | Cliente | croca@gmail.com | Solo inicia sesión (sin módulos en el Ciclo I) |
 
-Los correos se guardan y se buscan siempre en **minúsculas**.
+Los correos se guardan y se buscan siempre en **minúsculas**. Si el equipo creó más usuarios, los ves en el menú *Usuarios* con el administrador.
 
 **Recuperar contraseña (CU3) en local:** el correo no se envía de verdad. El enlace queda guardado en el archivo
 `backend/storage/logs/laravel.log`. Ábrelo en VS Code, presiona **Ctrl + F**, busca `ENLACE DE RECUPERACION` y copia el enlace en el navegador.
@@ -234,9 +236,10 @@ lit-inmobiliaria/
 │   │   │   └── Compartido/          ← lo que usan CU5, CU6 y CU7 (formulario, listado, mapa, imágenes)
 │   │   └── Reportes/Bitacora/       ← bitácora del administrador
 │   ├── app/Models/                  ← una clase por tabla del diagrama de clases
-│   ├── app/Services/                ← HistorialService y BitacoraService
+│   ├── app/Services/                ← HistorialService, BitacoraService e InstantaneaDatos (datos compartidos)
 │   ├── database/migrations/         ← creación de las tablas en PostgreSQL
-│   ├── database/seeders/            ← datos de ejemplo
+│   ├── database/datos/              ← datos compartidos del equipo: datos.json + fotos (uploads)
+│   ├── database/seeders/            ← cargan los datos compartidos (o los de ejemplo si no existen)
 │   └── tests/                       ← pruebas automáticas
 └── frontend/                        ← pantallas (Blade + Bootstrap)
     ├── Autenticacion/ · Usuarios/ · Propiedades/ · Reportes/   ← pantalla de cada CU, misma ruta que en backend
@@ -265,9 +268,23 @@ composer install
 php artisan migrate
 ```
 - `php artisan migrate` solo agrega las tablas/columnas nuevas, **no borra datos**.
-- Para volver a empezar de cero (borra TODOS los datos y recarga los de ejemplo): `php artisan migrate:fresh --seed`
-- `php artisan db:seed --class=PropiedadSeeder` vuelve a cargar las propiedades de ejemplo y **reemplaza las fotos de esas propiedades por las de ejemplo**. Úsalo solo si quieres justamente eso.
-- Las imágenes subidas desde el sistema se guardan en `backend/public/uploads` y **no se suben a GitHub**; las de ejemplo están en `backend/database/seeders/imagenes` y sí.
+- Para volver a empezar de cero (borra TODOS tus datos locales y recarga los datos compartidos del equipo): `php artisan migrate:fresh --seed`. Si el equipo actualizó los datos compartidos (`database/datos`), ejecútalo también después del `git pull` para recibirlos.
+- `php artisan db:seed` **no** carga los datos compartidos si tu base ya tiene datos (avisa y no toca nada): así no pierdes lo que hiciste.
+- **No uses** `php artisan db:seed --class=PropiedadSeeder`: reemplaza las fotos de las propiedades por las fotos de ejemplo de `database/seeders/imagenes`.
+- Lo que cada uno crea desde el sistema (propiedades, fotos, usuarios, bitácora) queda **solo en su computadora**: las fotos subidas están en `backend/public/uploads`, que Git ignora. Para que el resto del equipo reciba esos datos hay que actualizar los datos compartidos (siguiente punto).
+
+**Actualizar los datos compartidos del equipo** (hazlo solo cuando el grupo quiera que todos reciban tus datos actuales; avisa antes, porque reemplaza el archivo anterior):
+```
+cd backend
+php artisan datos:exportar
+cd ..
+git status
+git add backend/database/datos
+git commit -m "Actualiza los datos compartidos"
+git push
+```
+`datos:exportar` guarda todas las tablas del sistema en `backend/database/datos/datos.json` (es texto: puedes abrirlo y revisar qué se comparte) y copia las fotos de las propiedades a `backend/database/datos/uploads`. Las tablas nuevas de los próximos casos de uso entran solas. Los demás hacen `git pull` y `php artisan migrate:fresh --seed`.
+**No compartas datos reales de personas** (correos o teléfonos de clientes verdaderos): el repositorio es de la materia.
 
 Para subir tus cambios:
 ```
@@ -301,7 +318,9 @@ Nunca subas el archivo `.env` (ya está ignorado por Git).
 | `Port 8000 is in use` | Usa otro puerto: `php artisan serve --port=8001` |
 | "La página expiró" (419) al subir fotos | Las imágenes son muy pesadas. Máximo 4 MB cada una. Si persiste, sube `post_max_size` y `upload_max_filesize` en tu `php.ini` |
 | El mapa se ve gris o sin calles | El diseño funciona sin internet, pero **los mapas necesitan internet** |
-| Las propiedades de ejemplo salen sin foto después de `git pull` | `php artisan db:seed --class=PropiedadSeeder` (solo con datos de ejemplo: reemplaza las fotos de esas propiedades) |
+| Las propiedades salen sin foto | Las fotos vienen en `backend/database/datos/uploads` y se copian a `backend/public/uploads` al hacer `php artisan migrate:fresh --seed` (borra tus datos locales y recarga los del equipo). Comprueba que hiciste `git pull` y que existe esa carpeta |
+| `El archivo trae tablas que tu base de datos no tiene` al hacer `--seed` | Falta ejecutar las migraciones nuevas: `php artisan migrate:fresh --seed` (o `php artisan migrate` si no quieres borrar datos) |
+| `La base ya tiene datos: no se cargó el archivo compartido` | Es un aviso, no un error: para recibir los datos del equipo debes empezar de cero con `php artisan migrate:fresh --seed` |
 | `composer` o `php` "no se reconoce" | Ver sección 1 (instalar PHP/Composer, agregar `C:\php` al PATH y **reabrir** el terminal o VS Code) |
 
 ## 9. Trabajo en equipo (cuando se repartan los casos de uso)

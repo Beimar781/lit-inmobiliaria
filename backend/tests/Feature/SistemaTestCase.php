@@ -176,9 +176,32 @@ abstract class SistemaTestCase extends TestCase
         return $propiedad->fresh(['imagenes']);
     }
 
+    /**
+     * Imagen real (jpg, png, gif o webp según la extensión del nombre) dentro de la carpeta temporal de la prueba.
+     * $kb es el tamaño que el sistema "ve" al validar (el archivo en sí es pequeño).
+     * No se usa UploadedFile::fake()->image() porque deja un recurso abierto y en Windows impide borrar la carpeta.
+     */
     protected function imagen(string $nombre = 'foto.jpg', int $kb = 100): UploadedFile
     {
-        return UploadedFile::fake()->image($nombre, 600, 400)->size($kb);
+        $carpeta = $this->carpetaPublica . DIRECTORY_SEPARATOR . '_subidas';
+        File::ensureDirectoryExists($carpeta);
+        $ruta = $carpeta . DIRECTORY_SEPARATOR . uniqid('', true) . '_' . basename($nombre);
+
+        $lienzo = imagecreatetruecolor(600, 400);
+        imagefill($lienzo, 0, 0, imagecolorallocate($lienzo, 90, 140, 200));
+
+        match (strtolower(pathinfo($nombre, PATHINFO_EXTENSION))) {
+            'png' => imagepng($lienzo, $ruta),
+            'gif' => imagegif($lienzo, $ruta),
+            'webp' => imagewebp($lienzo, $ruta),
+            default => imagejpeg($lienzo, $ruta),
+        };
+        unset($lienzo);
+
+        $imagen = new ImagenDePrueba($ruta, $nombre, null, null, true);
+        $imagen->kbInformados = $kb;
+
+        return $imagen;
     }
 
     protected function rutaFisica(string $rutaRelativa): string
