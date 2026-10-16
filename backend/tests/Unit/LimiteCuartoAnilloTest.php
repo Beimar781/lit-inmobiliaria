@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Modules\Propiedades\Compartido\LimiteCuartoAnillo;
+use App\Modules\GestionPropiedades\Compartido\LimiteCuartoAnillo;
 use Tests\TestCase;
 
 /** Regla de alcance: solo dentro del 4.º anillo de Santa Cruz de la Sierra (config/santacruz.php). */

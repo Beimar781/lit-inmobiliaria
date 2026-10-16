@@ -8,7 +8,7 @@ use App\Models\Propietario;
 use App\Models\Rol;
 use App\Models\Ubicacion;
 use App\Models\Usuario;
-use App\Modules\Propiedades\Compartido\GestorImagenes;
+use App\Modules\GestionPropiedades\Compartido\GestorImagenes;
 use Database\Seeders\RolSeeder;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;

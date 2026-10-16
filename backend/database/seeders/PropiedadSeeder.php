@@ -9,7 +9,7 @@ use App\Models\Propiedad;
 use App\Models\Propietario;
 use App\Models\Ubicacion;
 use App\Models\Usuario;
-use App\Modules\Propiedades\Compartido\LimiteCuartoAnillo;
+use App\Modules\GestionPropiedades\Compartido\LimiteCuartoAnillo;
 use App\Services\HistorialService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;

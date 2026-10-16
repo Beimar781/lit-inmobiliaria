@@ -69,7 +69,7 @@ class AppServiceProvider extends ServiceProvider
      * Carga automáticamente cada paquete que exista en backend/app/Modules:
      *  - sus rutas:  backend/app/Modules/<Paquete>/routes.php
      *  - sus vistas: view('<paquete>::<CU>.<vista>')  → frontend/<Paquete>/<CU>/<vista>.blade.php
-     * Ejemplo: view('autenticacion::CU1_IniciarSesion.login')
+     * Ejemplo: view('autentificacionseguridad::CU1_IniciarSesion.login')
      */
     private function cargarModulos(): void
     {

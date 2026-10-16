@@ -234,27 +234,29 @@ El repositorio se divide en **backend** (lógica y datos) y **frontend** (pantal
 lit-inmobiliaria/
 ├── backend/                         ← proyecto Laravel (lógica, base de datos, rutas)
 │   ├── app/Modules/
-│   │   ├── Autenticacion/           ← Paquete: Autenticación y Seguridad
+│   │   ├── AutentificacionSeguridad/ ← P1: Autentificación y Seguridad
 │   │   │   ├── routes.php           ← rutas (URLs) del paquete
 │   │   │   ├── CU1_IniciarSesion/   ← CU1: controlador + validación
 │   │   │   ├── CU2_CerrarSesion/
-│   │   │   └── CU3_RecuperarPassword/
-│   │   ├── Usuarios/CU4_GestionarUsuarios/
-│   │   ├── Propiedades/
+│   │   │   ├── CU3_RecuperarContrasena/
+│   │   │   └── CU4_GestionarUsuarios/
+│   │   ├── GestionPropiedades/      ← P2: Gestión de propiedades
 │   │   │   ├── CU5_RegistrarPropiedad/
 │   │   │   ├── CU6_ModificarPropiedad/
 │   │   │   ├── CU7_EliminarPropiedad/
 │   │   │   ├── CU8_CambiarEstado/
 │   │   │   └── Compartido/          ← lo que usan CU5 a CU8 (formulario, listado, mapa, imágenes)
-│   │   ├── Busqueda/                ← Paquete: Búsqueda y consulta de inmuebles (catálogo público)
+│   │   ├── BusquedaConsulta/        ← P3: Búsqueda y consulta de inmuebles (catálogo público)
 │   │   │   ├── CU9_BuscarPropiedades/
 │   │   │   ├── CU10_FiltrarPropiedades/
 │   │   │   ├── CU11_VerDetallePropiedad/
 │   │   │   └── Compartido/          ← la búsqueda que comparten el catálogo y el inventario
-│   │   ├── Crm/                     ← Paquete: CRM y gestión de clientes
+│   │   ├── CrmGestionClientes/      ← P4: CRM y gestión de clientes
 │   │   │   ├── CU12_RegistrarClienteInteresado/
 │   │   │   └── CU13_GestionarProspectos/
-│   │   └── Reportes/Bitacora/       ← bitácora del administrador
+│   │   ├── AgendaVisitas/           ← P5: Agenda y gestión de visitas (ciclo posterior)
+│   │   └── ReportesAdministracion/  ← P6: Reportes y administración (hoy: bitácora del administrador)
+│   │       └── Bitacora/
 │   ├── app/Models/                  ← una clase por tabla del diagrama de clases
 │   ├── app/Services/                ← HistorialService, BitacoraService e InstantaneaDatos (datos compartidos)
 │   ├── database/migrations/         ← creación de las tablas en PostgreSQL
@@ -262,7 +264,7 @@ lit-inmobiliaria/
 │   ├── database/seeders/            ← cargan los datos compartidos (o los de ejemplo si no existen)
 │   └── tests/                       ← pruebas automáticas
 └── frontend/                        ← pantallas (Blade + Bootstrap)
-    ├── Autenticacion/ · Usuarios/ · Propiedades/ · Busqueda/ · Crm/ · Reportes/   ← pantalla de cada CU, misma ruta que en backend
+    ├── AutentificacionSeguridad/ · GestionPropiedades/ · BusquedaConsulta/ · CrmGestionClientes/ · AgendaVisitas/ · ReportesAdministracion/   ← pantalla de cada CU, misma ruta que en backend
     ├── layouts/                     ← diseño general (menú, estructura de la página)
     ├── components/                  ← campos reutilizables
     └── errors/                      ← pantallas de error (403, 404, 419, 429)
@@ -277,7 +279,7 @@ Dentro de cada CU del backend hay siempre:
 
 Y la pantalla del mismo CU está en `frontend/<Paquete>/<CU>/*.blade.php`.
 
-**Cómo explicar un caso de uso en la defensa** (ejemplo CU5 Registrar propiedad): el usuario abre la URL → la ruta está en `backend/app/Modules/Propiedades/routes.php` → llama a `RegistrarPropiedadController` → que valida con `RegistrarPropiedadRequest` → guarda con los modelos (`Propiedad`, `Ubicacion`, `Imagen`) → deja registro en el historial y la bitácora → muestra la pantalla `frontend/Propiedades/CU5_RegistrarPropiedad/crear.blade.php`.
+**Cómo explicar un caso de uso en la defensa** (ejemplo CU5 Registrar propiedad): el usuario abre la URL → la ruta está en `backend/app/Modules/GestionPropiedades/routes.php` → llama a `RegistrarPropiedadController` → que valida con `RegistrarPropiedadRequest` → guarda con los modelos (`Propiedad`, `Ubicacion`, `Imagen`) → deja registro en el historial y la bitácora → muestra la pantalla `frontend/GestionPropiedades/CU5_RegistrarPropiedad/crear.blade.php`.
 
 ## 7. Uso diario
 
@@ -348,4 +350,4 @@ Nunca subas el archivo `.env` (ya está ignorado por Git).
 
 Una rama por caso de uso: `git checkout -b cu8-nombre-del-caso`, trabajar, `git push -u origin cu8-nombre-del-caso`
 y abrir un *Pull Request* hacia `main` en GitHub. Avisar en el grupo antes de modificar archivos compartidos
-(`frontend/layouts/app.blade.php`, `frontend/Autenticacion/CU1_IniciarSesion/panel.blade.php`, `backend/app/Providers/AppServiceProvider.php`, `backend/database/seeders/DatabaseSeeder.php`).
+(`frontend/layouts/app.blade.php`, `frontend/AutentificacionSeguridad/CU1_IniciarSesion/panel.blade.php`, `backend/app/Providers/AppServiceProvider.php`, `backend/database/seeders/DatabaseSeeder.php`).

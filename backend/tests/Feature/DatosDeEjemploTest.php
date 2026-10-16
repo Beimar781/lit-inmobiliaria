@@ -10,7 +10,7 @@ use App\Models\Propiedad;
 use App\Models\Propietario;
 use App\Models\Rol;
 use App\Models\Usuario;
-use App\Modules\Propiedades\Compartido\LimiteCuartoAnillo;
+use App\Modules\GestionPropiedades\Compartido\LimiteCuartoAnillo;
 use Database\Seeders\ClienteSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\PropiedadSeeder;
