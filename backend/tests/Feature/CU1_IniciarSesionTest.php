@@ -215,15 +215,24 @@ class CU1_IniciarSesionTest extends SistemaTestCase
             ->assertDontSee(route('bitacora.index'), false);
     }
 
-    public function test_el_panel_del_asistente_y_del_cliente_no_tiene_modulos(): void
+    public function test_el_panel_del_asistente_solo_muestra_el_paquete_de_autentificacion(): void
     {
-        foreach ([$this->asistente(), $this->cliente()] as $usuario) {
-            $this->actingAs($usuario)->get(route('panel'))
-                ->assertOk()
-                ->assertSee('no tiene opciones disponibles')
-                ->assertDontSee(route('propiedades.index'), false)
-                ->assertDontSee(route('usuarios.index'), false);
-        }
+        $this->actingAs($this->asistente())->get(route('panel'))
+            ->assertOk()
+            ->assertSee('Autentificación y Seguridad')
+            ->assertSee('Cerrar sesión')
+            ->assertDontSee('Gestionar usuarios')
+            ->assertDontSee(route('propiedades.index'), false)
+            ->assertDontSee(route('usuarios.index'), false);
+    }
+
+    public function test_el_panel_del_cliente_no_tiene_modulos_del_personal(): void
+    {
+        $this->actingAs($this->cliente())->get(route('panel'))
+            ->assertOk()
+            ->assertSee('no tiene opciones disponibles')
+            ->assertDontSee(route('propiedades.index'), false)
+            ->assertDontSee(route('usuarios.index'), false);
     }
 
     // ------------------------------------------------- cuenta desactivada en vivo
