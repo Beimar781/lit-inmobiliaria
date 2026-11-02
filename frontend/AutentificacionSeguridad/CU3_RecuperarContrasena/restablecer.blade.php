@@ -7,7 +7,7 @@
     <div class="col-md-5 col-lg-4">
         <div class="card shadow-sm">
             <div class="card-body p-4">
-                <h1 class="h4 mb-4 text-center">Nueva contraseña</h1>
+                <h1 class="h4 mb-4 text-center">Nueva contraseña <span class="cu-etiqueta">(CU3)</span></h1>
 
                 <form method="POST" action="{{ route('password.update') }}" novalidate>
                     @csrf

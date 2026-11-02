@@ -5,18 +5,9 @@ namespace Tests\Feature;
 use App\Models\Rol;
 use Illuminate\Support\Facades\Route;
 
-/** El panel muestra los paquetes del documento y, dentro de cada uno, los casos de uso que el rol puede usar. */
+/** El panel muestra una tarjeta por módulo, solo las que el rol puede usar (config/paquetes.php). */
 class PanelPaquetesTest extends SistemaTestCase
 {
-    private const PAQUETES = [
-        'P1' => 'Autentificación y Seguridad',
-        'P2' => 'Gestión de Propiedades',
-        'P3' => 'Búsqueda y Consulta de Inmuebles',
-        'P4' => 'CRM y Gestión de Clientes',
-        'P5' => 'Agenda, Visitas y Pagos',
-        'P6' => 'Reportes y Administración del Sistema',
-    ];
-
     private function panel($usuario)
     {
         return $this->actingAs($usuario)->get(route('panel'))->assertOk();
@@ -24,176 +15,90 @@ class PanelPaquetesTest extends SistemaTestCase
 
     public function test_la_configuracion_tiene_los_6_paquetes_con_los_nombres_del_documento_en_orden(): void
     {
-        $paquetes = config('paquetes');
-
-        $this->assertSame(array_keys(self::PAQUETES), array_column($paquetes, 'codigo'));
-        $this->assertSame(array_values(self::PAQUETES), array_column($paquetes, 'nombre'));
+        $this->assertSame(['P1', 'P2', 'P3', 'P4', 'P5', 'P6'], array_keys(config('paquetes.paquetes')));
+        $this->assertSame([
+            'Autentificación y Seguridad',
+            'Gestión de Propiedades',
+            'Búsqueda y Consulta de Inmuebles',
+            'CRM y Gestión de Clientes',
+            'Agenda, Visitas y Pagos',
+            'Reportes y Administración del Sistema',
+        ], array_values(config('paquetes.paquetes')));
     }
 
-    public function test_cada_caso_de_uso_de_la_configuracion_esta_completo_y_su_ruta_existe(): void
+    public function test_cada_tarjeta_esta_completa_pertenece_a_un_paquete_y_su_ruta_existe(): void
     {
-        $codigos = [];
-
-        foreach (config('paquetes') as $paquete) {
-            foreach (array_merge($paquete['casos'], $paquete['administracion'] ?? [], $paquete['portal'] ?? []) as $caso) {
-                $this->assertNotEmpty($caso['nombre']);
-                $this->assertNotEmpty($caso['roles'], $caso['nombre']);
-                $this->assertTrue(Route::has($caso['ruta']), "Falta la ruta {$caso['ruta']} de {$caso['nombre']}");
-
-                if (isset($caso['codigo'])) {
-                    $this->assertContains($caso['ciclo'], ['I', 'II', 'III'], $caso['codigo']);
-                    $this->assertNotContains($caso['codigo'], $codigos, 'CU repetido');
-                    $codigos[] = $caso['codigo'];
-                }
-            }
+        foreach (config('paquetes.tarjetas') as $tarjeta) {
+            $this->assertArrayHasKey($tarjeta['paquete'], config('paquetes.paquetes'), $tarjeta['titulo']);
+            $this->assertNotEmpty($tarjeta['titulo']);
+            $this->assertNotEmpty($tarjeta['descripcion'], $tarjeta['titulo']);
+            $this->assertNotEmpty($tarjeta['roles'], $tarjeta['titulo']);
+            $this->assertTrue(Route::has($tarjeta['ruta']), "Falta la ruta {$tarjeta['ruta']} de {$tarjeta['titulo']}");
         }
-
-        // Sin importar el orden dentro de cada paquete: están todos los CU implementados hasta ahora.
-        sort($codigos, SORT_NATURAL);
-        $esperados = array_map(fn ($n) => "CU{$n}", array_merge(range(1, 17), [26, 27, 28, 29, 30]));
-        sort($esperados, SORT_NATURAL);
-        $this->assertSame($esperados, $codigos);
     }
 
-    public function test_el_administrador_ve_los_6_paquetes_y_los_cu_de_los_ciclos_i_ii_y_iii(): void
+    public function test_el_administrador_ve_todas_las_tarjetas_del_personal(): void
     {
-        $respuesta = $this->panel($this->admin());
-
-        foreach (self::PAQUETES as $nombre) {
-            $respuesta->assertSee($nombre);
-        }
-        foreach ([
-            'Iniciar sesión', 'Cerrar sesión', 'Recuperar contraseña', 'Gestionar usuarios',
-            'Registrar propiedad', 'Modificar propiedad', 'Eliminar propiedad', 'Cambiar estado de propiedad',
-            'Buscar propiedades', 'Filtrar propiedades', 'Ver detalle de propiedad',
-            'Gestionar prospectos CRM', 'Agendar visita a inmueble', 'Reagendar visita', 'Cancelar visita', 'Ver calendario de visitas', 'Gestionar reservas de propiedad', 'Gestionar contratos', 'Registrar pago', 'Consultar historial de pagos', 'Generar comprobante de pago',
-        ] as $caso) {
-            $respuesta->assertSee($caso);
-        }
-        $respuesta->assertSee(route('usuarios.index'), false)
-            ->assertSee(route('propiedades.create'), false)
-            ->assertSee(route('catalogo.index'), false)
-            ->assertSee(route('prospectos.index'), false)
-            ->assertSee('Administración')
-            ->assertSee(route('bitacora.index'), false)
-            // CU12 por la vía del agente: el administrador no tiene ese formulario
-            ->assertDontSee('Registrar cliente interesado');
+        $this->panel($this->admin())
+            ->assertSee('Usuarios')->assertSee('Propiedades')->assertSee('Prospectos CRM')->assertSee('Catálogo')
+            ->assertSee('Calendario de visitas')->assertSee('Reservas')->assertSee('Contratos')
+            ->assertSee('Registrar pago')->assertSee('Historial de pagos')->assertSee('Bitácora')
+            ->assertDontSee('Mis contratos y pagos');
     }
 
-    public function test_la_bitacora_va_en_un_bloque_de_administracion_dentro_de_p6(): void
+    public function test_el_agente_ve_solo_las_tarjetas_de_su_rol(): void
     {
-        $html = $this->panel($this->admin())->getContent();
-
-        $p6 = strpos($html, 'Reportes y Administración del Sistema');
-        $this->assertNotFalse($p6);
-        $this->assertGreaterThan($p6, strpos($html, 'Administración</li>'));
-        $this->assertGreaterThan($p6, strpos($html, route('bitacora.index')));
+        $this->panel($this->agente())
+            ->assertSee('Propiedades')->assertSee('Prospectos CRM')->assertSee('Calendario de visitas')
+            ->assertSee('Reservas')->assertSee('Contratos')
+            ->assertDontSee('Usuarios')->assertDontSee('Bitácora')
+            ->assertDontSee('Registrar pago')->assertDontSee('Historial de pagos');
     }
 
-    public function test_el_agente_ve_solo_los_cu_de_su_rol(): void
+    public function test_el_asistente_ve_las_reservas_y_los_pagos(): void
     {
-        $respuesta = $this->panel($this->agente());
-
-        foreach (['P1' => true, 'P2' => true, 'P3' => true, 'P4' => true, 'P5' => true, 'P6' => false] as $codigo => $visible) {
-            $visible
-                ? $respuesta->assertSee(self::PAQUETES[$codigo])
-                : $respuesta->assertDontSee(self::PAQUETES[$codigo]);
-        }
-        $respuesta
-            ->assertSee('Iniciar sesión')->assertSee('Cerrar sesión')->assertSee('Recuperar contraseña')
-            ->assertSee('Registrar propiedad')->assertSee('Modificar propiedad')->assertSee('Cambiar estado de propiedad')
-            ->assertSee('Buscar propiedades')->assertSee('Filtrar propiedades')->assertSee('Ver detalle de propiedad')
-            ->assertSee('Registrar cliente interesado')->assertSee('Gestionar prospectos CRM')->assertSee('Agendar visita a inmueble')->assertSee('Ver calendario de visitas')->assertSee('Gestionar reservas de propiedad')->assertSee('Gestionar contratos')
-            ->assertSee(route('prospectos.create'), false)
-            // lo que no es del agente
-            ->assertDontSee('Registrar pago')->assertDontSee('Consultar historial de pagos')->assertDontSee('Generar comprobante de pago')
-            ->assertDontSee('Gestionar usuarios')
-            ->assertDontSee('Eliminar propiedad')
-            ->assertDontSee('Bitácora')
-            ->assertDontSee(route('usuarios.index'), false)
-            ->assertDontSee(route('bitacora.index'), false);
+        $this->panel($this->asistente())
+            ->assertSee('Reservas')->assertSee('Registrar pago')->assertSee('Historial de pagos')
+            ->assertDontSee('Propiedades')->assertDontSee('Contratos')->assertDontSee('Calendario de visitas');
     }
 
-    public function test_el_asistente_ve_el_paquete_p1_y_las_reservas_y_los_pagos_del_paquete_p5(): void
+    public function test_el_cliente_solo_ve_su_tarjeta_mis_contratos_y_pagos(): void
     {
-        $respuesta = $this->panel($this->asistente());
-
-        $respuesta->assertSee(self::PAQUETES['P1'])
-            ->assertSee('Cerrar sesión')
-            ->assertSee(self::PAQUETES['P5'])
-            ->assertSee('Gestionar reservas de propiedad')
-            ->assertSee('Registrar pago')->assertSee('Consultar historial de pagos')->assertSee('Generar comprobante de pago')
-            ->assertDontSee('Gestionar usuarios')
-            ->assertDontSee('Registrar propiedad')
-            ->assertDontSee('Buscar propiedades')
-            ->assertDontSee('Gestionar prospectos CRM')
-            ->assertDontSee('Agendar visita a inmueble')
-            ->assertDontSee('Ver calendario de visitas')
-            ->assertDontSee('Gestionar contratos')
-            ->assertDontSee('Bitácora');
-
-        foreach (['P2', 'P3', 'P4', 'P6'] as $codigo) {
-            $respuesta->assertDontSee(self::PAQUETES[$codigo]);
-        }
+        $this->panel($this->cliente())
+            ->assertSee('Mis contratos y pagos')
+            ->assertSee(route('portal.contratos'), false)
+            ->assertDontSee('Propiedades')->assertDontSee('Reservas')->assertDontSee('Registrar pago');
     }
 
-    public function test_el_cliente_solo_ve_su_opcion_mis_contratos_y_pagos(): void
-    {
-        $respuesta = $this->panel($this->cliente());
-
-        $respuesta->assertSee('Mis contratos y pagos')->assertSee('Mi cuenta')->assertDontSee('no tiene opciones disponibles');
-        foreach (['P1', 'P2', 'P3', 'P4', 'P6'] as $codigo) {
-            $respuesta->assertDontSee(self::PAQUETES[$codigo]);
-        }
-        foreach (['Gestionar reservas', 'Gestionar contratos', 'Registrar pago', 'Consultar historial', 'Agendar visita', 'Ver calendario'] as $texto) {
-            $respuesta->assertDontSee($texto);
-        }
-    }
-
-    public function test_el_personal_no_ve_la_opcion_del_cliente(): void
+    public function test_el_personal_no_ve_la_tarjeta_del_cliente(): void
     {
         foreach ([$this->admin(), $this->agente(), $this->asistente()] as $usuario) {
             $this->panel($usuario)->assertDontSee('Mis contratos y pagos');
         }
     }
 
-    public function test_cerrar_sesion_aparece_como_boton_y_no_como_enlace(): void
+    public function test_el_panel_no_muestra_numeros_de_caso_de_uso(): void
     {
-        $this->panel($this->agente())
-            ->assertSee('action="' . route('logout') . '"', false)
-            ->assertSee('<button type="submit" class="btn btn-link p-0 text-start text-decoration-none">', false);
+        $this->panel($this->admin())->assertDontSee('(CU');
     }
 
-    public function test_un_cu_cuya_ruta_todavia_no_existe_no_se_muestra(): void
+    public function test_un_rol_sin_tarjetas_ve_el_aviso(): void
     {
-        $paquetes = config('paquetes');
-        $paquetes[4]['casos'][] = [
-            'codigo' => 'CU99', 'nombre' => 'Caso sin ruta', 'ciclo' => 'III', 'ruta' => 'ruta.que.no.existe',
-            'roles' => [Rol::ADMINISTRADOR],
-        ];
-        config(['paquetes' => $paquetes]);
+        $this->actingAs($this->admin());
+        config(['paquetes.tarjetas' => [
+            ['paquete' => 'P1', 'titulo' => 'Solo agentes', 'descripcion' => 'x', 'ruta' => 'propiedades.index', 'roles' => [Rol::AGENTE]],
+        ]]);
 
-        $this->panel($this->admin())->assertDontSee('Caso sin ruta');
+        $this->get(route('panel'))->assertOk()->assertSee('no tiene opciones disponibles');
     }
 
-    public function test_un_cu_nuevo_de_la_configuracion_aparece_dentro_de_su_paquete_solo_para_sus_roles(): void
+    public function test_una_tarjeta_cuya_ruta_no_existe_no_se_muestra(): void
     {
-        $paquetes = config('paquetes');
-        $paquetes[4]['casos'][] = [
-            'codigo' => 'CU98', 'nombre' => 'Caso de prueba del paquete cinco', 'ciclo' => 'III', 'ruta' => 'bitacora.index',
-            'roles' => [Rol::ADMINISTRADOR, Rol::ASISTENTE],
-        ];
-        config(['paquetes' => $paquetes]);
+        $this->actingAs($this->admin());
+        config(['paquetes.tarjetas' => [
+            ['paquete' => 'P1', 'titulo' => 'Tarjeta fantasma', 'descripcion' => 'x', 'ruta' => 'ruta.que.no.existe', 'roles' => [Rol::ADMINISTRADOR]],
+        ]]);
 
-        $this->panel($this->admin())->assertSee('Caso de prueba del paquete cinco');
-        $this->panel($this->asistente())->assertSee('Caso de prueba del paquete cinco')->assertSee(self::PAQUETES['P5']);
-        $this->panel($this->agente())->assertDontSee('Caso de prueba del paquete cinco');
-    }
-
-    public function test_el_panel_esta_preparado_para_celular(): void
-    {
-        $this->panel($this->admin())
-            ->assertSee('name="viewport"', false)
-            ->assertSee('col-12 col-md-6 col-xl-4', false);
+        $this->get(route('panel'))->assertOk()->assertDontSee('Tarjeta fantasma');
     }
 }

@@ -666,14 +666,14 @@ class CU27_GestionarContratosTest extends SistemaTestCase
         $this->assertSame(Propiedad::RESERVADO, $propiedad->fresh()->estadopropiedad);
     }
 
-    public function test_el_panel_lista_el_cu27_para_el_agente_y_el_administrador(): void
+    public function test_el_panel_ofrece_los_contratos_al_agente_y_al_administrador(): void
     {
         foreach ([$this->agente(), $this->admin()] as $usuario) {
             $this->actingAs($usuario)->get(route('panel'))
-                ->assertSee('Gestionar contratos')
+                ->assertSee('Contratos')
                 ->assertSee(route('contratos.index'), false);
         }
-        $this->actingAs($this->asistente())->get(route('panel'))->assertDontSee('Gestionar contratos');
+        $this->actingAs($this->asistente())->get(route('panel'))->assertDontSee('Contratos');
     }
 
     public function test_desde_el_listado_de_reservas_se_ofrece_crear_el_contrato(): void

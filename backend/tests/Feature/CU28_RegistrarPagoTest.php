@@ -425,14 +425,14 @@ class CU28_RegistrarPagoTest extends SistemaTestCase
         $this->assertSame(1000.0, $contrato->saldoUsd());
     }
 
-    public function test_el_panel_lista_el_cu28_y_el_cu30_para_el_asistente_y_el_administrador_pero_no_para_el_agente(): void
+    public function test_el_panel_ofrece_registrar_pago_al_asistente_y_al_administrador_pero_no_para_el_agente(): void
     {
         foreach ([$this->asistente(), $this->admin()] as $usuario) {
             $this->actingAs($usuario)->get(route('panel'))
-                ->assertSee('Registrar pago')->assertSee('Generar comprobante de pago')
+                ->assertSee('Registrar pago')
                 ->assertSee(route('pagos.create'), false);
         }
-        $this->actingAs($this->agente())->get(route('panel'))->assertDontSee('Registrar pago')->assertDontSee('Generar comprobante de pago');
+        $this->actingAs($this->agente())->get(route('panel'))->assertDontSee('Registrar pago');
     }
 
     public function test_el_detalle_del_contrato_ofrece_registrar_pago_al_administrador_y_no_al_agente(): void

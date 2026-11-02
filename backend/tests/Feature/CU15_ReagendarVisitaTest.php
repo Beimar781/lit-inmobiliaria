@@ -374,11 +374,11 @@ class CU15_ReagendarVisitaTest extends SistemaTestCase
         $this->assertSame(Visita::PROGRAMADA, $visita->fresh()->estado);
     }
 
-    public function test_el_panel_lista_el_cu15_para_el_agente_y_el_administrador(): void
+    public function test_el_panel_ofrece_el_calendario_de_visitas_al_agente_y_al_administrador(): void
     {
         foreach ([$this->agente(), $this->admin()] as $usuario) {
-            $this->actingAs($usuario)->get(route('panel'))->assertSee('Reagendar visita');
+            $this->actingAs($usuario)->get(route('panel'))->assertSee('Calendario de visitas');
         }
-        $this->actingAs($this->asistente())->get(route('panel'))->assertDontSee('Reagendar visita');
+        $this->actingAs($this->asistente())->get(route('panel'))->assertDontSee('Calendario de visitas');
     }
 }

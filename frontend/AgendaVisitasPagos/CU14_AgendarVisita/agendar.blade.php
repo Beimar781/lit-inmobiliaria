@@ -5,7 +5,7 @@
 @section('contenido')
 <a href="{{ route('catalogo.detalle', $propiedad) }}" class="text-decoration-none">&larr; Volver a la ficha de la propiedad</a>
 
-<h1 class="h3 my-3">Agendar visita</h1>
+<h1 class="h3 my-3">Agendar visita <span class="cu-etiqueta">(CU14)</span></h1>
 
 <div class="row g-4">
     <div class="col-lg-4 order-lg-2">

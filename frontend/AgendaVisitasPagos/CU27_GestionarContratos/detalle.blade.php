@@ -10,7 +10,7 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 my-3">
     <div>
-        <h1 class="h3 mb-1">Contrato N.º {{ $contrato->idcontrato }} &middot; {{ $contrato->tipocontrato }}</h1>
+        <h1 class="h3 mb-1">Contrato N.º {{ $contrato->idcontrato }} &middot; {{ $contrato->tipocontrato }} <span class="cu-etiqueta">(CU27)</span></h1>
         <p class="text-muted mb-0">{{ $contrato->propiedad->codigo }} &middot; {{ $contrato->propiedad->titulo }}</p>
     </div>
     <span class="badge text-bg-{{ $colores[$contrato->estado] ?? 'secondary' }} fs-6">{{ $contrato->estado_etiqueta }}</span>

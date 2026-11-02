@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('titulo', 'LIT Inmobiliaria')</title>
     <link href="{{ asset('vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+    <style>
+        /* Número del caso de uso junto al título de cada pantalla, en un gris suave */
+        .cu-etiqueta { font-size: .55em; font-weight: 400; color: #adb5bd; margin-left: .25rem; white-space: nowrap; }
+    </style>
     @stack('estilos')
 </head>
 <body class="bg-light">

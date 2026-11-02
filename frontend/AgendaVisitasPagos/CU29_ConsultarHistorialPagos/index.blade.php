@@ -7,7 +7,7 @@
 
 @section('contenido')
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="h3 mb-0">Historial de pagos</h1>
+    <h1 class="h3 mb-0">Historial de pagos <span class="cu-etiqueta">(CU29)</span></h1>
     <a href="{{ route('pagos.create') }}" class="btn btn-primary">Registrar pago</a>
 </div>
 

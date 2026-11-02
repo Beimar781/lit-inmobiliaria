@@ -7,7 +7,7 @@
 
 @section('contenido')
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="h3 mb-0">Reservas de propiedades</h1>
+    <h1 class="h3 mb-0">Reservas de propiedades <span class="cu-etiqueta">(CU26)</span></h1>
     @if ($puedeCobrar)
         <a href="{{ route('reservas.create') }}" class="btn btn-primary">Nueva reserva</a>
     @endif

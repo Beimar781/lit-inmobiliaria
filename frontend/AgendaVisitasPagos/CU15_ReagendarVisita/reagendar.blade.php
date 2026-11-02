@@ -5,7 +5,7 @@
 @section('contenido')
 <a href="{{ route('visitas.show', $visita) }}" class="text-decoration-none">&larr; Volver al detalle de la visita</a>
 
-<h1 class="h3 my-3">Reagendar visita</h1>
+<h1 class="h3 my-3">Reagendar visita <span class="cu-etiqueta">(CU15)</span></h1>
 
 <div class="row g-4">
     <div class="col-lg-4 order-lg-2">

@@ -6,7 +6,7 @@
 @php($coloresPago = ['PAGADO' => 'success', 'PENDIENTE' => 'warning', 'ANULADO' => 'secondary'])
 
 @section('contenido')
-<h1 class="h3 mb-3">Registrar pago</h1>
+<h1 class="h3 mb-3">Registrar pago <span class="cu-etiqueta">(CU28)</span></h1>
 
 {{-- Paso 2: elegir el contrato vigente --}}
 <div class="card shadow-sm mb-4">

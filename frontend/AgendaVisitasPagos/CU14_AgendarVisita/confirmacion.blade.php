@@ -6,7 +6,7 @@
 <div class="row justify-content-center">
     <div class="col-lg-7">
         <div class="alert alert-success">
-            <h1 class="h4 mb-1">¡Visita agendada!</h1>
+            <h1 class="h4 mb-1">¡Visita agendada! <span class="cu-etiqueta">(CU14)</span></h1>
             <p class="mb-0">
                 {{ $personal ? 'La visita quedó registrada.' : 'Recibimos tu solicitud. El agente a cargo se pondrá en contacto contigo.' }}
             </p>

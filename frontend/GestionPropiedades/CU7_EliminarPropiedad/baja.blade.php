@@ -4,7 +4,7 @@
 
 @section('contenido')
 <a href="{{ route('propiedades.index') }}" class="text-decoration-none">&larr; Volver a propiedades</a>
-<h1 class="h3 my-3">Dar de baja propiedad</h1>
+<h1 class="h3 my-3">Dar de baja propiedad <span class="cu-etiqueta">(CU7)</span></h1>
 
 @error('propiedad')
     <div class="alert alert-danger">{{ $message }}</div>

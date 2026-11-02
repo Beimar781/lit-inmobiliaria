@@ -7,7 +7,7 @@
     <div class="col-md-5 col-lg-4">
         <div class="card shadow-sm">
             <div class="card-body p-4">
-                <h1 class="h4 mb-2 text-center">Recuperar contraseña</h1>
+                <h1 class="h4 mb-2 text-center">Recuperar contraseña <span class="cu-etiqueta">(CU3)</span></h1>
                 <p class="text-muted small text-center">Ingresa tu correo y te enviaremos un enlace para crear una nueva contraseña.</p>
 
                 <form method="POST" action="{{ route('password.email') }}" novalidate>

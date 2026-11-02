@@ -4,7 +4,7 @@
 
 @section('contenido')
 <div class="text-center py-5">
-    <h1 class="h3 mb-2">Comprobante no disponible</h1>
+    <h1 class="h3 mb-2">Comprobante no disponible <span class="cu-etiqueta">(CU30)</span></h1>
     <p class="text-muted">{{ $motivo }} Solo los pagos registrados y no anulados tienen comprobante.</p>
     <a href="{{ $volver ?? route('pagos.create') }}" class="btn btn-primary">{{ $textoVolver ?? 'Registrar pago' }}</a>
 </div>

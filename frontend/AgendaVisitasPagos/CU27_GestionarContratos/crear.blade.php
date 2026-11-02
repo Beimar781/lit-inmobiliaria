@@ -4,7 +4,7 @@
 
 @section('contenido')
 <a href="{{ route('contratos.index') }}" class="text-decoration-none">&larr; Volver a contratos</a>
-<h1 class="h3 my-3">Nuevo contrato</h1>
+<h1 class="h3 my-3">Nuevo contrato <span class="cu-etiqueta">(CU27)</span></h1>
 
 <div class="row">
     <div class="col-lg-7">
