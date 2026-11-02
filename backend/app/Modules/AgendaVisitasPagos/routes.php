@@ -5,6 +5,8 @@ use App\Http\Middleware\RolMiddleware;
 use App\Models\Rol;
 use App\Modules\AgendaVisitasPagos\CU15_ReagendarVisita\ReagendarVisitaController;
 use App\Modules\AgendaVisitasPagos\CU16_CancelarVisita\CancelarVisitaController;
+use App\Modules\AgendaVisitasPagos\CU26_GestionarReservas\ReservaController;
+use App\Modules\AgendaVisitasPagos\CU27_GestionarContratos\ContratoController;
 use App\Modules\AgendaVisitasPagos\CU17_VerCalendarioVisitas\CalendarioVisitasController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,4 +42,17 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
 
     // Acción del detalle (decisión del equipo): marcar la visita como realizada
     Route::patch('/agenda/visitas/{visita}/realizada', [CalendarioVisitasController::class, 'marcarRealizada'])->whereNumber('visita')->name('visitas.realizada');
+
+    // CU26: Gestionar reservas (el Agente solo con las de sus propiedades: se comprueba en el formulario y en el controlador)
+    Route::get('/reservas', [ReservaController::class, 'index'])->name('reservas.index');
+    Route::get('/reservas/crear', [ReservaController::class, 'crear'])->name('reservas.create');
+    Route::post('/reservas', [ReservaController::class, 'guardar'])->name('reservas.store');
+    Route::patch('/reservas/{reserva}/cancelar', [ReservaController::class, 'cancelar'])->whereNumber('reserva')->name('reservas.cancelar');
+
+    // CU27: Gestionar contratos (el Agente solo con los de sus propiedades)
+    Route::get('/contratos', [ContratoController::class, 'index'])->name('contratos.index');
+    Route::get('/contratos/crear', [ContratoController::class, 'crear'])->name('contratos.create');
+    Route::post('/contratos', [ContratoController::class, 'guardar'])->name('contratos.store');
+    Route::get('/contratos/{contrato}', [ContratoController::class, 'show'])->whereNumber('contrato')->name('contratos.show');
+    Route::patch('/contratos/{contrato}/estado', [ContratoController::class, 'cambiarEstado'])->whereNumber('contrato')->name('contratos.estado');
 });

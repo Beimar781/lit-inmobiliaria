@@ -50,7 +50,7 @@ class PanelPaquetesTest extends SistemaTestCase
 
         // Sin importar el orden dentro de cada paquete: están todos los CU implementados hasta ahora.
         sort($codigos, SORT_NATURAL);
-        $esperados = array_map(fn ($n) => "CU{$n}", range(1, 17));
+        $esperados = array_map(fn ($n) => "CU{$n}", array_merge(range(1, 17), [26, 27]));
         sort($esperados, SORT_NATURAL);
         $this->assertSame($esperados, $codigos);
     }
@@ -66,7 +66,7 @@ class PanelPaquetesTest extends SistemaTestCase
             'Iniciar sesión', 'Cerrar sesión', 'Recuperar contraseña', 'Gestionar usuarios',
             'Registrar propiedad', 'Modificar propiedad', 'Eliminar propiedad', 'Cambiar estado de propiedad',
             'Buscar propiedades', 'Filtrar propiedades', 'Ver detalle de propiedad',
-            'Gestionar prospectos CRM', 'Agendar visita a inmueble', 'Reagendar visita', 'Cancelar visita', 'Ver calendario de visitas',
+            'Gestionar prospectos CRM', 'Agendar visita a inmueble', 'Reagendar visita', 'Cancelar visita', 'Ver calendario de visitas', 'Gestionar reservas de propiedad', 'Gestionar contratos',
         ] as $caso) {
             $respuesta->assertSee($caso);
         }
@@ -103,7 +103,7 @@ class PanelPaquetesTest extends SistemaTestCase
             ->assertSee('Iniciar sesión')->assertSee('Cerrar sesión')->assertSee('Recuperar contraseña')
             ->assertSee('Registrar propiedad')->assertSee('Modificar propiedad')->assertSee('Cambiar estado de propiedad')
             ->assertSee('Buscar propiedades')->assertSee('Filtrar propiedades')->assertSee('Ver detalle de propiedad')
-            ->assertSee('Registrar cliente interesado')->assertSee('Gestionar prospectos CRM')->assertSee('Agendar visita a inmueble')->assertSee('Ver calendario de visitas')
+            ->assertSee('Registrar cliente interesado')->assertSee('Gestionar prospectos CRM')->assertSee('Agendar visita a inmueble')->assertSee('Ver calendario de visitas')->assertSee('Gestionar reservas de propiedad')->assertSee('Gestionar contratos')
             ->assertSee(route('prospectos.create'), false)
             // lo que no es del agente
             ->assertDontSee('Gestionar usuarios')

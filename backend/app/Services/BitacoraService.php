@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Event;
  */
 class BitacoraService
 {
-    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM', 'Agenda'];
+    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM', 'Agenda', 'Reservas', 'Contratos'];
 
     public const ETIQUETAS = [
         'INICIO_SESION' => 'Inicio de sesión',
@@ -39,6 +39,13 @@ class BitacoraService
         'VISITA_REALIZADA' => 'Visita marcada como realizada',
         'VISITA_REAGENDADA' => 'Visita reagendada',
         'VISITA_CANCELADA' => 'Visita cancelada',
+        'RESERVA_REGISTRADA' => 'Reserva registrada',
+        'RESERVA_CANCELADA' => 'Reserva cancelada',
+        'RESERVA_VENCIDA' => 'Reserva vencida',
+        'RESERVA_CONCRETADA' => 'Reserva concretada en contrato',
+        'CONTRATO_REGISTRADO' => 'Contrato registrado',
+        'CONTRATO_FINALIZADO' => 'Contrato finalizado',
+        'CONTRATO_RESCINDIDO' => 'Contrato rescindido',
     ];
 
     /**
