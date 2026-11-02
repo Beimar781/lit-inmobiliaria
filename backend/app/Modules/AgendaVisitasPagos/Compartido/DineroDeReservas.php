@@ -134,6 +134,15 @@ class DineroDeReservas
         return $pago;
     }
 
+    /** El último tipo de cambio usado en un pago o en una reserva en bolivianos, para sugerirlo en el formulario de pago (la persona debe confirmarlo). */
+    public static function ultimoTipoCambioDePago(): ?string
+    {
+        $valor = TipoPago::orderByDesc('idpago')->value('cambiodemonedalocal')
+            ?? MovimientoReserva::whereNotNull('tipocambio')->orderByDesc('idmovimiento')->value('tipocambio');
+
+        return $valor !== null ? rtrim(rtrim(number_format((float) $valor, 4, '.', ''), '0'), '.') : null;
+    }
+
     /** El último tipo de cambio usado en una reserva en bolivianos, para sugerirlo (la persona debe confirmarlo). */
     public static function ultimoTipoCambio(): ?string
     {

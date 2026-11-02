@@ -11,8 +11,10 @@ use App\Services\StripeService;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Pago con tarjeta de un contrato con Stripe Checkout (modo de prueba). Por defecto solo en dólares (USD); en bolivianos (BOB)
- * solo si la cuenta de Stripe lo acepta y se activó STRIPE_ACEPTA_BOB. El pago nace PENDIENTE y pasa a PAGADO únicamente cuando Stripe confirma que se cobró.
+ * Pago con tarjeta de un contrato con Stripe Checkout (modo de prueba). El pago puede ser en dólares (USD) o en bolivianos (BOB),
+ * pero Stripe SIEMPRE cobra en USD: en bolivianos se cobra el equivalente en dólares con el tipo de cambio manual del día
+ * (monto / tipo de cambio, 2 decimales), nunca con el de Stripe. El pago guarda el monto original, la moneda, el tipo de cambio
+ * y su fecha, y el montousd. Nace PENDIENTE y pasa a PAGADO únicamente cuando Stripe confirma que se cobró ese monto en USD.
  *
  * confirmar() es la función idempotente que usan la página de éxito (consulta la sesión a Stripe desde el servidor) y el webhook:
  * si el pago ya estaba PAGADO no hace nada, así refrescar la página o recibir el webhook dos veces nunca duplica el comprobante.
@@ -31,10 +33,15 @@ class PagoConTarjeta
         return (int) round((float) $montoUsd * 100);
     }
 
-    /** ¿Se puede cobrar con tarjeta en bolivianos? Solo si se activó STRIPE_ACEPTA_BOB. */
-    public static function aceptaBolivianos(): bool
+    /** Mensaje si el equivalente en dólares no llega al mínimo de Stripe (el mínimo se mide siempre en USD); null si está bien. */
+    public static function errorDeMinimo(float $montoUsd, string $moneda): ?string
     {
-        return (bool) config('services.stripe.acepta_bob');
+        if ($montoUsd >= self::MINIMO_USD) {
+            return null;
+        }
+
+        return 'El pago con tarjeta debe ser de al menos USD ' . number_format(self::MINIMO_USD, 2)
+            . ($moneda === Pago::BOB ? ' (equivale a USD ' . number_format($montoUsd, 2) . ').' : '.');
     }
 
     /**
@@ -87,15 +94,15 @@ class PagoConTarjeta
         $descripcion = "Pago contrato {$actual->idcontrato} - {$actual->propiedad->titulo}";
 
         // La llamada a Stripe va fuera de la transacción: es una conexión a internet y puede fallar.
+        // Stripe cobra siempre en dólares: se le pide el equivalente en USD (montousd), no el monto en bolivianos.
         try {
             $sesion = $this->stripe->crearSesionDePago(
-                self::centavos($monto),
+                self::centavos($montoUsd),
                 $descripcion,
                 (string) $pago->idpago,
                 ['idpago' => (string) $pago->idpago, 'idcontrato' => (string) $actual->idcontrato],
                 route($rutaExito, $pago) . '?session_id={CHECKOUT_SESSION_ID}',
                 route($rutaCancelado, $pago),
-                strtolower($moneda),
             );
         } catch (\Throwable $error) {
             report($error);
@@ -141,10 +148,11 @@ class PagoConTarjeta
                 return $actual;
             }
 
-            // La sesión debe ser la de este pago, en la misma moneda y por el mismo monto: no se confía en datos sueltos.
+            // La sesión debe ser la de este pago y haberse cobrado en dólares por su equivalente en USD (también en un pago
+            // en bolivianos): no se confía en datos sueltos.
             $coincide = ($actual->stripe_session_id === null || $actual->stripe_session_id === ($sesion['id'] ?? null))
-                && ($sesion['currency'] ?? null) === strtolower($actual->moneda)
-                && (int) ($sesion['amount_total'] ?? -1) === self::centavos($actual->monto);
+                && ($sesion['currency'] ?? null) === 'usd'
+                && (int) ($sesion['amount_total'] ?? -1) === self::centavos($actual->montousd);
             if (! $coincide) {
                 $motivo = 'Los datos de Stripe no coinciden con el pago.';
 

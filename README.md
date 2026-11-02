@@ -235,7 +235,7 @@ El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con
 - **Visitas (CU14–CU17):** el cliente agenda sin iniciar sesión desde la ficha de una propiedad *Disponible*; el Agente o el Administrador también pueden agendar en nombre de un cliente. Horario de 08:00 a 18:00 en bloques de 1 hora, con la hora de Bolivia. El agente de la propiedad no puede tener dos visitas a la vez (las canceladas no ocupan horario). Reagendar y cancelar piden el motivo; la visita cancelada se conserva. El calendario (mes o semana) lo ve cada agente con lo suyo y el Administrador con todo; desde el detalle también se puede marcar una visita como realizada.
 - **Reservas (CU26):** se pagan **en efectivo** (dólares o bolivianos), con o sin visita previa. Las registra el Agente (sus propiedades y prospectos) o, si el agente no puede, el Asistente o el Administrador. Mínimo: 1 % del precio. La propiedad pasa a *Reservado* hasta la fecha de plazo. Si el cliente **no formaliza la compra** (la reserva se cancela o vence), se le devuelve en efectivo el **80 %** y la empresa retiene el **20 %** (`RESERVA_RETENCION` en el `.env`); las reservas vencidas o canceladas se conservan como respaldo. Si la formaliza, el dinero de la reserva pasa a ser el **primer pago del contrato**. Los recibos de reserva y de devolución (`RV-AAAA-000001`, `DV-AAAA-000001`) no son el comprobante del pago formal.
 - **Contratos (CU27):** el contrato es de la propiedad y del cliente, en **dólares**; el tipo (venta, alquiler o anticrético) sale de la propiedad. La propiedad pasa a *Vendido* o *Alquilado*; si se rescinde (motivo obligatorio), vuelve a *Disponible*.
-- **Pagos (CU28):** los registra el Asistente o el Administrador sobre contratos vigentes; no pueden superar el saldo. Se pagan en **dólares o bolivianos**; en bolivianos el **tipo de cambio oficial del día es obligatorio** y se escribe a mano (el contrato no se recalcula nunca: cada pago guarda el tipo de cambio de su día). El saldo del contrato se calcula en dólares. También se puede pagar **con tarjeta** (Stripe, ver la sección 10).
+- **Pagos (CU28):** los registra el Asistente o el Administrador sobre contratos vigentes; no pueden superar el saldo. Se pagan en **dólares o bolivianos**; en bolivianos el **tipo de cambio oficial del día es obligatorio** y se escribe a mano (el contrato no se recalcula nunca: cada pago guarda el tipo de cambio de su día). El saldo del contrato se calcula en dólares. También se puede pagar **con tarjeta** (Stripe, ver la sección 10): Stripe siempre cobra en dólares; un pago con tarjeta en bolivianos se cobra por su equivalente (monto ÷ tipo de cambio del día que escribe la persona, redondeado a 2 decimales), nunca con el tipo de cambio de Stripe.
 - **Comprobante (CU30):** cada pago pagado tiene un comprobante `CP-AAAA-000001`, único, que se puede imprimir o guardar como PDF; al volver a emitirlo conserva su número.
 - **Cuenta del cliente:** después del primer pago de un cliente que tiene correo, se le crea una cuenta con rol Cliente y recibe un correo («Activa tu cuenta») con un enlace para establecer su contraseña. Con ella ve **solo sus** contratos, pagos y comprobantes y puede pagar con tarjeta. Si el cliente no tiene correo, el pago se registra igual y se avisa que se registre el correo.
 
@@ -381,7 +381,6 @@ El pago con tarjeta usa **Stripe Checkout en modo de prueba**: no se cobra diner
 |---|---|
 | `STRIPE_SECRET` | Llave secreta **de prueba** de tu cuenta de Stripe (empieza con `sk_test_`) |
 | `STRIPE_WEBHOOK_SECRET` | Secreto de firma del webhook (empieza con `whsec_`) |
-| `STRIPE_ACEPTA_BOB` | `false` por defecto. Si pones `true`, la tarjeta también cobra en bolivianos; hazlo solo después de comprobar que tu cuenta de Stripe acepta la moneda BOB |
 | `RESERVA_RETENCION` | Porcentaje de la reserva que retiene la empresa si el cliente no formaliza la compra (por defecto 20) |
 | `RESERVA_MINIMO` | Mínimo para reservar, como porcentaje del precio (por defecto 1) |
 
@@ -390,7 +389,7 @@ Después de cambiar el `.env`: `php artisan config:clear`.
 **Cómo probar un pago con tarjeta en tu computadora:**
 
 1. Crea una cuenta gratuita en Stripe y, en el modo de prueba, copia tu llave secreta (`sk_test_...`) en `STRIPE_SECRET`.
-2. Inicia el sistema (`php artisan serve`) con el Asistente o el Administrador, abre **Registrar pago**, elige un contrato vigente con saldo, método **Tarjeta**, un monto en dólares (mínimo 0.50) y pulsa **Registrar pago**. Se abre la página de Stripe.
+2. Inicia el sistema (`php artisan serve`) con el Asistente o el Administrador, abre **Registrar pago**, elige un contrato vigente con saldo, método **Tarjeta**, un monto en dólares o en bolivianos con el tipo de cambio del día (mínimo USD 0.50 sobre el equivalente en dólares) y pulsa **Registrar pago**. Se abre la página de Stripe.
 3. Escribe una **tarjeta de prueba** (cualquier fecha futura, cualquier CVC de 3 dígitos y cualquier código postal):
    - `4242 4242 4242 4242` → el pago se cobra y vuelves al sistema con el comprobante.
    - `4000 0000 0000 0002` → la tarjeta es rechazada: el pago no se cobra y queda pendiente.

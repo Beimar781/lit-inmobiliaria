@@ -17,7 +17,7 @@ class StripeFalso extends StripeService
 
     public bool $fallarAlConsultar = false;
 
-    public function crearSesionDePago(int $centavos, string $descripcion, string $referencia, array $metadata, string $urlExito, string $urlCancelado, string $moneda = 'usd'): array
+    public function crearSesionDePago(int $centavos, string $descripcion, string $referencia, array $metadata, string $urlExito, string $urlCancelado): array
     {
         if ($this->fallar) {
             throw new \RuntimeException('Stripe no responde (simulado).');
@@ -29,7 +29,7 @@ class StripeFalso extends StripeService
             'payment_status' => 'unpaid',
             'payment_intent' => null,
             'amount_total' => $centavos,
-            'currency' => strtolower($moneda),
+            'currency' => 'usd',
             'client_reference_id' => $referencia,
             'metadata' => $metadata,
             // lo que se le pidió a Stripe, para comprobarlo en las pruebas

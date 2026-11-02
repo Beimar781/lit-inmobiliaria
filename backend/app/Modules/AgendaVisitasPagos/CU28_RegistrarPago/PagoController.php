@@ -4,7 +4,6 @@ namespace App\Modules\AgendaVisitasPagos\CU28_RegistrarPago;
 
 use App\Http\Controllers\Controller;
 use App\Models\Contrato;
-use App\Models\MovimientoReserva;
 use App\Models\Pago;
 use App\Models\TipoPago;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
@@ -25,8 +24,9 @@ use Illuminate\View\View;
  * Registra los pagos de un contrato VIGENTE. Los contratos están en dólares (USD); el pago puede hacerse en dólares o en
  * bolivianos (BOB). En bolivianos el tipo de cambio oficial del día es obligatorio y lo escribe la persona; el equivalente en
  * dólares (monto / tipo de cambio, 2 decimales) es lo que descuenta el saldo del contrato. El método puede ser efectivo o tarjeta
- * (Stripe Checkout, solo en dólares: el pago queda PENDIENTE hasta que Stripe confirma el cobro). Incluye el CU30: al confirmarse
- * el pago se genera el comprobante.
+ * (Stripe Checkout; Stripe cobra siempre en dólares, también un pago en bolivianos, que se cobra por su equivalente en USD con el
+ * tipo de cambio del día: el pago queda PENDIENTE hasta que Stripe confirma el cobro). Incluye el CU30: al confirmarse el pago se
+ * genera el comprobante.
  * Flujo principal:
  *  1. El actor accede a "Registrar pago"                                      -> crear()
  *  2. El actor busca y selecciona el contrato vigente                         -> crear.blade.php (paso 1)
@@ -59,10 +59,9 @@ class PagoController extends Controller
             'contrato' => $contrato,
             'pagado' => $contrato?->totalPagadoUsd(),
             'saldo' => $contrato?->saldoUsd(),
-            'tipoCambioSugerido' => $this->ultimoTipoCambio(),
+            'tipoCambioSugerido' => DineroDeReservas::ultimoTipoCambioDePago(),
             'hoy' => AgendaDeVisitas::ahora()->toDateString(),
             'metodos' => Pago::METODOS,
-            'tarjetaEnBolivianos' => PagoConTarjeta::aceptaBolivianos(),
         ]);
     }
 
@@ -160,23 +159,19 @@ class PagoController extends Controller
 
     /**
      * Pago con tarjeta: guarda el pago PENDIENTE y manda al cliente a la página de Stripe para escribir la tarjeta.
-     * Se cobra en dólares; en bolivianos solo si se activó STRIPE_ACEPTA_BOB (con el tipo de cambio del día, igual que en efectivo).
+     * Puede ser en dólares o en bolivianos; Stripe siempre cobra en dólares, así que en bolivianos se cobra el equivalente
+     * con el tipo de cambio del día que escribió la persona (igual que en efectivo).
      */
     private function pagarConTarjeta(RegistrarPagoRequest $request, PagoConTarjeta $tarjeta): RedirectResponse
     {
         $moneda = $request->input('moneda');
-
-        if ($moneda === Pago::BOB && ! PagoConTarjeta::aceptaBolivianos()) {
-            return back()->withInput()->withErrors(['moneda' => 'El pago con tarjeta es solo en dólares: Stripe cobra en USD. En bolivianos el pago es en efectivo.']);
-        }
-
         $monto = round((float) $request->input('monto'), 2);
         $tipoCambio = $moneda === Pago::BOB ? $request->input('tipocambio') : null;
         $montoUsd = DineroDeReservas::aUsd($monto, $moneda, $tipoCambio);
 
         // El mínimo de Stripe (USD 0.50) se mide por el equivalente en dólares.
-        if ($montoUsd < PagoConTarjeta::MINIMO_USD) {
-            return back()->withInput()->withErrors(['monto' => 'El pago con tarjeta debe ser de al menos USD ' . number_format(PagoConTarjeta::MINIMO_USD, 2) . ($moneda === Pago::BOB ? ' (equivale a USD ' . number_format($montoUsd, 2) . ').' : '.')]);
+        if ($error = PagoConTarjeta::errorDeMinimo($montoUsd, $moneda)) {
+            return back()->withInput()->withErrors(['monto' => $error]);
         }
 
         $contrato = Contrato::findOrFail($request->input('idcontrato'));
@@ -188,14 +183,5 @@ class PagoController extends Controller
 
         // A la página segura de Stripe (en prueba, con las tarjetas de prueba). Al terminar vuelve a la página de éxito o de cancelación.
         return redirect()->away($resultado['url']);
-    }
-
-    /** El último tipo de cambio usado en un pago o en una reserva en bolivianos; se sugiere, pero la persona debe confirmarlo. */
-    private function ultimoTipoCambio(): ?string
-    {
-        $valor = TipoPago::orderByDesc('idpago')->value('cambiodemonedalocal')
-            ?? MovimientoReserva::whereNotNull('tipocambio')->orderByDesc('idmovimiento')->value('tipocambio');
-
-        return $valor !== null ? rtrim(rtrim(number_format((float) $valor, 4, '.', ''), '0'), '.') : null;
     }
 }
