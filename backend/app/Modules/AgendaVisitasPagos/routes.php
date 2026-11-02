@@ -8,6 +8,7 @@ use App\Modules\AgendaVisitasPagos\CU16_CancelarVisita\CancelarVisitaController;
 use App\Modules\AgendaVisitasPagos\CU28_RegistrarPago\PagoController;
 use App\Modules\AgendaVisitasPagos\CU28_RegistrarPago\PagoTarjetaController;
 use App\Modules\AgendaVisitasPagos\CU28_RegistrarPago\StripeWebhookController;
+use App\Modules\AgendaVisitasPagos\CU29_ConsultarHistorialPagos\HistorialPagosController;
 use App\Modules\AgendaVisitasPagos\CU30_GenerarComprobante\ComprobanteController;
 use App\Modules\AgendaVisitasPagos\CU26_GestionarReservas\ReservaController;
 use App\Modules\AgendaVisitasPagos\CU27_GestionarContratos\ContratoController;
@@ -69,6 +70,10 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
 
 // CU28: Registrar pago y CU30: Generar comprobante. Solo Asistente Administrativo y Administrador (el Agente recibe acceso denegado).
 Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::ASISTENTE])->group(function () {
+    // CU29: Consultar historial de pagos y detalle del pago
+    Route::get('/pagos', [HistorialPagosController::class, 'index'])->name('pagos.index');
+    Route::get('/pagos/{pago}', [HistorialPagosController::class, 'show'])->whereNumber('pago')->name('pagos.show');
+
     Route::get('/pagos/crear', [PagoController::class, 'crear'])->name('pagos.create');
     Route::post('/pagos', [PagoController::class, 'guardar'])->name('pagos.store');
     Route::get('/pagos/{pago}/comprobante', [ComprobanteController::class, 'mostrar'])->name('pagos.comprobante');

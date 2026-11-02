@@ -63,7 +63,12 @@
 
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <h2 class="h6">Pagos ya registrados</h2>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h2 class="h6 mb-0">Pagos ya registrados</h2>
+                        @if (Route::has('pagos.index'))
+                            <a href="{{ route('pagos.index', ['contrato' => $contrato->idcontrato]) }}" class="small">Ver historial</a>
+                        @endif
+                    </div>
                     @forelse ($contrato->pagos->sortByDesc('idpago') as $p)
                         <div class="d-flex justify-content-between border-bottom py-2 small">
                             <span>
