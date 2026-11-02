@@ -8,7 +8,6 @@ use App\Models\Propiedad;
 use App\Models\Usuario;
 use App\Models\Visita;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Route;
 
 /**
  * CU17: Ver calendario de visitas.
@@ -263,16 +262,8 @@ class CU17_VerCalendarioVisitasTest extends SistemaTestCase
             ->assertSee('Marcar como realizada');
     }
 
-    public function test_el_detalle_ofrece_reagendar_y_cancelar_cuando_esas_pantallas_existen(): void
+    public function test_el_detalle_ofrece_reagendar_y_cancelar_en_visitas_programadas_y_reagendadas(): void
     {
-        // CU15 y CU16 se crean en el siguiente prompt: aquí se simulan sus rutas solo si todavía no existen.
-        foreach (['visitas.reagendar' => 'reagendar', 'visitas.cancelar' => 'cancelar'] as $nombre => $url) {
-            if (! Route::has($nombre)) {
-                Route::middleware('web')->get("/_prueba/visitas/{visita}/{$url}", fn () => 'ok')->name($nombre);
-            }
-        }
-        app('router')->getRoutes()->refreshNameLookups();
-
         $ana = $this->agente();
         $programada = $this->visita($this->propiedad([], $ana), '2026-12-18');
         $reagendada = $this->visita($this->propiedad([], $ana), '2026-12-19', '10:00:00', Visita::REAGENDADA);

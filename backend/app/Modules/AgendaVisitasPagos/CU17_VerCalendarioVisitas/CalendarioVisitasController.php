@@ -171,11 +171,7 @@ class CalendarioVisitasController extends Controller
     /** El Agente solo accede a las visitas de sus propiedades; el Administrador, a todas. */
     private function autorizar(Request $request, Visita $visita): void
     {
-        $usuario = $request->user();
-
-        if ($usuario->tieneRol(Rol::AGENTE)) {
-            abort_unless($visita->propiedad()->where('idusuario', $usuario->idusuario)->exists(), 403, 'Esta visita no es de tus propiedades.');
-        }
+        AgendaDeVisitas::autorizar($request->user(), $visita);
     }
 
     /** @return array<int,string> id => nombre de los agentes */

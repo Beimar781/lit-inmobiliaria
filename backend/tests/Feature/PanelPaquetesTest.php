@@ -50,7 +50,7 @@ class PanelPaquetesTest extends SistemaTestCase
 
         // Sin importar el orden dentro de cada paquete: están todos los CU implementados hasta ahora.
         sort($codigos, SORT_NATURAL);
-        $esperados = array_map(fn ($n) => "CU{$n}", array_merge(range(1, 14), [17]));
+        $esperados = array_map(fn ($n) => "CU{$n}", range(1, 17));
         sort($esperados, SORT_NATURAL);
         $this->assertSame($esperados, $codigos);
     }
@@ -66,7 +66,7 @@ class PanelPaquetesTest extends SistemaTestCase
             'Iniciar sesión', 'Cerrar sesión', 'Recuperar contraseña', 'Gestionar usuarios',
             'Registrar propiedad', 'Modificar propiedad', 'Eliminar propiedad', 'Cambiar estado de propiedad',
             'Buscar propiedades', 'Filtrar propiedades', 'Ver detalle de propiedad',
-            'Gestionar prospectos CRM', 'Agendar visita a inmueble', 'Ver calendario de visitas',
+            'Gestionar prospectos CRM', 'Agendar visita a inmueble', 'Reagendar visita', 'Cancelar visita', 'Ver calendario de visitas',
         ] as $caso) {
             $respuesta->assertSee($caso);
         }

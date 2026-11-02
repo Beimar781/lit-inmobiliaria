@@ -3,6 +3,8 @@
 namespace App\Modules\AgendaVisitasPagos\Compartido;
 
 use App\Models\Propiedad;
+use App\Models\Rol;
+use App\Models\Usuario;
 use App\Models\Visita;
 use Carbon\CarbonImmutable;
 
@@ -39,6 +41,14 @@ class AgendaDeVisitas
             return CarbonImmutable::createFromFormat('Y-m-d H:i', "{$fecha} {$hora}", self::ZONA)->greaterThan(self::ahora());
         } catch (\Throwable) {
             return false;
+        }
+    }
+
+    /** El Agente solo gestiona las visitas de las propiedades que registró; el Administrador, todas (403 si no). */
+    public static function autorizar(?Usuario $usuario, Visita $visita): void
+    {
+        if ($usuario?->tieneRol(Rol::AGENTE)) {
+            abort_unless($visita->propiedad()->where('idusuario', $usuario->idusuario)->exists(), 403, 'Esta visita no es de tus propiedades.');
         }
     }
 
@@ -83,13 +93,14 @@ class AgendaDeVisitas
      * Horas ocupadas por día en los próximos $dias días: ['2026-12-10' => ['09:00', '11:00']].
      * Sirve para marcar en el formulario las horas que ya no se pueden elegir (el servidor igual lo vuelve a comprobar).
      */
-    public function ocupadasProximas(Propiedad $propiedad, int $dias = 90): array
+    public function ocupadasProximas(Propiedad $propiedad, int $dias = 90, ?int $ignorar = null): array
     {
         $desde = self::ahora()->toDateString();
         $hasta = self::ahora()->addDays($dias)->toDateString();
 
         return $this->activasDelResponsable($propiedad)
             ->whereBetween('fecha', [$desde, $hasta])
+            ->when($ignorar, fn ($q) => $q->where('idvisita', '!=', $ignorar))
             ->get(['fecha', 'hora'])
             ->groupBy(fn (Visita $visita) => $visita->fecha->format('Y-m-d'))
             ->map(fn ($visitas) => $visitas->map(fn (Visita $v) => $v->hora_corta)->unique()->sort()->values()->all())

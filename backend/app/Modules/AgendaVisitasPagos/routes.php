@@ -3,6 +3,8 @@
 use App\Modules\AgendaVisitasPagos\CU14_AgendarVisita\AgendarVisitaController;
 use App\Http\Middleware\RolMiddleware;
 use App\Models\Rol;
+use App\Modules\AgendaVisitasPagos\CU15_ReagendarVisita\ReagendarVisitaController;
+use App\Modules\AgendaVisitasPagos\CU16_CancelarVisita\CancelarVisitaController;
 use App\Modules\AgendaVisitasPagos\CU17_VerCalendarioVisitas\CalendarioVisitasController;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +30,14 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
     // CU17: Ver calendario de visitas (mes o semana) y detalle de la visita
     Route::get('/agenda/visitas', [CalendarioVisitasController::class, 'index'])->name('visitas.calendario');
     Route::get('/agenda/visitas/{visita}', [CalendarioVisitasController::class, 'show'])->whereNumber('visita')->name('visitas.show');
+    // CU15: Reagendar visita (se entra desde el detalle de la visita; el Agente solo con las suyas: se comprueba en el controlador)
+    Route::get('/agenda/visitas/{visita}/reagendar', [ReagendarVisitaController::class, 'editar'])->whereNumber('visita')->name('visitas.reagendar');
+    Route::put('/agenda/visitas/{visita}/reagendar', [ReagendarVisitaController::class, 'actualizar'])->whereNumber('visita')->name('visitas.reagendar.guardar');
+
+    // CU16: Cancelar visita (pide el motivo y una confirmación)
+    Route::get('/agenda/visitas/{visita}/cancelar', [CancelarVisitaController::class, 'confirmar'])->whereNumber('visita')->name('visitas.cancelar');
+    Route::put('/agenda/visitas/{visita}/cancelar', [CancelarVisitaController::class, 'cancelar'])->whereNumber('visita')->name('visitas.cancelar.confirmar');
+
     // Acción del detalle (decisión del equipo): marcar la visita como realizada
     Route::patch('/agenda/visitas/{visita}/realizada', [CalendarioVisitasController::class, 'marcarRealizada'])->whereNumber('visita')->name('visitas.realizada');
 });
