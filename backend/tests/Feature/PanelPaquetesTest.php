@@ -50,7 +50,7 @@ class PanelPaquetesTest extends SistemaTestCase
 
         // Sin importar el orden dentro de cada paquete: están todos los CU implementados hasta ahora.
         sort($codigos, SORT_NATURAL);
-        $esperados = array_map(fn ($n) => "CU{$n}", array_merge(range(1, 17), [26, 27]));
+        $esperados = array_map(fn ($n) => "CU{$n}", array_merge(range(1, 17), [26, 27, 28, 30]));
         sort($esperados, SORT_NATURAL);
         $this->assertSame($esperados, $codigos);
     }
@@ -66,7 +66,7 @@ class PanelPaquetesTest extends SistemaTestCase
             'Iniciar sesión', 'Cerrar sesión', 'Recuperar contraseña', 'Gestionar usuarios',
             'Registrar propiedad', 'Modificar propiedad', 'Eliminar propiedad', 'Cambiar estado de propiedad',
             'Buscar propiedades', 'Filtrar propiedades', 'Ver detalle de propiedad',
-            'Gestionar prospectos CRM', 'Agendar visita a inmueble', 'Reagendar visita', 'Cancelar visita', 'Ver calendario de visitas', 'Gestionar reservas de propiedad', 'Gestionar contratos',
+            'Gestionar prospectos CRM', 'Agendar visita a inmueble', 'Reagendar visita', 'Cancelar visita', 'Ver calendario de visitas', 'Gestionar reservas de propiedad', 'Gestionar contratos', 'Registrar pago', 'Generar comprobante de pago',
         ] as $caso) {
             $respuesta->assertSee($caso);
         }
@@ -106,6 +106,7 @@ class PanelPaquetesTest extends SistemaTestCase
             ->assertSee('Registrar cliente interesado')->assertSee('Gestionar prospectos CRM')->assertSee('Agendar visita a inmueble')->assertSee('Ver calendario de visitas')->assertSee('Gestionar reservas de propiedad')->assertSee('Gestionar contratos')
             ->assertSee(route('prospectos.create'), false)
             // lo que no es del agente
+            ->assertDontSee('Registrar pago')->assertDontSee('Generar comprobante de pago')
             ->assertDontSee('Gestionar usuarios')
             ->assertDontSee('Eliminar propiedad')
             ->assertDontSee('Bitácora')
@@ -113,7 +114,7 @@ class PanelPaquetesTest extends SistemaTestCase
             ->assertDontSee(route('bitacora.index'), false);
     }
 
-    public function test_el_asistente_ve_el_paquete_p1_y_solo_las_reservas_del_paquete_p5(): void
+    public function test_el_asistente_ve_el_paquete_p1_y_las_reservas_y_los_pagos_del_paquete_p5(): void
     {
         $respuesta = $this->panel($this->asistente());
 
@@ -121,6 +122,7 @@ class PanelPaquetesTest extends SistemaTestCase
             ->assertSee('Cerrar sesión')
             ->assertSee(self::PAQUETES['P5'])
             ->assertSee('Gestionar reservas de propiedad')
+            ->assertSee('Registrar pago')->assertSee('Generar comprobante de pago')
             ->assertDontSee('Gestionar usuarios')
             ->assertDontSee('Registrar propiedad')
             ->assertDontSee('Buscar propiedades')

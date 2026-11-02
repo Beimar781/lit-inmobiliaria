@@ -73,6 +73,8 @@ return [
             ['codigo' => 'CU17', 'nombre' => 'Ver calendario de visitas', 'ciclo' => 'III', 'ruta' => 'visitas.calendario', 'roles' => $personal],
             ['codigo' => 'CU26', 'nombre' => 'Gestionar reservas de propiedad', 'ciclo' => 'III', 'ruta' => 'reservas.index', 'roles' => array_merge($personal, [Rol::ASISTENTE])],
             ['codigo' => 'CU27', 'nombre' => 'Gestionar contratos', 'ciclo' => 'III', 'ruta' => 'contratos.index', 'roles' => $personal],
+            ['codigo' => 'CU28', 'nombre' => 'Registrar pago', 'ciclo' => 'III', 'ruta' => 'pagos.create', 'roles' => [Rol::ADMINISTRADOR, Rol::ASISTENTE]],
+            ['codigo' => 'CU30', 'nombre' => 'Generar comprobante de pago', 'ciclo' => 'III', 'ruta' => 'pagos.create', 'roles' => [Rol::ADMINISTRADOR, Rol::ASISTENTE], 'accion' => 'nota', 'nota' => 'Se genera al registrar un pago (CU28)'],
         ],
     ],
 

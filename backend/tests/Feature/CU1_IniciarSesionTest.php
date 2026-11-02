@@ -215,13 +215,13 @@ class CU1_IniciarSesionTest extends SistemaTestCase
             ->assertDontSee(route('bitacora.index'), false);
     }
 
-    public function test_el_panel_del_asistente_solo_muestra_autentificacion_y_reservas(): void
+    public function test_el_panel_del_asistente_solo_muestra_autentificacion_reservas_y_pagos(): void
     {
         $this->actingAs($this->asistente())->get(route('panel'))
             ->assertOk()
             ->assertSee('Autentificación y Seguridad')
             ->assertSee('Cerrar sesión')
-            ->assertSee('Gestionar reservas de propiedad')
+            ->assertSee('Gestionar reservas de propiedad')->assertSee('Registrar pago')
             ->assertDontSee('Gestionar usuarios')
             ->assertDontSee(route('propiedades.index'), false)
             ->assertDontSee(route('usuarios.index'), false);

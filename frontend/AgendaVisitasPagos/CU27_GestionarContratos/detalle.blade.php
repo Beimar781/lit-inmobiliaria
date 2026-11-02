@@ -52,7 +52,13 @@
 
         <div class="card shadow-sm">
             <div class="card-body">
-                <h2 class="h5">Pagos</h2>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h5 mb-0">Pagos</h2>
+                    {{-- CU28: solo el Administrador y el Asistente registran pagos --}}
+                    @if (auth()->user()->tieneRol('Administrador') && $contrato->estado === 'VIGENTE' && Route::has('pagos.create'))
+                        <a href="{{ route('pagos.create', ['contrato' => $contrato->idcontrato]) }}" class="btn btn-sm btn-outline-primary">Registrar pago</a>
+                    @endif
+                </div>
                 @if ($contrato->reserva && $contrato->reserva->montousd !== null)
                     <p class="small text-muted">
                         El pago inicial viene de la reserva N.º {{ $contrato->reserva->idreserva }}: el cliente ya había pagado USD {{ number_format($contrato->reserva->montousd, 2, '.', ',') }} y ese monto se tomó como primer pago del contrato.
@@ -62,7 +68,13 @@
                     <div class="d-flex justify-content-between border-bottom py-2">
                         <span>
                             {{ $pago->fechapago->format('d/m/Y') }} &middot; {{ $pago->moneda }} {{ number_format($pago->monto, 2, '.', ',') }}
-                            @if ($pago->comprobante) <span class="text-muted small">&middot; {{ $pago->comprobante }}</span> @endif
+                            @if ($pago->comprobante)
+                                @if (auth()->user()->tieneRol('Administrador') && Route::has('pagos.comprobante'))
+                                    <a href="{{ route('pagos.comprobante', $pago) }}" class="small ms-1">{{ $pago->comprobante }}</a>
+                                @else
+                                    <span class="text-muted small">&middot; {{ $pago->comprobante }}</span>
+                                @endif
+                            @endif
                         </span>
                         <span class="badge text-bg-{{ $coloresPago[$pago->estado] ?? 'secondary' }}">{{ $pago->estado_etiqueta }}</span>
                     </div>
