@@ -29,7 +29,7 @@ class Cliente extends Model
 
     public const TIPOS = ['Comprador', 'Inversionista', 'Inquilino'];
 
-    protected $fillable = ['nombre', 'email', 'telefono', 'tipocliente', 'estadoseguimiento', 'idusuario'];
+    protected $fillable = ['nombre', 'email', 'telefono', 'tipocliente', 'estadoseguimiento', 'idusuario', 'idusuariocuenta'];
 
     protected function casts(): array
     {
@@ -41,9 +41,30 @@ class Cliente extends Model
         return $this->belongsTo(Usuario::class, 'idusuario', 'idusuario');
     }
 
+    /** Cuenta de acceso del cliente (rol Cliente); se crea después de su primer pago (Ciclo 3). */
+    public function cuenta(): BelongsTo
+    {
+        return $this->belongsTo(Usuario::class, 'idusuariocuenta', 'idusuario');
+    }
+
     public function intereses(): HasMany
     {
         return $this->hasMany(Interes::class, 'idcliente', 'idcliente');
+    }
+
+    public function visitas(): HasMany
+    {
+        return $this->hasMany(Visita::class, 'idcliente', 'idcliente');
+    }
+
+    public function reservas(): HasMany
+    {
+        return $this->hasMany(Reserva::class, 'idcliente', 'idcliente');
+    }
+
+    public function contratos(): HasMany
+    {
+        return $this->hasMany(Contrato::class, 'idcliente', 'idcliente');
     }
 
     public function getEstadoEtiquetaAttribute(): string

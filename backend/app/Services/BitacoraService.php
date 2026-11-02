@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Event;
  */
 class BitacoraService
 {
-    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM'];
+    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM', 'Agenda', 'Reservas', 'Contratos', 'Pagos', 'Clientes'];
 
     public const ETIQUETAS = [
         'INICIO_SESION' => 'Inicio de sesión',
@@ -35,6 +35,27 @@ class BitacoraService
         'INTERES_REGISTRADO' => 'Cliente interesado registrado',
         'PROSPECTO_SEGUIMIENTO' => 'Seguimiento de prospecto actualizado',
         'PROSPECTO_REASIGNADO' => 'Prospecto reasignado',
+        'VISITA_PROGRAMADA' => 'Visita agendada',
+        'VISITA_REALIZADA' => 'Visita marcada como realizada',
+        'VISITA_REAGENDADA' => 'Visita reagendada',
+        'VISITA_CANCELADA' => 'Visita cancelada',
+        'RESERVA_REGISTRADA' => 'Reserva registrada',
+        'RESERVA_CANCELADA' => 'Reserva cancelada',
+        'RESERVA_VENCIDA' => 'Reserva vencida',
+        'RESERVA_DEVUELTA' => 'Reserva devuelta al cliente',
+        'RESERVA_CONCRETADA' => 'Reserva concretada en contrato',
+        'CONTRATO_REGISTRADO' => 'Contrato registrado',
+        'CONTRATO_FINALIZADO' => 'Contrato finalizado',
+        'CONTRATO_RESCINDIDO' => 'Contrato rescindido',
+        'PAGO_REGISTRADO' => 'Pago registrado',
+        'COMPROBANTE_GENERADO' => 'Comprobante de pago generado',
+        'CUENTA_CLIENTE_CREADA' => 'Cuenta de cliente creada',
+        'CUENTA_CLIENTE_NO_CREADA' => 'Cuenta de cliente no creada',
+        'PAGO_TARJETA_INICIADO' => 'Pago con tarjeta iniciado',
+        'PAGO_TARJETA_CONFIRMADO' => 'Pago con tarjeta confirmado',
+        'PAGO_TARJETA_CANCELADO' => 'Pago con tarjeta cancelado',
+        'PAGO_TARJETA_FALLIDO' => 'Pago con tarjeta no iniciado',
+        'PAGO_TARJETA_DISCREPANCIA' => 'Pago con tarjeta con datos que no coinciden',
     ];
 
     /**

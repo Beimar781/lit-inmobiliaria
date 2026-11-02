@@ -27,6 +27,14 @@ return [
         'key' => env('BREVO_API_KEY'),
     ],
 
+    // Pago con tarjeta (CU28) con Stripe Checkout. Llaves SOLO en el .env (nunca en el repositorio): ver .env.example
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        // Cobrar también en bolivianos (BOB) con tarjeta. Apagado hasta comprobar que la cuenta de Stripe acepta BOB.
+        'acepta_bob' => filter_var(env('STRIPE_ACEPTA_BOB', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

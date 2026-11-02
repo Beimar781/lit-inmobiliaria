@@ -7,6 +7,8 @@ Tecnologías: **Laravel (PHP) + PostgreSQL + Blade (Bootstrap)**. Desarrollo por
 
 **Ciclo II:** CU8 Cambiar estado de propiedad · CU9 Buscar propiedades · CU10 Filtrar propiedades · CU11 Ver detalle de propiedad · CU12 Registrar cliente interesado · CU13 Gestionar prospectos CRM.
 
+**Ciclo III:** CU14 Agendar visita a inmueble · CU15 Reagendar visita · CU16 Cancelar visita · CU17 Ver calendario de visitas · CU26 Gestionar reservas de propiedad · CU27 Gestionar contratos · CU28 Registrar pago (efectivo y tarjeta) · CU29 Consultar historial de pagos · CU30 Generar comprobante de pago. Además, la cuenta de acceso del cliente y su portal «Mis contratos y pagos» (extensión de CU28 a CU30).
+
 **Sistema desplegado (Railway):** https://lit-inmobiliaria-production.up.railway.app — el catálogo es público; para el resto del sistema inicia sesión con los usuarios de la sección 4. Es un ambiente compartido: los cambios que se hagan ahí (usuarios, propiedades, fotos) se guardan en su propia base y no modifican los datos de este repositorio.
 
 El repositorio tiene dos carpetas principales: **`backend/`** (el proyecto Laravel: lógica, base de datos, rutas) y **`frontend/`** (las pantallas: vistas Blade). Ver la sección 6.
@@ -202,8 +204,10 @@ Contraseña de todos: `Lit2026*`
 | Administrador | jgarcia@inmobiliaria.com | Todo: usuarios, propiedades (incluido el cambio de estado y la baja), **todos** los prospectos del CRM (puede reasignarlos) y **bitácora** |
 | Agente Inmobiliario | mtorrez@inmobiliaria.com | Registrar y modificar propiedades, cambiar el estado de las suyas, registrar clientes interesados y gestionar **sus** prospectos del CRM |
 | Agente Inmobiliario | csuarez@inmobiliaria.com (Carla Suárez) y dvaca@inmobiliaria.com (Diego Vaca) | Igual que el agente anterior. Existen para probar el CRM con varios agentes: cada uno ve solo **sus** prospectos y no puede cambiar el estado de las propiedades de otro |
-| Asistente Administrativo | rjustiniano@inmobiliaria.com | Solo inicia sesión (sin módulos todavía) |
-| Cliente | croca@gmail.com | Solo inicia sesión (sin módulos todavía) |
+| Asistente Administrativo | rjustiniano@inmobiliaria.com | Cobra y devuelve el efectivo de las **reservas**, **registra pagos** de los contratos (efectivo o tarjeta), consulta el **historial de pagos** y emite los **comprobantes** |
+| Cliente | croca@gmail.com | Entra al portal «Mis contratos y pagos». Esta cuenta de prueba no está asociada a ningún cliente del CRM, así que su portal sale vacío. Las cuentas reales de clientes se crean solas (ver la sección 5) |
+
+El panel de inicio muestra los **6 paquetes** del documento y, dentro de cada uno, los casos de uso que el rol puede usar (se configura en `backend/config/paquetes.php`). El Administrador ve los 6; los demás roles, solo los suyos; el Cliente ve únicamente «Mis contratos y pagos».
 
 El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con o sin sesión. Los correos se guardan y se buscan siempre en **minúsculas**. Si el equipo creó más usuarios, los ves en el menú *Usuarios* con el administrador.
 
@@ -225,6 +229,15 @@ El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con
 - **Historial de propiedades:** cada registro, cambio y baja de una propiedad queda guardado en la tabla `historial`.
 - **Bitácora (Administrador):** registra quién hizo qué, cuándo y desde qué IP (inicios de sesión, intentos fallidos, cambios en usuarios y propiedades). Menú Panel → Bitácora.
 - Si el administrador desactiva una cuenta, esa persona pierde el acceso incluso si tenía la sesión abierta.
+
+**Reglas del Ciclo III (agenda, reservas, contratos y pagos):**
+
+- **Visitas (CU14–CU17):** el cliente agenda sin iniciar sesión desde la ficha de una propiedad *Disponible*; el Agente o el Administrador también pueden agendar en nombre de un cliente. Horario de 08:00 a 18:00 en bloques de 1 hora, con la hora de Bolivia. El agente de la propiedad no puede tener dos visitas a la vez (las canceladas no ocupan horario). Reagendar y cancelar piden el motivo; la visita cancelada se conserva. El calendario (mes o semana) lo ve cada agente con lo suyo y el Administrador con todo; desde el detalle también se puede marcar una visita como realizada.
+- **Reservas (CU26):** se pagan **en efectivo** (dólares o bolivianos), con o sin visita previa. Las registra el Agente (sus propiedades y prospectos) o, si el agente no puede, el Asistente o el Administrador. Mínimo: 1 % del precio. La propiedad pasa a *Reservado* hasta la fecha de plazo. Si el cliente **no formaliza la compra** (la reserva se cancela o vence), se le devuelve en efectivo el **80 %** y la empresa retiene el **20 %** (`RESERVA_RETENCION` en el `.env`); las reservas vencidas o canceladas se conservan como respaldo. Si la formaliza, el dinero de la reserva pasa a ser el **primer pago del contrato**. Los recibos de reserva y de devolución (`RV-AAAA-000001`, `DV-AAAA-000001`) no son el comprobante del pago formal.
+- **Contratos (CU27):** el contrato es de la propiedad y del cliente, en **dólares**; el tipo (venta, alquiler o anticrético) sale de la propiedad. La propiedad pasa a *Vendido* o *Alquilado*; si se rescinde (motivo obligatorio), vuelve a *Disponible*.
+- **Pagos (CU28):** los registra el Asistente o el Administrador sobre contratos vigentes; no pueden superar el saldo. Se pagan en **dólares o bolivianos**; en bolivianos el **tipo de cambio oficial del día es obligatorio** y se escribe a mano (el contrato no se recalcula nunca: cada pago guarda el tipo de cambio de su día). El saldo del contrato se calcula en dólares. También se puede pagar **con tarjeta** (Stripe, ver la sección 10).
+- **Comprobante (CU30):** cada pago pagado tiene un comprobante `CP-AAAA-000001`, único, que se puede imprimir o guardar como PDF; al volver a emitirlo conserva su número.
+- **Cuenta del cliente:** después del primer pago de un cliente que tiene correo, se le crea una cuenta con rol Cliente y recibe un correo («Activa tu cuenta») con un enlace para establecer su contraseña. Con ella ve **solo sus** contratos, pagos y comprobantes y puede pagar con tarjeta. Si el cliente no tiene correo, el pago se registra igual y se avisa que se registre el correo.
 
 ## 6. Cómo está organizado el código (para la defensa)
 
@@ -254,17 +267,23 @@ lit-inmobiliaria/
 │   │   ├── CrmGestionClientes/      ← P4: CRM y gestión de clientes
 │   │   │   ├── CU12_RegistrarClienteInteresado/
 │   │   │   └── CU13_GestionarProspectos/
-│   │   ├── AgendaVisitas/           ← P5: Agenda y gestión de visitas (ciclo posterior)
+│   │   ├── AgendaVisitasPagos/      ← P5: Agenda, Visitas y Pagos (ciclo 3)
+│   │   │   ├── CU14_AgendarVisita/ · CU15_ReagendarVisita/ · CU16_CancelarVisita/ · CU17_VerCalendarioVisitas/
+│   │   │   ├── CU26_GestionarReservas/ · CU27_GestionarContratos/
+│   │   │   ├── CU28_RegistrarPago/ · CU29_ConsultarHistorialPagos/ · CU30_GenerarComprobante/
+│   │   │   ├── PortalCliente/       ← «Mis contratos y pagos» (rol Cliente)
+│   │   │   └── Compartido/          ← agenda, dinero de reservas, comprobantes, pago con tarjeta, cuenta del cliente
 │   │   └── ReportesAdministracion/  ← P6: Reportes y administración (hoy: bitácora del administrador)
 │   │       └── Bitacora/
 │   ├── app/Models/                  ← una clase por tabla del diagrama de clases
-│   ├── app/Services/                ← HistorialService, BitacoraService e InstantaneaDatos (datos compartidos)
+│   ├── app/Services/                ← HistorialService, BitacoraService, InstantaneaDatos (datos compartidos) y StripeService (pagos con tarjeta)
+│   ├── config/paquetes.php          ← los 6 paquetes y sus casos de uso (lo que muestra el panel)
 │   ├── database/migrations/         ← creación de las tablas en PostgreSQL
 │   ├── database/datos/              ← datos compartidos del equipo: datos.json + fotos (uploads)
 │   ├── database/seeders/            ← cargan los datos compartidos (o los de ejemplo si no existen)
 │   └── tests/                       ← pruebas automáticas
 └── frontend/                        ← pantallas (Blade + Bootstrap)
-    ├── AutentificacionSeguridad/ · GestionPropiedades/ · BusquedaConsulta/ · CrmGestionClientes/ · AgendaVisitas/ · ReportesAdministracion/   ← pantalla de cada CU, misma ruta que en backend
+    ├── AutentificacionSeguridad/ · GestionPropiedades/ · BusquedaConsulta/ · CrmGestionClientes/ · AgendaVisitasPagos/ · ReportesAdministracion/   ← pantalla de cada CU, misma ruta que en backend
     ├── layouts/                     ← diseño general (menú, estructura de la página)
     ├── components/                  ← campos reutilizables
     └── errors/                      ← pantallas de error (403, 404, 419, 429)
@@ -289,7 +308,7 @@ git pull
 composer install
 php artisan migrate
 ```
-- `php artisan migrate` solo agrega las tablas/columnas nuevas, **no borra datos**. El Ciclo II agrega las tablas `cliente` e `interes` (CRM).
+- `php artisan migrate` solo agrega las tablas/columnas nuevas, **no borra datos**. El Ciclo II agrega las tablas `cliente` e `interes` (CRM); el Ciclo III agrega `visita`, `reserva`, `contrato`, `pago`, `tipopago` y `movimientoreserva`, y dos columnas (`cliente.idusuariocuenta` y las de `reserva`), todo sin tocar lo que ya existía.
 - Para volver a empezar de cero (borra TODOS tus datos locales y recarga los datos compartidos del equipo): `php artisan migrate:fresh --seed`. Si el equipo actualizó los datos compartidos (`database/datos`), ejecútalo también después del `git pull` para recibirlos.
 - `php artisan db:seed` **no** carga los datos compartidos si tu base ya tiene datos (avisa y no toca nada): así no pierdes lo que hiciste.
 - **Datos de prueba del CRM (Ciclo II):** `php artisan db:seed --class=DemoCrmSeeder` agrega 2 agentes más (`csuarez@inmobiliaria.com` y `dvaca@inmobiliaria.com`, clave `Lit2026*`), una propiedad para cada uno y varios prospectos repartidos. Sirve para probar la reasignación de prospectos y que cada agente vea solo lo suyo. **Quien cargó los datos compartidos con `migrate:fresh --seed` ya los tiene**: este comando solo hace falta si tu base se creó antes de esos datos. **No borra ni cambia nada de lo que ya tienes** y se puede ejecutar varias veces.
@@ -351,3 +370,31 @@ Nunca subas el archivo `.env` (ya está ignorado por Git).
 Una rama por caso de uso: `git checkout -b cu8-nombre-del-caso`, trabajar, `git push -u origin cu8-nombre-del-caso`
 y abrir un *Pull Request* hacia `main` en GitHub. Avisar en el grupo antes de modificar archivos compartidos
 (`frontend/layouts/app.blade.php`, `frontend/AutentificacionSeguridad/CU1_IniciarSesion/panel.blade.php`, `backend/app/Providers/AppServiceProvider.php`, `backend/database/seeders/DatabaseSeeder.php`).
+
+## 10. Pagos con tarjeta (Stripe, modo de prueba) y variables del Ciclo III
+
+El pago con tarjeta usa **Stripe Checkout en modo de prueba**: no se cobra dinero real. El efectivo y todo lo demás funcionan sin Stripe.
+
+**Variables del `backend/.env`** (están vacías en `backend/.env.example`; las llaves reales van **solo** en tu `.env` o en las variables de Railway, nunca en el repositorio ni en el chat):
+
+| Variable | Para qué sirve |
+|---|---|
+| `STRIPE_SECRET` | Llave secreta **de prueba** de tu cuenta de Stripe (empieza con `sk_test_`) |
+| `STRIPE_WEBHOOK_SECRET` | Secreto de firma del webhook (empieza con `whsec_`) |
+| `STRIPE_ACEPTA_BOB` | `false` por defecto. Si pones `true`, la tarjeta también cobra en bolivianos; hazlo solo después de comprobar que tu cuenta de Stripe acepta la moneda BOB |
+| `RESERVA_RETENCION` | Porcentaje de la reserva que retiene la empresa si el cliente no formaliza la compra (por defecto 20) |
+| `RESERVA_MINIMO` | Mínimo para reservar, como porcentaje del precio (por defecto 1) |
+
+Después de cambiar el `.env`: `php artisan config:clear`.
+
+**Cómo probar un pago con tarjeta en tu computadora:**
+
+1. Crea una cuenta gratuita en Stripe y, en el modo de prueba, copia tu llave secreta (`sk_test_...`) en `STRIPE_SECRET`.
+2. Inicia el sistema (`php artisan serve`) con el Asistente o el Administrador, abre **Registrar pago**, elige un contrato vigente con saldo, método **Tarjeta**, un monto en dólares (mínimo 0.50) y pulsa **Registrar pago**. Se abre la página de Stripe.
+3. Escribe una **tarjeta de prueba** (cualquier fecha futura, cualquier CVC de 3 dígitos y cualquier código postal):
+   - `4242 4242 4242 4242` → el pago se cobra y vuelves al sistema con el comprobante.
+   - `4000 0000 0000 0002` → la tarjeta es rechazada: el pago no se cobra y queda pendiente.
+4. **Webhook en local (opcional):** instala la Stripe CLI, ejecuta `stripe login` y luego `stripe listen --forward-to localhost:8000/stripe/webhook`. La consola muestra un secreto `whsec_...`: ponlo en `STRIPE_WEBHOOK_SECRET` y ejecuta `php artisan config:clear`. Con `stripe listen` encendido, los pagos de prueba se confirman también por el webhook (y el comprobante no se duplica).
+5. **En Railway:** en el panel de Stripe (modo de prueba) crea un endpoint de webhook a `https://lit-inmobiliaria-production.up.railway.app/stripe/webhook` con el evento `checkout.session.completed`, y copia `STRIPE_SECRET` y `STRIPE_WEBHOOK_SECRET` en las variables del servicio.
+
+Las pruebas automáticas (`php artisan test`) **nunca** llaman a Stripe: usan un servicio simulado, así que no necesitan llaves.

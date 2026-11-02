@@ -215,18 +215,29 @@ class CU1_IniciarSesionTest extends SistemaTestCase
             ->assertDontSee(route('bitacora.index'), false);
     }
 
-    public function test_el_panel_del_asistente_y_del_cliente_no_tiene_modulos(): void
+    public function test_el_panel_del_asistente_solo_muestra_autentificacion_reservas_y_pagos(): void
     {
-        foreach ([$this->asistente(), $this->cliente()] as $usuario) {
-            $this->actingAs($usuario)->get(route('panel'))
-                ->assertOk()
-                ->assertSee('no tiene opciones disponibles')
-                ->assertDontSee(route('propiedades.index'), false)
-                ->assertDontSee(route('usuarios.index'), false);
-        }
+        $this->actingAs($this->asistente())->get(route('panel'))
+            ->assertOk()
+            ->assertSee('Autentificación y Seguridad')
+            ->assertSee('Cerrar sesión')
+            ->assertSee('Gestionar reservas de propiedad')->assertSee('Registrar pago')
+            ->assertDontSee('Gestionar usuarios')
+            ->assertDontSee(route('propiedades.index'), false)
+            ->assertDontSee(route('usuarios.index'), false);
     }
 
-    // ------------------------------------------------- cuenta desactivada en vivo
+    public function test_el_panel_del_cliente_solo_muestra_mis_contratos_y_pagos(): void
+    {
+        $this->actingAs($this->cliente())->get(route('panel'))
+            ->assertOk()
+            ->assertSee('Mis contratos y pagos')
+            ->assertSee(route('portal.contratos'), false)
+            ->assertDontSee('no tiene opciones disponibles')
+            ->assertDontSee(route('propiedades.index'), false)
+            ->assertDontSee(route('usuarios.index'), false)
+            ->assertDontSee('Gestionar contratos')->assertDontSee('Registrar pago');
+    }
 
     public function test_si_desactivan_la_cuenta_con_la_sesion_abierta_se_cierra_en_la_siguiente_accion(): void
     {

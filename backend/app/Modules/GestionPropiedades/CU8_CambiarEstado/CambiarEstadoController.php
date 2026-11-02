@@ -3,12 +3,9 @@
 namespace App\Modules\GestionPropiedades\CU8_CambiarEstado;
 
 use App\Http\Controllers\Controller;
-use App\Models\Historial;
 use App\Models\Propiedad;
-use App\Services\BitacoraService;
-use App\Services\HistorialService;
+use App\Modules\GestionPropiedades\Compartido\CambioDeEstadoPropiedad;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -36,39 +33,17 @@ class CambiarEstadoController extends Controller
         ]);
     }
 
-    public function actualizar(CambiarEstadoRequest $request, Propiedad $propiedad): RedirectResponse
+    public function actualizar(CambiarEstadoRequest $request, Propiedad $propiedad, CambioDeEstadoPropiedad $cambio): RedirectResponse
     {
         $this->autorizar($propiedad);
 
         $nuevo = $request->input('estadopropiedad');
         $motivo = trim((string) $request->input('motivo')) ?: null;
 
-        // El cambio y su historial se guardan juntos, o ninguno. La fila se bloquea mientras tanto para que dos
-        // cambios casi simultáneos no dejen el historial con un "estado anterior" equivocado.
-        $anterior = DB::transaction(function () use ($propiedad, $nuevo, $motivo) {
-            $actual = Propiedad::lockForUpdate()->findOrFail($propiedad->idpropiedad);
-            abort_if($actual->estadopropiedad === Propiedad::BAJA, 404);
+        // El cambio y su historial se guardan juntos, o ninguno (lógica compartida con CU26 y CU27).
+        $anterior = $cambio->cambiar($propiedad, $nuevo, $motivo);
 
-            $anterior = $actual->estadopropiedad;
-            $actual->update(['estadopropiedad' => $nuevo]);
-
-            HistorialService::registrar(
-                Historial::CAMBIO_ESTADO,
-                $propiedad->idpropiedad,
-                ['estado' => $anterior],
-                ['estado' => $nuevo],
-                $motivo
-            );
-
-            return $anterior;
-        });
-
-        // La bitácora va fuera de la transacción: si fallara, no debe deshacer el cambio ya hecho.
-        BitacoraService::registrar('PROPIEDAD_ESTADO', 'Propiedades', "Cambió el estado de la propiedad «{$propiedad->titulo}» (ID {$propiedad->idpropiedad}) de {$anterior} a {$nuevo}", [
-            'estado_anterior' => $anterior,
-            'estado_nuevo' => $nuevo,
-            'motivo' => $motivo,
-        ]);
+        $cambio->registrarEnBitacora($propiedad, $anterior, $nuevo, $motivo);
 
         return redirect()->route('propiedades.index')
             ->with('status', 'El estado de la propiedad ahora es «' . ucfirst(strtolower($nuevo)) . '».');
