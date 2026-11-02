@@ -61,6 +61,7 @@ class PagoController extends Controller
             'tipoCambioSugerido' => $this->ultimoTipoCambio(),
             'hoy' => AgendaDeVisitas::ahora()->toDateString(),
             'metodos' => Pago::METODOS,
+            'tarjetaEnBolivianos' => PagoConTarjeta::aceptaBolivianos(),
         ]);
     }
 
@@ -152,20 +153,29 @@ class PagoController extends Controller
             ->with('status', 'Pago registrado. Saldo restante del contrato: USD ' . number_format($resultado['saldo'], 2, '.', ',') . '.');
     }
 
-    /** Pago con tarjeta: guarda el pago PENDIENTE y manda al cliente a la página de Stripe para escribir la tarjeta. */
+    /**
+     * Pago con tarjeta: guarda el pago PENDIENTE y manda al cliente a la página de Stripe para escribir la tarjeta.
+     * Se cobra en dólares; en bolivianos solo si se activó STRIPE_ACEPTA_BOB (con el tipo de cambio del día, igual que en efectivo).
+     */
     private function pagarConTarjeta(RegistrarPagoRequest $request, PagoConTarjeta $tarjeta): RedirectResponse
     {
-        if ($request->input('moneda') !== Pago::USD) {
+        $moneda = $request->input('moneda');
+
+        if ($moneda === Pago::BOB && ! PagoConTarjeta::aceptaBolivianos()) {
             return back()->withInput()->withErrors(['moneda' => 'El pago con tarjeta es solo en dólares: Stripe cobra en USD. En bolivianos el pago es en efectivo.']);
         }
 
         $monto = round((float) $request->input('monto'), 2);
-        if ($monto < PagoConTarjeta::MINIMO_USD) {
-            return back()->withInput()->withErrors(['monto' => 'El pago con tarjeta debe ser de al menos USD ' . number_format(PagoConTarjeta::MINIMO_USD, 2) . '.']);
+        $tipoCambio = $moneda === Pago::BOB ? $request->input('tipocambio') : null;
+        $montoUsd = DineroDeReservas::aUsd($monto, $moneda, $tipoCambio);
+
+        // El mínimo de Stripe (USD 0.50) se mide por el equivalente en dólares.
+        if ($montoUsd < PagoConTarjeta::MINIMO_USD) {
+            return back()->withInput()->withErrors(['monto' => 'El pago con tarjeta debe ser de al menos USD ' . number_format(PagoConTarjeta::MINIMO_USD, 2) . ($moneda === Pago::BOB ? ' (equivale a USD ' . number_format($montoUsd, 2) . ').' : '.')]);
         }
 
         $contrato = Contrato::findOrFail($request->input('idcontrato'));
-        $resultado = $tarjeta->iniciar($contrato, $monto, $request->user(), AgendaDeVisitas::ahora()->toDateTimeString());
+        $resultado = $tarjeta->iniciar($contrato, $montoUsd, $request->user(), AgendaDeVisitas::ahora()->toDateTimeString(), $monto, $moneda, $tipoCambio);
 
         if (isset($resultado['error'])) {
             return back()->withInput()->withErrors([$resultado['campo'] => $resultado['error']]);

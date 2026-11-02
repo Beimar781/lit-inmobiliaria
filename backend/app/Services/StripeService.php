@@ -26,21 +26,21 @@ class StripeService
     }
 
     /**
-     * Crea una sesión de Stripe Checkout para pagar un monto en dólares.
+     * Crea una sesión de Stripe Checkout para pagar un monto en dólares (o en bolivianos, si la cuenta lo acepta).
      *
-     * @param int    $centavos      monto en centavos de dólar
+     * @param int    $centavos      monto en la unidad menor de la moneda (centavos)
      * @param string $descripcion   texto que ve el cliente en la página de Stripe
      * @param array  $metadata      datos propios (por ejemplo el id del pago)
      * @return array{id: string, url: string}
      */
-    public function crearSesionDePago(int $centavos, string $descripcion, string $referencia, array $metadata, string $urlExito, string $urlCancelado): array
+    public function crearSesionDePago(int $centavos, string $descripcion, string $referencia, array $metadata, string $urlExito, string $urlCancelado, string $moneda = 'usd'): array
     {
         $sesion = $this->cliente()->checkout->sessions->create([
             'mode' => 'payment',
             'line_items' => [[
                 'quantity' => 1,
                 'price_data' => [
-                    'currency' => 'usd',
+                    'currency' => strtolower($moneda),
                     'unit_amount' => $centavos,
                     'product_data' => ['name' => $descripcion],
                 ],

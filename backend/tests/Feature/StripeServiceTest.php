@@ -80,6 +80,15 @@ class StripeServiceTest extends TestCase
         $this->assertSame('https://lit.test/pagos/7/tarjeta/cancelado', $p['cancel_url']);
     }
 
+    public function test_la_sesion_se_puede_pedir_en_bolivianos(): void
+    {
+        (new StripeService())->crearSesionDePago(69650, 'Pago contrato 3 - Casa', '7', ['idpago' => '7'], 'https://lit.test/ok', 'https://lit.test/no', 'BOB');
+
+        $linea = $this->peticiones[0]['params']['line_items'][0];
+        $this->assertSame('bob', $linea['price_data']['currency'], 'la moneda va en minúsculas, como pide Stripe');
+        $this->assertSame(69650, $linea['price_data']['unit_amount']);
+    }
+
     public function test_la_sesion_se_consulta_a_stripe_y_se_leen_los_datos_del_cobro(): void
     {
         $sesion = (new StripeService())->obtenerSesion('cs_test_abc');

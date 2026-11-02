@@ -113,12 +113,12 @@
                                         <label for="metodo" class="form-label">Método de pago</label>
                                         <select id="metodo" name="metodo" class="form-select @error('metodo') is-invalid @enderror">
                                             <option value="EFECTIVO" @selected(old('metodo', 'EFECTIVO') === 'EFECTIVO')>Efectivo</option>
-                                            <option value="TARJETA" @selected(old('metodo') === 'TARJETA')>Tarjeta (solo en dólares)</option>
+                                            <option value="TARJETA" @selected(old('metodo') === 'TARJETA')>Tarjeta{{ $tarjetaEnBolivianos ? '' : ' (solo en dólares)' }}</option>
                                         </select>
                                         @error('metodo')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
-                                        <div class="form-text" id="ayuda-tarjeta" style="display: none">Se abre la página segura de Stripe para escribir la tarjeta. Solo en dólares, mínimo USD 0.50.</div>
+                                        <div class="form-text" id="ayuda-tarjeta" style="display: none">Se abre la página segura de Stripe para escribir la tarjeta. {{ $tarjetaEnBolivianos ? 'En dólares o bolivianos' : 'Solo en dólares' }}, mínimo USD 0.50.</div>
                                     </div>
                                 </div>
                             </div>
@@ -153,8 +153,9 @@
             function actualizar() {
                 // Con tarjeta el pago es siempre en dólares (Stripe cobra en USD): se bloquea la opción de bolivianos.
                 var tarjeta = metodo.value === 'TARJETA';
-                moneda.querySelector('option[value="BOB"]').disabled = tarjeta;
-                if (tarjeta) { moneda.value = 'USD'; }
+                var tarjetaEnBob = {{ $tarjetaEnBolivianos ? 'true' : 'false' }};
+                moneda.querySelector('option[value="BOB"]').disabled = tarjeta && !tarjetaEnBob;
+                if (tarjeta && !tarjetaEnBob) { moneda.value = 'USD'; }
                 ayudaTarjeta.style.display = tarjeta ? '' : 'none';
                 var bob = moneda.value === 'BOB';
                 bloque.style.display = bob ? '' : 'none';

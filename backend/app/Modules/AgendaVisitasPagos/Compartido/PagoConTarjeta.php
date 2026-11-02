@@ -4,14 +4,15 @@ namespace App\Modules\AgendaVisitasPagos\Compartido;
 
 use App\Models\Contrato;
 use App\Models\Pago;
+use App\Models\TipoPago;
 use App\Models\Usuario;
 use App\Services\BitacoraService;
 use App\Services\StripeService;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Pago con tarjeta de un contrato con Stripe Checkout (modo de prueba). Solo en dólares (USD): Stripe cobra en dólares y en
- * bolivianos solo se paga en efectivo. El pago nace PENDIENTE y pasa a PAGADO únicamente cuando Stripe confirma que se cobró.
+ * Pago con tarjeta de un contrato con Stripe Checkout (modo de prueba). Por defecto solo en dólares (USD); en bolivianos (BOB)
+ * solo si la cuenta de Stripe lo acepta y se activó STRIPE_ACEPTA_BOB. El pago nace PENDIENTE y pasa a PAGADO únicamente cuando Stripe confirma que se cobró.
  *
  * confirmar() es la función idempotente que usan la página de éxito (consulta la sesión a Stripe desde el servidor) y el webhook:
  * si el pago ya estaba PAGADO no hace nada, así refrescar la página o recibir el webhook dos veces nunca duplica el comprobante.
@@ -30,14 +31,23 @@ class PagoConTarjeta
         return (int) round((float) $montoUsd * 100);
     }
 
+    /** ¿Se puede cobrar con tarjeta en bolivianos? Solo si se activó STRIPE_ACEPTA_BOB. */
+    public static function aceptaBolivianos(): bool
+    {
+        return (bool) config('services.stripe.acepta_bob');
+    }
+
     /**
      * Guarda el pago como PENDIENTE (método TARJETA) y crea la sesión de Stripe Checkout.
+     * $monto y $moneda es lo que se cobra en la tarjeta; $montoUsd es su equivalente en dólares (el que descuenta el saldo).
      *
      * @return array{pago?: Pago, url?: string, error?: string, campo?: string}
      */
-    public function iniciar(Contrato $contrato, float $montoUsd, ?Usuario $actor, string $fecha): array
+    public function iniciar(Contrato $contrato, float $montoUsd, ?Usuario $actor, string $fecha, ?float $monto = null, string $moneda = Pago::USD, ?string $tipoCambio = null): array
     {
-        $resultado = DB::transaction(function () use ($contrato, $montoUsd, $actor, $fecha) {
+        $monto ??= $montoUsd;
+
+        $resultado = DB::transaction(function () use ($contrato, $montoUsd, $actor, $fecha, $monto, $moneda, $tipoCambio) {
             $actual = Contrato::with(['propiedad', 'cliente'])->lockForUpdate()->findOrFail($contrato->idcontrato);
 
             if ($actual->estado !== Contrato::VIGENTE) {
@@ -50,14 +60,19 @@ class PagoConTarjeta
 
             $pago = Pago::create([
                 'idcontrato' => $actual->idcontrato,
-                'monto' => $montoUsd,
-                'moneda' => Pago::USD,
+                'monto' => $monto,
+                'moneda' => $moneda,
+                'tipocambio' => $moneda === Pago::BOB ? $tipoCambio : null,
                 'fechapago' => $fecha,
                 'estado' => Pago::PENDIENTE,
                 'montousd' => $montoUsd,
                 'metodo' => Pago::TARJETA,
                 'idusuario' => $actor?->idusuario,
             ]);
+            // En bolivianos se guarda el tipo de cambio del día del pago, como en el pago en efectivo.
+            if ($moneda === Pago::BOB) {
+                TipoPago::create(['idpago' => $pago->idpago, 'cambiodemonedalocal' => $tipoCambio, 'fecha' => substr($fecha, 0, 10)]);
+            }
 
             return ['pago' => $pago, 'contrato' => $actual];
         });
@@ -74,12 +89,13 @@ class PagoConTarjeta
         // La llamada a Stripe va fuera de la transacción: es una conexión a internet y puede fallar.
         try {
             $sesion = $this->stripe->crearSesionDePago(
-                self::centavos($montoUsd),
+                self::centavos($monto),
                 $descripcion,
                 (string) $pago->idpago,
                 ['idpago' => (string) $pago->idpago, 'idcontrato' => (string) $actual->idcontrato],
                 route('pagos.tarjeta.exito', $pago) . '?session_id={CHECKOUT_SESSION_ID}',
                 route('pagos.tarjeta.cancelado', $pago),
+                strtolower($moneda),
             );
         } catch (\Throwable $error) {
             report($error);
@@ -93,8 +109,8 @@ class PagoConTarjeta
 
         $pago->update(['stripe_session_id' => $sesion['id']]);
 
-        BitacoraService::registrar('PAGO_TARJETA_INICIADO', 'Pagos', "Inició el pago con tarjeta #{$pago->idpago} del contrato #{$actual->idcontrato} por USD " . number_format($montoUsd, 2, '.', ','), [
-            'idpago' => $pago->idpago, 'idcontrato' => $actual->idcontrato, 'montousd' => number_format($montoUsd, 2, '.', ''), 'stripe_session_id' => $sesion['id'],
+        BitacoraService::registrar('PAGO_TARJETA_INICIADO', 'Pagos', "Inició el pago con tarjeta #{$pago->idpago} del contrato #{$actual->idcontrato} por {$moneda} " . number_format($monto, 2, '.', ','), [
+            'idpago' => $pago->idpago, 'idcontrato' => $actual->idcontrato, 'monto' => number_format($monto, 2, '.', ''), 'moneda' => $moneda, 'montousd' => number_format($montoUsd, 2, '.', ''), 'stripe_session_id' => $sesion['id'],
         ]);
 
         return ['pago' => $pago, 'url' => $sesion['url']];
@@ -125,10 +141,10 @@ class PagoConTarjeta
                 return $actual;
             }
 
-            // La sesión debe ser la de este pago y por el mismo monto en dólares: no se confía en datos sueltos.
+            // La sesión debe ser la de este pago, en la misma moneda y por el mismo monto: no se confía en datos sueltos.
             $coincide = ($actual->stripe_session_id === null || $actual->stripe_session_id === ($sesion['id'] ?? null))
-                && ($sesion['currency'] ?? null) === 'usd'
-                && (int) ($sesion['amount_total'] ?? -1) === self::centavos($actual->montousd);
+                && ($sesion['currency'] ?? null) === strtolower($actual->moneda)
+                && (int) ($sesion['amount_total'] ?? -1) === self::centavos($actual->monto);
             if (! $coincide) {
                 $motivo = 'Los datos de Stripe no coinciden con el pago.';
 
