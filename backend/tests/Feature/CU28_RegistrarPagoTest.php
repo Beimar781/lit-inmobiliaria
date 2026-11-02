@@ -113,6 +113,37 @@ class CU28_RegistrarPagoTest extends SistemaTestCase
         $this->assertSame(900.0, $contrato->saldoUsd());
     }
 
+    public function test_el_tipo_de_cambio_se_guarda_con_la_fecha_del_pago_aunque_se_registre_otro_dia(): void
+    {
+        $contrato = $this->contrato(1000);
+
+        // Hoy es 15/12 pero el pago se hizo el 10/12: el tipo de cambio escrito es el del 10/12.
+        $this->pagar($this->asistente(), $contrato, ['monto' => '696', 'moneda' => 'BOB', 'tipocambio' => '6.96', 'fechapago' => '2026-12-10'])
+            ->assertSessionHasNoErrors();
+
+        $pago = Pago::firstOrFail();
+        $this->assertSame('2026-12-10', $pago->fechapago->format('Y-m-d'));
+        $this->assertSame('2026-12-10', $pago->tipopago->fecha->format('Y-m-d'));
+    }
+
+    public function test_cada_pago_en_bolivianos_conserva_su_propio_tipo_de_cambio_aunque_el_dolar_cambie(): void
+    {
+        $asistente = $this->asistente();
+        $contrato = $this->contrato(1000);
+
+        $this->pagar($asistente, $contrato, ['monto' => '696', 'moneda' => 'BOB', 'tipocambio' => '6.96', 'fechapago' => '2026-12-10']);
+        $this->pagar($asistente, $contrato, ['monto' => '700', 'moneda' => 'BOB', 'tipocambio' => '7.00', 'fechapago' => '2026-12-15']);
+
+        [$primero, $segundo] = Pago::orderBy('idpago')->get()->all();
+        $this->assertSame('100.00', (string) $primero->montousd);
+        $this->assertSame('100.00', (string) $segundo->montousd);
+        $this->assertSame('6.9600', (string) $primero->tipopago->cambiodemonedalocal);
+        $this->assertSame('7.0000', (string) $segundo->tipopago->cambiodemonedalocal);
+        $this->assertSame('2026-12-10', $primero->tipopago->fecha->format('Y-m-d'));
+        $this->assertSame('2026-12-15', $segundo->tipopago->fecha->format('Y-m-d'));
+        $this->assertSame(800.0, $contrato->saldoUsd(), 'el contrato sigue en dólares: no se recalcula con el dólar de hoy');
+    }
+
     public function test_el_equivalente_en_dolares_se_redondea_a_dos_decimales(): void
     {
         $contrato = $this->contrato(1000);

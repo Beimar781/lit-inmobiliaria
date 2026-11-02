@@ -99,7 +99,7 @@
                                 </div>
                                 <div class="col-sm-4" id="bloque-tipocambio">
                                     <x-campo name="tipocambio" label="Tipo de cambio del día" type="number" step="0.0001" min="0.0001" :valor="$tipoCambioSugerido"
-                                             ayuda="Dólar oficial de hoy. Confírmalo antes de guardar." />
+                                             ayuda="Dólar oficial del día del pago. Confírmalo antes de guardar." />
                                 </div>
                             </div>
                             <p class="small text-muted" id="equivalente"></p>

@@ -684,6 +684,7 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         $this->assertSame('6.9600', (string) $pago->tipocambio);
         $this->assertSame('1000.00', (string) $pago->montousd);
         $this->assertSame('6.9600', (string) $pago->tipopago->cambiodemonedalocal);
+        $this->assertSame('2026-12-15', $pago->tipopago->fecha->format('Y-m-d'), 'el tipo de cambio es el del día en que se entregó el efectivo de la reserva');
     }
 
     public function test_si_el_pago_inicial_es_igual_al_contrato_queda_pagado_por_completo(): void

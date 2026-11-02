@@ -111,7 +111,8 @@ class PagoController extends Controller
                     'idusuario' => $usuario->idusuario,
                 ]);
                 if ($moneda === Pago::BOB) {
-                    TipoPago::create(['idpago' => $pago->idpago, 'cambiodemonedalocal' => $tipoCambio, 'fecha' => $ahora->toDateString()]);
+                    // El tipo de cambio es el del día en que se hizo el pago (no el día en que se registra).
+                    TipoPago::create(['idpago' => $pago->idpago, 'cambiodemonedalocal' => $tipoCambio, 'fecha' => $request->input('fechapago')]);
                 }
 
                 // Paso 8: el comprobante del pago (CU30), con su número único.

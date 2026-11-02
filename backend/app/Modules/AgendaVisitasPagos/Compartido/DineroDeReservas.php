@@ -127,7 +127,8 @@ class DineroDeReservas
         ]);
 
         if ($moneda === Pago::BOB) {
-            TipoPago::create(['idpago' => $pago->idpago, 'cambiodemonedalocal' => $cobro->tipocambio, 'fecha' => $ahora->toDateString()]);
+            // El tipo de cambio sigue siendo el del día en que el cliente entregó el efectivo de la reserva.
+            TipoPago::create(['idpago' => $pago->idpago, 'cambiodemonedalocal' => $cobro->tipocambio, 'fecha' => $cobro->fecha->toDateString()]);
         }
 
         return $pago;
