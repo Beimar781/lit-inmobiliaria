@@ -3,12 +3,14 @@
 namespace App\Modules\AgendaVisitasPagos\CU26_GestionarReservas;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cliente;
 use App\Models\MovimientoReserva;
 use App\Models\Propiedad;
 use App\Models\Reserva;
 use App\Models\Rol;
 use App\Models\Visita;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
+use App\Modules\AgendaVisitasPagos\Compartido\ClientesDelActor;
 use App\Modules\AgendaVisitasPagos\Compartido\DineroDeReservas;
 use App\Modules\AgendaVisitasPagos\Compartido\VencimientoDeReservas;
 use App\Modules\GestionPropiedades\Compartido\CambioDeEstadoPropiedad;
@@ -23,18 +25,19 @@ use Illuminate\View\View;
 
 /**
  * CU26: Gestionar reservas de propiedad
- * La reserva se hace DESPUÉS de una visita realizada y se paga en EFECTIVO (dólares o bolivianos). La registra quien maneja el
- * dinero: el Asistente Administrativo o el Administrador. El Agente consulta las reservas de sus propiedades.
+ * La reserva se paga en EFECTIVO (dólares o bolivianos) y puede hacerse con o sin una visita previa. La registra el Agente (con sus
+ * propiedades y sus prospectos) o, si el agente no puede (poco tiempo, vacaciones...), el Asistente Administrativo o el Administrador
+ * (con cualquier propiedad). Quien registra la reserva cobra el efectivo y quien cancela devuelve el dinero.
  * Si el cliente no formaliza la compra (la reserva vence o se cancela) se le devuelve en efectivo casi todo lo pagado: la
- * empresa retiene un porcentaje (config/reservas.php) por haber tenido la propiedad bloqueada. Si formaliza, la reserva se
- * descuenta del contrato (CU27). Incluye el CU8: al reservar la propiedad pasa a "Reservado" y al terminar vuelve a "Disponible".
+ * empresa retiene un porcentaje (config/reservas.php) por haber tenido la propiedad bloqueada. Si formaliza, el dinero de la reserva
+ * pasa a ser el primer pago del contrato (CU27). Incluye el CU8: al reservar la propiedad pasa a "Reservado" y al terminar vuelve a "Disponible".
  * Flujo principal:
  *  1. El actor accede al módulo de reservas                                   -> index()
  *  2. El sistema lista las reservas activas y permite filtrarlas por estado   -> index.blade.php
  *  3. El actor selecciona "Nueva reserva"                                     -> crear()
- *  4. El actor elige la visita realizada (de ella salen la propiedad disponible y el cliente)
+ *  4. El actor elige la propiedad disponible y el cliente (opcional: la visita realizada que llena ambos)
  *  5. El actor indica lo que paga el cliente en efectivo y la fecha de plazo, y confirma -> guardar()
- *  6. El sistema valida los datos, que la visita esté realizada, que la propiedad siga disponible y el monto mínimo -> ReservaRequest / guardar()
+ *  6. El sistema valida los datos, que la propiedad siga disponible, la visita (si se indicó) y el monto mínimo -> ReservaRequest / guardar()
  *  7. El sistema guarda la reserva como "Vigente" y el cobro con su recibo      -> DineroDeReservas::cobrar()
  *  8. El sistema cambia el estado de la propiedad a "Reservado" (CU8) y registra el historial -> CambioDeEstadoPropiedad
  *  9. El sistema muestra el recibo de la reserva                              -> recibo()
@@ -42,8 +45,8 @@ use Illuminate\View\View;
  * Devolución -> devolver(): se devuelve en efectivo lo pagado menos el porcentaje retenido, con su recibo.
  * Las reservas con el plazo vencido se marcan "Vencidas" al consultarlas o al intentar usarlas (VencimientoDeReservas); también
  * queda pendiente su devolución. Las reservas vencidas o canceladas y ya devueltas salen de la lista activa pero se conservan.
- * Excepciones: visita no realizada, propiedad no disponible o con una reserva vigente, monto menor al mínimo, plazo pasado o no
- * válido, tipo de cambio faltante en bolivianos, error de base de datos.
+ * Excepciones: propiedad no disponible o con una reserva vigente, visita que no corresponde o no realizada, monto menor al mínimo,
+ * plazo pasado o no válido, tipo de cambio faltante en bolivianos, Agente con una propiedad o un cliente que no son suyos, error de base de datos.
  */
 class ReservaController extends Controller
 {
@@ -67,7 +70,7 @@ class ReservaController extends Controller
             'estado' => $estado,
             'estados' => Reserva::ESTADOS,
             'esAdmin' => $usuario->tieneRol(Rol::ADMINISTRADOR),
-            'puedeCobrar' => $usuario->tieneRol(Rol::ADMINISTRADOR, Rol::ASISTENTE),
+            'puedeCobrar' => true, // los tres roles pueden cobrar, cancelar y devolver; el Agente solo ve las reservas de sus propiedades
             'puedeContratar' => $usuario->tieneRol(Rol::ADMINISTRADOR, Rol::AGENTE) && Route::has('contratos.create'),
             'dinero' => $dinero,
             'retencion' => (float) config('reservas.retencion'),
@@ -78,20 +81,33 @@ class ReservaController extends Controller
     {
         $vencimiento->vencer();
 
-        // Visitas realizadas de propiedades que siguen disponibles y sin una reserva vigente.
+        $usuario = $request->user();
+        $esAgente = $usuario->tieneRol(Rol::AGENTE);
+
+        // Propiedades que se pueden reservar: disponibles y sin una reserva vigente (el Agente, solo las suyas).
+        $propiedades = Propiedad::disponibles()
+            ->when($esAgente, fn ($q) => $q->where('idusuario', $usuario->idusuario))
+            ->whereDoesntHave('reservas', fn ($r) => $r->where('estado', Reserva::VIGENTE))
+            ->orderByDesc('idpropiedad')
+            ->get();
+
+        // Visitas realizadas de esas propiedades: sirven para llenar la propiedad y el cliente (opcional).
         $visitas = Visita::where('estado', Visita::REALIZADA)
-            ->whereHas('propiedad', fn ($p) => $p->where('estadopropiedad', Propiedad::DISPONIBLE))
-            ->whereDoesntHave('propiedad.reservas', fn ($r) => $r->where('estado', Reserva::VIGENTE))
+            ->whereIn('idpropiedad', $propiedades->pluck('idpropiedad'))
             ->with(['propiedad', 'cliente'])
             ->orderByDesc('fecha')
             ->orderByDesc('idvisita')
             ->get();
 
+        $visitaElegida = $visitas->firstWhere('idvisita', (int) $request->query('visita'));
+
         return view('agendavisitaspagos::CU26_GestionarReservas.crear', [
-            'visitas' => $visitas->mapWithKeys(fn (Visita $v) => [
-                $v->idvisita => "{$v->cliente->nombre} · {$v->propiedad->codigo} {$v->propiedad->titulo} · visita del {$v->fecha->format('d/m/Y')} (precio USD " . number_format($v->propiedad->precio, 0, '.', ',') . ')',
-            ])->all(),
-            'visitaElegida' => $request->query('visita'),
+            'propiedades' => $propiedades->mapWithKeys(fn (Propiedad $p) => [$p->idpropiedad => "{$p->codigo} · {$p->titulo} (USD " . number_format($p->precio, 0, '.', ',') . ')'])->all(),
+            'clientes' => ClientesDelActor::opciones($usuario),
+            'visitas' => $visitas,
+            'propiedadElegida' => $visitaElegida?->idpropiedad ?? $request->query('propiedad'),
+            'clienteElegido' => $visitaElegida?->idcliente ?? $request->query('cliente'),
+            'visitaElegida' => $visitaElegida?->idvisita,
             'tipoCambioSugerido' => DineroDeReservas::ultimoTipoCambio(),
             'minimoPorcentaje' => (float) config('reservas.minimo'),
             'retencion' => (float) config('reservas.retencion'),
@@ -104,31 +120,42 @@ class ReservaController extends Controller
         $vencimiento->vencer(); // una reserva vencida libera la propiedad antes de intentar reservarla de nuevo
 
         $usuario = $request->user();
-        $visita = Visita::with(['propiedad', 'cliente'])->findOrFail($request->input('idvisita'));
+        $propiedadElegida = Propiedad::findOrFail($request->input('idpropiedad'));
+        $cliente = Cliente::findOrFail($request->input('idcliente'));
         $moneda = $request->input('moneda');
         $monto = $request->input('monto');
         $tipoCambio = $moneda === 'BOB' ? $request->input('tipocambio') : null;
         $plazo = $request->input('fechaplazo');
-        $cliente = $visita->cliente;
 
-        // Paso 6: la reserva se apoya en una visita realizada.
-        if ($visita->estado !== Visita::REALIZADA) {
-            return back()->withInput()->withErrors(['idvisita' => 'Solo se puede reservar después de una visita realizada: esa visita está ' . strtolower($visita->estado_etiqueta) . '.']);
+        // El Agente solo reserva para sus prospectos.
+        if (! ClientesDelActor::permitido($usuario, $cliente)) {
+            return back()->withInput()->withErrors(['idcliente' => 'Ese cliente no está entre tus prospectos.']);
+        }
+
+        // La visita previa es opcional; si se indica, debe estar realizada y ser de esa propiedad y de ese cliente.
+        $visita = $request->filled('idvisita') ? Visita::findOrFail($request->input('idvisita')) : null;
+        if ($visita) {
+            if ($visita->estado !== Visita::REALIZADA) {
+                return back()->withInput()->withErrors(['idvisita' => 'Esa visita está ' . strtolower($visita->estado_etiqueta) . ': solo se puede apoyar la reserva en una visita realizada.']);
+            }
+            if ($visita->idpropiedad !== $propiedadElegida->idpropiedad || $visita->idcliente !== $cliente->idcliente) {
+                return back()->withInput()->withErrors(['idvisita' => 'Esa visita no corresponde a la propiedad y el cliente elegidos.']);
+            }
         }
 
         // El monto mínimo, en dólares, es un porcentaje del precio de la propiedad.
         $montoUsd = DineroDeReservas::aUsd($monto, $moneda, $tipoCambio);
-        $minimoUsd = DineroDeReservas::minimoUsd($visita->propiedad->precio);
+        $minimoUsd = DineroDeReservas::minimoUsd($propiedadElegida->precio);
         if ($montoUsd < $minimoUsd) {
             return back()->withInput()->withErrors(['monto' => 'La reserva debe ser al menos el ' . rtrim(rtrim(number_format((float) config('reservas.minimo'), 2), '0'), '.') . '% del precio: USD ' . number_format($minimoUsd, 2, '.', ',') . ' (el pago equivale a USD ' . number_format($montoUsd, 2, '.', ',') . ').']);
         }
-        if ($montoUsd > (float) $visita->propiedad->precio) {
-            return back()->withInput()->withErrors(['monto' => 'La reserva no puede superar el precio de la propiedad (USD ' . number_format($visita->propiedad->precio, 2, '.', ',') . ').']);
+        if ($montoUsd > (float) $propiedadElegida->precio) {
+            return back()->withInput()->withErrors(['monto' => 'La reserva no puede superar el precio de la propiedad (USD ' . number_format($propiedadElegida->precio, 2, '.', ',') . ').']);
         }
 
         try {
-            $resultado = DB::transaction(function () use ($visita, $cliente, $usuario, $plazo, $moneda, $monto, $tipoCambio, $montoUsd, $cambio, $dinero) {
-                $propiedad = Propiedad::lockForUpdate()->findOrFail($visita->idpropiedad);
+            $resultado = DB::transaction(function () use ($propiedadElegida, $visita, $cliente, $usuario, $plazo, $moneda, $monto, $tipoCambio, $montoUsd, $cambio, $dinero) {
+                $propiedad = Propiedad::lockForUpdate()->findOrFail($propiedadElegida->idpropiedad);
 
                 // Paso 6: la propiedad debe seguir disponible y sin otra reserva vigente.
                 if ($propiedad->estadopropiedad === Propiedad::BAJA) {
@@ -145,7 +172,7 @@ class ReservaController extends Controller
                 $reserva = Reserva::create([
                     'idcliente' => $cliente->idcliente,
                     'idpropiedad' => $propiedad->idpropiedad,
-                    'idvisita' => $visita->idvisita,
+                    'idvisita' => $visita?->idvisita,
                     'fechareserva' => AgendaDeVisitas::ahora()->toDateString(),
                     'fechaplazo' => $plazo,
                     'estado' => Reserva::VIGENTE,
@@ -167,7 +194,7 @@ class ReservaController extends Controller
         }
 
         if (isset($resultado['error'])) {
-            return back()->withInput()->withErrors(['idvisita' => $resultado['error']]);
+            return back()->withInput()->withErrors(['idpropiedad' => $resultado['error']]);
         }
 
         ['reserva' => $reserva, 'cobro' => $cobro, 'propiedad' => $propiedad, 'anterior' => $anterior, 'motivo' => $motivo] = $resultado;
@@ -176,7 +203,7 @@ class ReservaController extends Controller
             'idreserva' => $reserva->idreserva,
             'idpropiedad' => $propiedad->idpropiedad,
             'idcliente' => $cliente->idcliente,
-            'idvisita' => $visita->idvisita,
+            'idvisita' => $visita?->idvisita,
             'fechaplazo' => $plazo,
             'monto' => (string) $cobro->monto,
             'moneda' => $cobro->moneda,
@@ -194,6 +221,8 @@ class ReservaController extends Controller
     /** Flujo alternativo: cancelar una reserva vigente; la propiedad vuelve a "Disponible" y queda pendiente la devolución. */
     public function cancelar(Request $request, Reserva $reserva, VencimientoDeReservas $vencimiento, CambioDeEstadoPropiedad $cambio, DineroDeReservas $dinero): RedirectResponse
     {
+        $this->autorizar($request, $reserva, 'Solo puedes cancelar las reservas de las propiedades que tú registraste.');
+
         $vencimiento->vencer();
 
         $reserva->load(['propiedad', 'cliente']);
@@ -246,6 +275,8 @@ class ReservaController extends Controller
      */
     public function devolver(Request $request, Reserva $reserva, DineroDeReservas $dinero): RedirectResponse
     {
+        $this->autorizar($request, $reserva, 'Solo puedes devolver las reservas de las propiedades que tú registraste.');
+
         $usuario = $request->user();
 
         try {
@@ -290,10 +321,12 @@ class ReservaController extends Controller
             ->with('status', "Devolución registrada: {$movimiento->moneda} " . number_format($movimiento->monto, 2, '.', ',') . ' en efectivo para ' . $actual->cliente->nombre . '.');
     }
 
-    /** Recibo imprimible del cobro o de la devolución de una reserva. */
-    public function recibo(MovimientoReserva $movimiento): View
+    /** Recibo imprimible del cobro o de la devolución de una reserva (el Agente, solo de las reservas de sus propiedades). */
+    public function recibo(Request $request, MovimientoReserva $movimiento): View
     {
         $movimiento->load(['reserva.propiedad', 'reserva.cliente', 'reserva.cobro', 'usuario']);
+
+        $this->autorizar($request, $movimiento->reserva, 'Solo puedes ver los recibos de las reservas de tus propiedades.');
 
         return view('agendavisitaspagos::CU26_GestionarReservas.recibo', [
             'movimiento' => $movimiento,
@@ -302,5 +335,17 @@ class ReservaController extends Controller
                 ? round((float) $movimiento->reserva->cobro->montousd - (float) $movimiento->montousd, 2)
                 : null,
         ]);
+    }
+
+    /** El Agente solo gestiona las reservas de las propiedades que registró; el Asistente y el Administrador, todas (403 si no). */
+    private function autorizar(Request $request, Reserva $reserva, string $mensaje): void
+    {
+        $usuario = $request->user();
+
+        abort_if(
+            $usuario->tieneRol(Rol::AGENTE) && $reserva->propiedad()->where('idusuario', $usuario->idusuario)->doesntExist(),
+            403,
+            $mensaje
+        );
     }
 }

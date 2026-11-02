@@ -33,12 +33,7 @@
                     <dt class="col-sm-4">Monto</dt>
                     <dd class="col-sm-8">USD {{ number_format($contrato->monto, 2, '.', ',') }}</dd>
                     <dt class="col-sm-4">Pagado</dt>
-                    <dd class="col-sm-8">
-                        USD {{ number_format($pagado, 2, '.', ',') }}
-                        @if ($contrato->abonoDeReservaUsd() > 0)
-                            <div class="small text-muted">Incluye USD {{ number_format($contrato->abonoDeReservaUsd(), 2, '.', ',') }} que el cliente pagó para reservar.</div>
-                        @endif
-                    </dd>
+                    <dd class="col-sm-8">USD {{ number_format($pagado, 2, '.', ',') }}</dd>
                     <dt class="col-sm-4">Saldo</dt>
                     <dd class="col-sm-8">USD {{ number_format($saldo, 2, '.', ',') }}</dd>
                     <dt class="col-sm-4">Inicio</dt>
@@ -58,9 +53,17 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <h2 class="h5">Pagos</h2>
+                @if ($contrato->reserva && $contrato->reserva->montousd !== null)
+                    <p class="small text-muted">
+                        El pago inicial viene de la reserva N.º {{ $contrato->reserva->idreserva }}: el cliente ya había pagado USD {{ number_format($contrato->reserva->montousd, 2, '.', ',') }} y ese monto se tomó como primer pago del contrato.
+                    </p>
+                @endif
                 @forelse ($contrato->pagos->sortByDesc('idpago') as $pago)
                     <div class="d-flex justify-content-between border-bottom py-2">
-                        <span>{{ $pago->fechapago->format('d/m/Y') }} &middot; {{ $pago->moneda }} {{ number_format($pago->monto, 2, '.', ',') }}</span>
+                        <span>
+                            {{ $pago->fechapago->format('d/m/Y') }} &middot; {{ $pago->moneda }} {{ number_format($pago->monto, 2, '.', ',') }}
+                            @if ($pago->comprobante) <span class="text-muted small">&middot; {{ $pago->comprobante }}</span> @endif
+                        </span>
                         <span class="badge text-bg-{{ $coloresPago[$pago->estado] ?? 'secondary' }}">{{ $pago->estado_etiqueta }}</span>
                     </div>
                 @empty

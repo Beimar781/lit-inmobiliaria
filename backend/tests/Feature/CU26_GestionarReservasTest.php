@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\Contrato;
 use App\Models\Historial;
 use App\Models\MovimientoReserva;
+use App\Models\Pago;
 use App\Models\Propiedad;
 use App\Models\Reserva;
 use App\Models\Usuario;
@@ -46,10 +47,25 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         ]);
     }
 
+    /** Reserva apoyada en una visita realizada: manda la visita y, de ella, la propiedad y el cliente. */
     private function reservar(Usuario $actor, Visita $visita, array $cambios = [])
     {
         return $this->actingAs($actor)->post(route('reservas.store'), array_merge([
             'idvisita' => $visita->idvisita,
+            'idpropiedad' => $visita->idpropiedad,
+            'idcliente' => $visita->idcliente,
+            'monto' => '1000',
+            'moneda' => 'USD',
+            'fechaplazo' => '2026-12-30',
+        ], $cambios));
+    }
+
+    /** Reserva sin visita previa: se elige directamente la propiedad y el cliente. */
+    private function reservarSinVisita(Usuario $actor, Propiedad $propiedad, ?Cliente $cliente = null, array $cambios = [])
+    {
+        return $this->actingAs($actor)->post(route('reservas.store'), array_merge([
+            'idpropiedad' => $propiedad->idpropiedad,
+            'idcliente' => ($cliente ?? $this->cliente3())->idcliente,
             'monto' => '1000',
             'moneda' => 'USD',
             'fechaplazo' => '2026-12-30',
@@ -238,46 +254,84 @@ class CU26_GestionarReservasTest extends SistemaTestCase
 
     // ============================================ la reserva exige una visita realizada
 
-    public function test_no_se_puede_reservar_sin_una_visita_realizada(): void
+    public function test_una_visita_que_no_esta_realizada_no_sirve_de_apoyo_pero_la_visita_es_opcional(): void
     {
         $asistente = $this->asistente();
         $propiedad = $this->propiedad();
 
         foreach ([Visita::PROGRAMADA, Visita::REAGENDADA, Visita::CANCELADA] as $estado) {
-            $visita = $this->visita($propiedad, null, $estado);
-
-            $this->reservar($asistente, $visita)->assertSessionHasErrors('idvisita');
-            $this->assertStringContainsString('Solo se puede reservar después de una visita realizada', session('errors')->first('idvisita'));
+            $this->reservar($asistente, $this->visita($propiedad, null, $estado))->assertSessionHasErrors('idvisita');
+            $this->assertStringContainsString('solo se puede apoyar la reserva en una visita realizada', session('errors')->first('idvisita'));
         }
         $realizada = $this->visita($propiedad);
-        $this->reservar($asistente, $realizada, ['idvisita' => ''])->assertSessionHasErrors(['idvisita' => 'Elige la visita realizada en la que se apoya la reserva.']);
         $this->reservar($asistente, $realizada, ['idvisita' => 9999])->assertSessionHasErrors(['idvisita' => 'La visita elegida no existe.']);
-
         $this->assertSame(0, Reserva::count());
         $this->assertSame(Propiedad::DISPONIBLE, $propiedad->fresh()->estadopropiedad);
         $this->assertSame(0, MovimientoReserva::count());
+
+        // Sin visita previa sí se puede reservar.
+        $this->reservarSinVisita($asistente, $propiedad)->assertSessionHasNoErrors();
+        $this->assertNull(Reserva::firstOrFail()->idvisita);
     }
 
-    public function test_el_formulario_solo_ofrece_visitas_realizadas_de_propiedades_disponibles_sin_reserva(): void
+    public function test_se_reserva_sin_visita_previa_eligiendo_la_propiedad_y_el_cliente(): void
+    {
+        $ana = $this->agente();
+        $propiedad = $this->propiedad(['titulo' => 'Casa de Ana'], $ana);
+        $cliente = $this->cliente3('Clara Cliente');
+
+        $this->reservarSinVisita($this->asistente(), $propiedad, $cliente)
+            ->assertSessionHas('status', 'Reserva registrada: «Casa de Ana» quedó reservada para Clara Cliente hasta el 30/12/2026.');
+
+        $reserva = Reserva::firstOrFail();
+        $this->assertNull($reserva->idvisita);
+        $this->assertSame($cliente->idcliente, $reserva->idcliente);
+        $this->assertSame(Reserva::VIGENTE, $reserva->estado);
+        $this->assertSame('RV-2026-000001', $reserva->cobro->comprobante);
+        $this->assertSame(Propiedad::RESERVADO, $propiedad->fresh()->estadopropiedad);
+    }
+
+    public function test_la_visita_debe_corresponder_a_la_propiedad_y_al_cliente_elegidos(): void
+    {
+        $asistente = $this->asistente();
+        $propiedad = $this->propiedad();
+        $visita = $this->visita($propiedad, $this->cliente3('Quien visitó'));
+
+        $this->reservarSinVisita($asistente, $propiedad, $this->cliente3('Otro cliente'), ['idvisita' => $visita->idvisita])
+            ->assertSessionHasErrors(['idvisita' => 'Esa visita no corresponde a la propiedad y el cliente elegidos.']);
+        $this->reservarSinVisita($asistente, $this->propiedad(), $visita->cliente, ['idvisita' => $visita->idvisita])
+            ->assertSessionHasErrors('idvisita');
+
+        $this->assertSame(0, Reserva::count());
+    }
+
+    public function test_el_formulario_ofrece_propiedades_disponibles_clientes_y_visitas_realizadas(): void
     {
         $realizada = $this->visita($this->propiedad(['titulo' => 'Propiedad con visita hecha']), $this->cliente3('Cliente con visita'));
         $this->visita($this->propiedad(['titulo' => 'Propiedad con visita pendiente']), null, Visita::PROGRAMADA);
-        $this->visita($this->propiedad(['titulo' => 'Propiedad ya vendida', 'estadopropiedad' => Propiedad::VENDIDO]));
+        $this->propiedad(['titulo' => 'Propiedad ya vendida', 'estadopropiedad' => Propiedad::VENDIDO]);
         $this->reservaHecha(null);
 
         $this->flushSession();
-        $this->actingAs($this->asistente())->get(route('reservas.create'))
+        $respuesta = $this->actingAs($this->asistente())->get(route('reservas.create'))
             ->assertOk()
-            ->assertSee('Propiedad con visita hecha')->assertSee('Cliente con visita')
-            ->assertDontSee('Propiedad con visita pendiente')->assertDontSee('Propiedad ya vendida')
+            ->assertSee('Propiedad con visita hecha')->assertSee('Propiedad con visita pendiente')->assertSee('Cliente con visita')
+            ->assertDontSee('Propiedad ya vendida')
+            ->assertSee('Visita realizada')->assertSee('Sin visita previa')
             ->assertSee('value="' . $realizada->idvisita . '"', false);
+
+        // La visita pendiente no se ofrece como apoyo (solo las realizadas).
+        $this->assertSame(1, substr_count($respuesta->getContent(), 'data-propiedad='));
     }
 
-    public function test_si_no_hay_visitas_realizadas_el_formulario_lo_explica(): void
+    public function test_si_no_hay_visitas_realizadas_el_formulario_no_pide_visita(): void
     {
+        $this->propiedad(['titulo' => 'Casa sin visitas']);
+
         $this->actingAs($this->asistente())->get(route('reservas.create'))
             ->assertOk()
-            ->assertSee('No hay visitas realizadas de propiedades disponibles');
+            ->assertSee('Casa sin visitas')
+            ->assertDontSee('Sin visita previa');
     }
 
     public function test_el_formulario_llega_con_la_visita_elegida_y_sugiere_el_ultimo_tipo_de_cambio(): void
@@ -288,7 +342,9 @@ class CU26_GestionarReservasTest extends SistemaTestCase
 
         $html = $this->actingAs($asistente)->get(route('reservas.create', ['visita' => $visita->idvisita]))->getContent();
 
-        $this->assertMatchesRegularExpression('/<option value="' . $visita->idvisita . '"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/<option value="' . $visita->idvisita . '"[^>]*selected/s', $html);
+        $this->assertMatchesRegularExpression('/<option value="' . $visita->idpropiedad . '"\s+selected/', $html);
+        $this->assertMatchesRegularExpression('/<option value="' . $visita->idcliente . '"\s+selected/', $html);
         $this->assertStringContainsString('value="6.96"', $html);
         $this->assertStringContainsString('en efectivo', $html);
     }
@@ -303,7 +359,7 @@ class CU26_GestionarReservasTest extends SistemaTestCase
             $propiedad = $this->propiedad(['estadopropiedad' => $estado]);
 
             $this->reservar($asistente, $this->visita($propiedad))
-                ->assertSessionHasErrors(['idvisita' => 'La propiedad no está disponible (está ' . strtolower($estado) . ').']);
+                ->assertSessionHasErrors(['idpropiedad' => 'La propiedad no está disponible (está ' . strtolower($estado) . ').']);
             $this->assertSame($estado, $propiedad->fresh()->estadopropiedad);
         }
         $this->assertSame(0, Reserva::count());
@@ -313,7 +369,7 @@ class CU26_GestionarReservasTest extends SistemaTestCase
     public function test_no_se_puede_reservar_una_propiedad_dada_de_baja(): void
     {
         $this->reservar($this->asistente(), $this->visita($this->propiedad(['estadopropiedad' => Propiedad::BAJA])))
-            ->assertSessionHasErrors(['idvisita' => 'Esa propiedad fue dada de baja.']);
+            ->assertSessionHasErrors(['idpropiedad' => 'Esa propiedad fue dada de baja.']);
     }
 
     public function test_una_segunda_reserva_sobre_una_propiedad_ya_reservada_se_rechaza(): void
@@ -323,7 +379,7 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         $this->reservar($asistente, $this->visita($propiedad))->assertSessionHasNoErrors();
 
         $this->reservar($asistente, $this->visita($propiedad, $this->cliente3('Otro cliente')))
-            ->assertSessionHasErrors(['idvisita' => 'La propiedad ya tiene una reserva vigente.']);
+            ->assertSessionHasErrors(['idpropiedad' => 'La propiedad ya tiene una reserva vigente.']);
 
         $this->assertSame(1, Reserva::count());
         $this->assertSame(1, MovimientoReserva::count());
@@ -338,7 +394,7 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         $propiedad->update(['estadopropiedad' => Propiedad::DISPONIBLE]); // alguien la dejó disponible a mano con el CU8
 
         $this->reservar($asistente, $this->visita($propiedad, $this->cliente3('Otro cliente')))
-            ->assertSessionHasErrors(['idvisita' => 'La propiedad ya tiene una reserva vigente.']);
+            ->assertSessionHasErrors(['idpropiedad' => 'La propiedad ya tiene una reserva vigente.']);
     }
 
     // ============================================ plazo y campos obligatorios
@@ -366,13 +422,23 @@ class CU26_GestionarReservasTest extends SistemaTestCase
     {
         $this->actingAs($this->asistente())->post(route('reservas.store'), [])
             ->assertSessionHasErrors([
-                'idvisita' => 'Elige la visita realizada en la que se apoya la reserva.',
+                'idpropiedad' => 'Elige la propiedad que se va a reservar.',
+                'idcliente' => 'Elige el cliente que reserva.',
                 'monto' => 'Indica cuánto paga el cliente para reservar.',
                 'moneda' => 'Elige la moneda del pago.',
                 'fechaplazo' => 'Indica la fecha de plazo de la reserva.',
-            ]);
+            ])
+            ->assertSessionDoesntHaveErrors('idvisita');
 
         $this->assertSame(0, Reserva::count());
+    }
+
+    public function test_un_cliente_que_no_existe_en_el_crm_se_rechaza(): void
+    {
+        $this->actingAs($this->asistente())->post(route('reservas.store'), [
+            'idpropiedad' => $this->propiedad()->idpropiedad, 'idcliente' => 9999,
+            'monto' => '1000', 'moneda' => 'USD', 'fechaplazo' => '2026-12-30',
+        ])->assertSessionHasErrors(['idcliente' => 'El cliente no existe en el CRM. Regístralo primero como prospecto.']);
     }
 
     // ============================================ cancelar
@@ -567,7 +633,7 @@ class CU26_GestionarReservasTest extends SistemaTestCase
 
     // ============================================ si formaliza, no se devuelve
 
-    public function test_si_el_cliente_formaliza_la_compra_la_reserva_se_descuenta_del_contrato_y_no_se_devuelve_nada(): void
+    public function test_si_el_cliente_formaliza_la_compra_el_dinero_de_la_reserva_es_su_pago_inicial_con_comprobante(): void
     {
         $asistente = $this->asistente();
         $ana = $this->agente();
@@ -581,12 +647,56 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         $contrato = Contrato::firstOrFail();
         $this->assertSame(Reserva::CONCRETADA, $reserva->fresh()->estado);
         $this->assertFalse($reserva->fresh()->devolucionPendiente());
-        $this->assertSame(1000.0, $contrato->abonoDeReservaUsd());
+
+        // El mismo monto de la reserva queda como primer pago del contrato, en efectivo, con su comprobante de pago formal (CP).
+        $pago = $contrato->pagos()->firstOrFail();
+        $this->assertSame(Pago::PAGADO, $pago->estado);
+        $this->assertSame(Pago::EFECTIVO, $pago->metodo);
+        $this->assertSame('USD', $pago->moneda);
+        $this->assertSame('1000.00', (string) $pago->monto);
+        $this->assertSame('1000.00', (string) $pago->montousd);
+        $this->assertSame('CP-2026-000001', $pago->comprobante);
+        $this->assertSame($ana->idusuario, $pago->idusuario);
         $this->assertSame(1000.0, $contrato->totalPagadoUsd());
         $this->assertSame(84000.0, $contrato->saldoUsd());
+        $this->assertSame($pago->idpago, Bitacora::where('accion', 'CONTRATO_REGISTRADO')->firstOrFail()->detalle['pago_inicial']['idpago']);
+
+        // El recibo de la reserva (RV) y el comprobante del pago formal (CP) son documentos distintos.
+        $this->assertSame('RV-2026-000001', $reserva->cobro->comprobante);
 
         $this->devolver($asistente, $reserva)->assertSessionHas('error');
-        $this->actingAs($asistente)->get(route('reservas.index'))->assertSee('Descontada del contrato');
+        $this->actingAs($asistente)->get(route('reservas.index'))->assertSee('Pasó a ser el pago inicial del contrato');
+    }
+
+    public function test_el_pago_inicial_de_una_reserva_en_bolivianos_conserva_la_moneda_y_el_tipo_de_cambio(): void
+    {
+        $ana = $this->agente();
+        $reserva = $this->reservaHecha($ana, ['monto' => '6960', 'moneda' => 'BOB', 'tipocambio' => '6.96']);
+
+        $this->actingAs($ana)->post(route('contratos.store'), [
+            'idpropiedad' => $reserva->idpropiedad, 'idcliente' => $reserva->idcliente,
+            'monto' => '85000', 'fechainicio' => '2026-12-20',
+        ])->assertSessionHasNoErrors();
+
+        $pago = Contrato::firstOrFail()->pagos()->firstOrFail();
+        $this->assertSame('BOB', $pago->moneda);
+        $this->assertSame('6960.00', (string) $pago->monto);
+        $this->assertSame('6.9600', (string) $pago->tipocambio);
+        $this->assertSame('1000.00', (string) $pago->montousd);
+        $this->assertSame('6.9600', (string) $pago->tipopago->cambiodemonedalocal);
+    }
+
+    public function test_si_el_pago_inicial_es_igual_al_contrato_queda_pagado_por_completo(): void
+    {
+        $ana = $this->agente();
+        $reserva = $this->reservaHecha($ana, ['monto' => '2000']);
+
+        $this->actingAs($ana)->post(route('contratos.store'), [
+            'idpropiedad' => $reserva->idpropiedad, 'idcliente' => $reserva->idcliente,
+            'monto' => '2000', 'fechainicio' => '2026-12-20',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(0.0, Contrato::firstOrFail()->saldoUsd());
     }
 
     // ============================================ el listado: activas, historial y permisos
@@ -632,7 +742,7 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         $this->actingAs($this->asistente())->get(route('reservas.index'))->assertOk()->assertSee('No hay reservas para mostrar.');
     }
 
-    public function test_el_agente_ve_solo_las_reservas_de_sus_propiedades_y_no_maneja_efectivo(): void
+    public function test_el_agente_ve_solo_las_reservas_de_sus_propiedades(): void
     {
         $ana = $this->agente();
         $deAna = $this->reservaHecha($ana);
@@ -642,14 +752,126 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         $this->actingAs($ana)->get(route('reservas.index'))
             ->assertOk()
             ->assertSee($deAna->propiedad->titulo)->assertDontSee($deOtro->propiedad->titulo)
-            ->assertSee('Crear contrato')
-            ->assertDontSee('Nueva reserva')->assertDontSee('Cancelar reserva')->assertDontSee('Recibo');
+            ->assertSee('Nueva reserva')->assertSee('Cancelar reserva')->assertSee('Crear contrato')->assertSee('Recibo');
 
         $this->actingAs($this->admin())->get(route('reservas.index'))
             ->assertSee($deAna->propiedad->titulo)->assertSee($deOtro->propiedad->titulo)->assertSee('Nueva reserva');
     }
 
-    public function test_el_agente_el_cliente_y_el_invitado_no_pueden_cobrar_cancelar_ni_devolver(): void
+    // ============================================ el agente reserva lo suyo; el asistente cubre al agente
+
+    public function test_el_agente_reserva_sus_propiedades_para_sus_prospectos_y_cobra_el_efectivo(): void
+    {
+        $ana = $this->agente();
+        $propiedad = $this->propiedad(['titulo' => 'Casa de Ana'], $ana);
+        $prospecto = Cliente::create(['nombre' => 'Prospecto de Ana', 'email' => 'p@correo.com', 'idusuario' => $ana->idusuario]);
+
+        $this->reservarSinVisita($ana, $propiedad, $prospecto)->assertSessionHasNoErrors();
+
+        $reserva = Reserva::firstOrFail();
+        $this->assertSame($ana->idusuario, $reserva->idusuario);
+        $this->assertSame($ana->idusuario, $reserva->cobro->idusuario, 'el agente que reserva es quien recibe el efectivo');
+        $this->assertSame(Propiedad::RESERVADO, $propiedad->fresh()->estadopropiedad);
+        $this->actingAs($ana)->get(route('reservas.recibo', $reserva->cobro))->assertOk()->assertSee('RV-2026-000001');
+    }
+
+    public function test_el_agente_tambien_puede_apoyar_la_reserva_en_una_visita_realizada(): void
+    {
+        $ana = $this->agente();
+        $propiedad = $this->propiedad([], $ana);
+        $prospecto = Cliente::create(['nombre' => 'Prospecto de Ana', 'email' => 'p@correo.com', 'idusuario' => $ana->idusuario]);
+
+        $this->reservar($ana, $this->visita($propiedad, $prospecto))->assertSessionHasNoErrors();
+
+        $this->assertNotNull(Reserva::firstOrFail()->idvisita);
+    }
+
+    public function test_el_formulario_del_agente_ofrece_solo_sus_propiedades_y_sus_prospectos(): void
+    {
+        $ana = $this->agente();
+        $this->propiedad(['titulo' => 'Disponible de Ana'], $ana);
+        $this->propiedad(['titulo' => 'Disponible de otro'], $this->agente());
+        Cliente::create(['nombre' => 'Prospecto de Ana', 'email' => 'a@correo.com', 'idusuario' => $ana->idusuario]);
+        Cliente::create(['nombre' => 'Prospecto de otro', 'email' => 'b@correo.com', 'idusuario' => $this->agente()->idusuario]);
+
+        $this->actingAs($ana)->get(route('reservas.create'))
+            ->assertOk()
+            ->assertSee('Disponible de Ana')->assertSee('Prospecto de Ana')
+            ->assertDontSee('Disponible de otro')->assertDontSee('Prospecto de otro');
+    }
+
+    public function test_el_agente_no_puede_reservar_una_propiedad_que_no_registro(): void
+    {
+        $ana = $this->agente();
+        $deOtro = $this->propiedad([], $this->agente());
+
+        $this->reservarSinVisita($ana, $deOtro)->assertForbidden();
+        // aunque mande datos inválidos, recibe 403 y no un aviso de validación
+        $this->actingAs($ana)->post(route('reservas.store'), ['idpropiedad' => $deOtro->idpropiedad])->assertForbidden();
+
+        $this->assertSame(0, Reserva::count());
+        $this->assertSame(Propiedad::DISPONIBLE, $deOtro->fresh()->estadopropiedad);
+    }
+
+    public function test_el_agente_solo_reserva_para_sus_prospectos(): void
+    {
+        $ana = $this->agente();
+        $ajeno = Cliente::create(['nombre' => 'De otro', 'email' => 'x@correo.com', 'idusuario' => $this->agente()->idusuario]);
+
+        $this->reservarSinVisita($ana, $this->propiedad([], $ana), $ajeno)
+            ->assertSessionHasErrors(['idcliente' => 'Ese cliente no está entre tus prospectos.']);
+
+        $this->assertSame(0, Reserva::count());
+    }
+
+    public function test_el_agente_cancela_y_devuelve_las_reservas_de_sus_propiedades(): void
+    {
+        $ana = $this->agente();
+        $reserva = $this->reservaHecha($ana);
+
+        $this->cancelar($ana, $reserva)->assertSessionHas('status');
+        $this->devolver($ana, $reserva)->assertSessionHasNoErrors();
+
+        $this->assertSame(Reserva::CANCELADA, $reserva->fresh()->estado);
+        $this->assertSame($ana->idusuario, $reserva->fresh()->devolucion->idusuario);
+        $this->actingAs($ana)->get(route('reservas.recibo', $reserva->fresh()->devolucion))->assertOk()->assertSee('DV-2026-000001');
+    }
+
+    public function test_el_agente_no_toca_las_reservas_de_otro_agente(): void
+    {
+        $ana = $this->agente();
+        $deOtro = $this->reservaHecha($this->agente());
+
+        $this->cancelar($ana, $deOtro)->assertForbidden();
+        $this->devolver($ana, $deOtro)->assertForbidden();
+        $this->actingAs($ana)->get(route('reservas.recibo', $deOtro->cobro))->assertForbidden();
+
+        $this->assertSame(Reserva::VIGENTE, $deOtro->fresh()->estado);
+        $this->assertSame(Propiedad::RESERVADO, $deOtro->propiedad->fresh()->estadopropiedad);
+        $this->assertSame(0, MovimientoReserva::where('tipo', MovimientoReserva::DEVOLUCION)->count());
+    }
+
+    public function test_el_asistente_reserva_cualquier_propiedad_por_el_agente_que_no_puede_hacerlo(): void
+    {
+        $asistente = $this->asistente();
+        $agenteDeVacaciones = $this->agente();
+        $propiedad = $this->propiedad([], $agenteDeVacaciones);
+        $prospecto = Cliente::create(['nombre' => 'Prospecto del agente', 'email' => 'p@correo.com', 'idusuario' => $agenteDeVacaciones->idusuario]);
+
+        $this->reservarSinVisita($asistente, $propiedad, $prospecto)->assertSessionHasNoErrors();
+
+        $reserva = Reserva::firstOrFail();
+        $this->assertSame($asistente->idusuario, $reserva->idusuario);
+        $this->assertSame(Propiedad::RESERVADO, $propiedad->fresh()->estadopropiedad);
+        // El agente de la propiedad la ve en su lista.
+        $this->flushSession();
+        $this->actingAs($agenteDeVacaciones)->get(route('reservas.index'))->assertSee($propiedad->titulo);
+        // El asistente también cancela y devuelve.
+        $this->cancelar($asistente, $reserva)->assertSessionHas('status');
+        $this->devolver($asistente, $reserva)->assertSessionHasNoErrors();
+    }
+
+    public function test_el_cliente_y_el_invitado_no_pueden_cobrar_cancelar_ni_devolver(): void
     {
         // El invitado primero (más abajo ya hay usuarios con sesión).
         $this->get(route('reservas.index'))->assertRedirect(route('login'));
@@ -658,19 +880,17 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         $this->post(route('reservas.devolver', 1))->assertRedirect(route('login'));
         $this->get(route('reservas.recibo', 1))->assertRedirect(route('login'));
 
-        $agente = $this->agente();
-        $reserva = $this->reservaHecha($agente);
+        $reserva = $this->reservaHecha();
         $cobro = $reserva->cobro;
-        $visita = $this->visita($this->propiedad());
+        $cliente = $this->cliente();
 
-        foreach ([$agente, $this->cliente()] as $usuario) {
-            $this->actingAs($usuario)->get(route('reservas.create'))->assertForbidden();
-            $this->reservar($usuario, $visita)->assertForbidden();
-            $this->cancelar($usuario, $reserva)->assertForbidden();
-            $this->devolver($usuario, $reserva)->assertForbidden();
-            $this->actingAs($usuario)->get(route('reservas.recibo', $cobro))->assertForbidden();
-        }
-        $this->actingAs($this->cliente())->get(route('reservas.index'))->assertForbidden();
+        $this->actingAs($cliente)->get(route('reservas.index'))->assertForbidden();
+        $this->actingAs($cliente)->get(route('reservas.create'))->assertForbidden();
+        $this->reservarSinVisita($cliente, $this->propiedad())->assertForbidden();
+        $this->cancelar($cliente, $reserva)->assertForbidden();
+        $this->devolver($cliente, $reserva)->assertForbidden();
+        $this->actingAs($cliente)->get(route('reservas.recibo', $cobro))->assertForbidden();
+
         $this->assertSame(Reserva::VIGENTE, $reserva->fresh()->estado);
         $this->assertSame(1, Reserva::count());
     }

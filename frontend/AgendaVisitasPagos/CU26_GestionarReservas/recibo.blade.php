@@ -64,7 +64,7 @@
         @if ($esCobro)
             <p class="small text-muted mb-4">
                 Si el cliente no formaliza la compra antes del plazo, se le devolverá en efectivo este monto menos el
-                {{ rtrim(rtrim(number_format((float) config('reservas.retencion'), 2), '0'), '.') }} % que retiene la empresa. Si la formaliza, la reserva se descuenta del contrato.
+                {{ rtrim(rtrim(number_format((float) config('reservas.retencion'), 2), '0'), '.') }} % que retiene la empresa. Si la formaliza, este monto se toma como el primer pago del contrato.
             </p>
         @endif
 

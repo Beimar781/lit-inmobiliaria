@@ -15,7 +15,7 @@
 
 <p class="text-muted small">
     La reserva se paga en efectivo después de una visita. Si el cliente no formaliza la compra, se le devuelve en efectivo lo pagado
-    menos el {{ rtrim(rtrim(number_format($retencion, 2), '0'), '.') }} % que retiene la empresa. Si la formaliza, se descuenta del contrato.
+    menos el {{ rtrim(rtrim(number_format($retencion, 2), '0'), '.') }} % que retiene la empresa. Si la formaliza, ese dinero es el pago inicial (o total) del contrato.
 </p>
 
 <form method="GET" action="{{ route('reservas.index') }}" class="row g-2 mb-3">
@@ -71,7 +71,7 @@
                             @elseif ($reserva->devolucion)
                                 <div class="small text-muted mt-1">Devuelto: {{ $reserva->devolucion->moneda }} {{ $formato($reserva->devolucion->monto) }}</div>
                             @elseif ($reserva->estado === 'CONCRETADA' && $reserva->cobro)
-                                <div class="small text-muted mt-1">Descontada del contrato</div>
+                                <div class="small text-muted mt-1">Pasó a ser el pago inicial del contrato</div>
                             @endif
                         </td>
                         @if ($esAdmin)

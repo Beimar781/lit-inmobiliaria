@@ -71,19 +71,13 @@ class Contrato extends Model
         return $this->hasMany(Pago::class, 'idcontrato', 'idcontrato');
     }
 
-    /** Lo que el cliente pagó para reservar la propiedad y se descuenta del contrato (solo si la reserva se concretó en este contrato). */
-    public function abonoDeReservaUsd(): float
-    {
-        $reserva = $this->idreserva ? $this->reserva : null;
-
-        return $reserva && $reserva->estado === Reserva::CONCRETADA ? (float) $reserva->montousd : 0.0;
-    }
-
-    /** Dólares ya pagados: la reserva (si la hubo) más la suma del equivalente en USD de los pagos PAGADOS (los pendientes y anulados no cuentan). */
+    /**
+     * Dólares ya pagados: la suma del equivalente en USD de los pagos PAGADOS (los pendientes y anulados no cuentan).
+     * Si el contrato viene de una reserva, el dinero de la reserva ya está aquí como su primer pago (pago inicial o total).
+     */
     public function totalPagadoUsd(): float
     {
-        $centavos = (int) round(((float) $this->pagos()->where('estado', Pago::PAGADO)->sum('montousd')) * 100)
-            + (int) round($this->abonoDeReservaUsd() * 100);
+        $centavos = (int) round(((float) $this->pagos()->where('estado', Pago::PAGADO)->sum('montousd')) * 100);
 
         return $centavos / 100;
     }

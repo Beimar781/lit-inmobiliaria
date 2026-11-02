@@ -2,9 +2,11 @@
 
 namespace App\Modules\AgendaVisitasPagos\Compartido;
 
+use App\Models\Contrato;
 use App\Models\MovimientoReserva;
 use App\Models\Pago;
 use App\Models\Reserva;
+use App\Models\TipoPago;
 use App\Models\Usuario;
 
 /**
@@ -12,7 +14,8 @@ use App\Models\Usuario;
  *  - al reservar, el cliente paga en dólares (USD) o bolivianos (BOB, con el tipo de cambio oficial del día escrito a mano);
  *  - si no formaliza la compra (la reserva vence o se cancela) se le devuelve, en efectivo y en la misma moneda, todo menos
  *    el porcentaje que se queda la empresa (config/reservas.php, 20 % por defecto);
- *  - si formaliza, la reserva se descuenta del contrato (no se devuelve nada).
+ *  - si formaliza, el dinero de la reserva pasa a ser el primer pago del contrato (pago inicial o total) y se emite su comprobante
+ *    de pago formal (CP-AAAA-000001); no se devuelve nada. El recibo de la reserva (RV) no es el comprobante del pago formal.
  * Cada reserva tiene como máximo un cobro y una devolución. Los métodos se llaman dentro de una transacción.
  */
 class DineroDeReservas
@@ -93,6 +96,41 @@ class DineroDeReservas
             'fecha' => AgendaDeVisitas::ahora()->toDateTimeString(),
             'idusuario' => $actor?->idusuario,
         ]);
+    }
+
+    /**
+     * Al formalizar la compra, el dinero de la reserva se convierte en el primer pago del contrato: mismo monto, misma moneda
+     * y mismo tipo de cambio que el cobro de la reserva, en efectivo, con su comprobante de pago formal.
+     * Si la reserva no tuvo un cobro detallado, se toma su monto en dólares. Devuelve null si la reserva no tuvo pago.
+     */
+    public function convertirEnPagoInicial(Reserva $reserva, Contrato $contrato, ?Usuario $actor): ?Pago
+    {
+        if ($reserva->montousd === null) {
+            return null;
+        }
+
+        $cobro = $reserva->cobro;
+        $moneda = $cobro?->moneda ?? Pago::USD;
+        $ahora = AgendaDeVisitas::ahora();
+
+        $pago = Pago::create([
+            'idcontrato' => $contrato->idcontrato,
+            'monto' => $cobro?->monto ?? $reserva->montousd,
+            'moneda' => $moneda,
+            'tipocambio' => $moneda === Pago::BOB ? $cobro->tipocambio : null,
+            'fechapago' => $ahora->toDateTimeString(),
+            'comprobante' => $this->numerador->siguiente('CP', 'pago'),
+            'estado' => Pago::PAGADO,
+            'montousd' => $reserva->montousd,
+            'metodo' => Pago::EFECTIVO,
+            'idusuario' => $actor?->idusuario,
+        ]);
+
+        if ($moneda === Pago::BOB) {
+            TipoPago::create(['idpago' => $pago->idpago, 'cambiodemonedalocal' => $cobro->tipocambio, 'fecha' => $ahora->toDateString()]);
+        }
+
+        return $pago;
     }
 
     /** El último tipo de cambio usado en una reserva en bolivianos, para sugerirlo (la persona debe confirmarlo). */

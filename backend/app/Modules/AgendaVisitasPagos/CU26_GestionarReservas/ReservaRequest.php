@@ -3,25 +3,41 @@
 namespace App\Modules\AgendaVisitasPagos\CU26_GestionarReservas;
 
 use App\Models\Pago;
+use App\Models\Propiedad;
+use App\Models\Rol;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Validaciones del CU26 (paso 6): la visita realizada en la que se apoya la reserva (de ahí salen la propiedad y el cliente),
- * lo que paga el cliente en efectivo (USD o BOB con su tipo de cambio) y un plazo futuro.
+ * Validaciones del CU26 (paso 6): propiedad y cliente del CRM, la visita realizada (opcional), lo que paga el cliente en
+ * efectivo (USD o BOB con su tipo de cambio) y un plazo futuro.
  */
 class ReservaRequest extends FormRequest
 {
+    /**
+     * El rol está en routes.php; aquí se revisa el permiso sobre la propiedad ANTES de validar el formulario,
+     * así un Agente que quiere reservar una propiedad que no registró recibe siempre 403.
+     */
     public function authorize(): bool
     {
-        return true; // el acceso por rol está en routes.php
+        $propiedad = Propiedad::find($this->input('idpropiedad'));
+
+        abort_if(
+            $propiedad && $this->user()->tieneRol(Rol::AGENTE) && $propiedad->idusuario !== $this->user()->idusuario,
+            403,
+            'Solo puedes reservar las propiedades que tú registraste.'
+        );
+
+        return true;
     }
 
     public function rules(): array
     {
         return [
-            'idvisita' => ['required', 'exists:visita,idvisita'],
+            'idpropiedad' => ['required', 'exists:propiedad,idpropiedad'],
+            'idcliente' => ['required', 'exists:cliente,idcliente'],
+            'idvisita' => ['nullable', 'exists:visita,idvisita'],
             'monto' => ['required', 'numeric', 'gt:0', 'max:9999999999.99', 'decimal:0,2'],
             'moneda' => ['required', Rule::in(Pago::MONEDAS)],
             // El dólar oficial cambia a diario: en bolivianos el tipo de cambio es obligatorio y lo escribe la persona.
@@ -40,7 +56,10 @@ class ReservaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'idvisita.required' => 'Elige la visita realizada en la que se apoya la reserva.',
+            'idpropiedad.required' => 'Elige la propiedad que se va a reservar.',
+            'idpropiedad.exists' => 'La propiedad elegida no existe.',
+            'idcliente.required' => 'Elige el cliente que reserva.',
+            'idcliente.exists' => 'El cliente no existe en el CRM. Regístralo primero como prospecto.',
             'idvisita.exists' => 'La visita elegida no existe.',
             'monto.required' => 'Indica cuánto paga el cliente para reservar.',
             'monto.numeric' => 'El monto debe ser un número.',

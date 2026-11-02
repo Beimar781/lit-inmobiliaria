@@ -9,6 +9,7 @@ use App\Models\Propiedad;
 use App\Models\Reserva;
 use App\Models\Rol;
 use App\Modules\AgendaVisitasPagos\Compartido\ClientesDelActor;
+use App\Modules\AgendaVisitasPagos\Compartido\DineroDeReservas;
 use App\Modules\AgendaVisitasPagos\Compartido\VencimientoDeReservas;
 use App\Modules\GestionPropiedades\Compartido\CambioDeEstadoPropiedad;
 use App\Services\BitacoraService;
@@ -108,7 +109,7 @@ class ContratoController extends Controller
         ]);
     }
 
-    public function guardar(ContratoRequest $request, VencimientoDeReservas $vencimiento, CambioDeEstadoPropiedad $cambio): RedirectResponse
+    public function guardar(ContratoRequest $request, VencimientoDeReservas $vencimiento, CambioDeEstadoPropiedad $cambio, DineroDeReservas $dinero): RedirectResponse
     {
         $vencimiento->vencer(); // una reserva vencida libera la propiedad antes de intentar formalizarla
 
@@ -116,7 +117,7 @@ class ContratoController extends Controller
         $cliente = Cliente::findOrFail($request->input('idcliente'));
 
         try {
-            $resultado = DB::transaction(function () use ($request, $usuario, $cliente, $cambio) {
+            $resultado = DB::transaction(function () use ($request, $usuario, $cliente, $cambio, $dinero) {
                 $propiedad = Propiedad::lockForUpdate()->findOrFail($request->input('idpropiedad'));
 
                 // Paso 7: la propiedad debe estar disponible, o reservada por ese mismo cliente.
@@ -163,15 +164,20 @@ class ContratoController extends Controller
                     'estado' => Contrato::VIGENTE,
                 ]);
 
-                // Si venía de una reserva, esta queda concretada y deja de estar vigente.
-                $reserva?->update(['estado' => Reserva::CONCRETADA]);
+                // Si venía de una reserva, esta queda concretada y deja de estar vigente, y su dinero pasa a ser el
+                // primer pago del contrato (pago inicial o total) con su comprobante de pago formal.
+                $pagoInicial = null;
+                if ($reserva) {
+                    $reserva->update(['estado' => Reserva::CONCRETADA]);
+                    $pagoInicial = $dinero->convertirEnPagoInicial($reserva, $contrato, $usuario);
+                }
 
                 // Paso 9: la propiedad pasa a "Vendido" o "Alquilado" (CU8) con su historial. En el anticrético es "Alquilado".
                 $nuevo = collect(Propiedad::estadosPermitidos($propiedad->tipopropiedad))->last();
                 $motivo = "Contrato #{$contrato->idcontrato} ({$contrato->tipocontrato}) con {$cliente->nombre}";
                 $anterior = $cambio->cambiar($propiedad, $nuevo, $motivo);
 
-                return compact('contrato', 'propiedad', 'reserva', 'anterior', 'nuevo', 'motivo');
+                return compact('contrato', 'propiedad', 'reserva', 'pagoInicial', 'anterior', 'nuevo', 'motivo');
             });
         } catch (QueryException $error) {
             report($error);
@@ -183,7 +189,7 @@ class ContratoController extends Controller
             return back()->withInput()->withErrors([($resultado['campo'] ?? 'idpropiedad') => $resultado['error']]);
         }
 
-        ['contrato' => $contrato, 'propiedad' => $propiedad, 'reserva' => $reserva, 'anterior' => $anterior, 'nuevo' => $nuevo, 'motivo' => $motivo] = $resultado;
+        ['contrato' => $contrato, 'propiedad' => $propiedad, 'reserva' => $reserva, 'pagoInicial' => $pagoInicial, 'anterior' => $anterior, 'nuevo' => $nuevo, 'motivo' => $motivo] = $resultado;
 
         BitacoraService::registrar('CONTRATO_REGISTRADO', 'Contratos', "Registró el contrato #{$contrato->idcontrato} ({$contrato->tipocontrato}) de «{$propiedad->titulo}» ({$propiedad->codigo}) con {$cliente->nombre}", [
             'idcontrato' => $contrato->idcontrato,
@@ -192,6 +198,7 @@ class ContratoController extends Controller
             'tipo' => $contrato->tipocontrato,
             'monto' => (string) $contrato->monto,
             'idreserva' => $reserva?->idreserva,
+            'pago_inicial' => $pagoInicial ? ['idpago' => $pagoInicial->idpago, 'comprobante' => $pagoInicial->comprobante, 'montousd' => (string) $pagoInicial->montousd] : null,
         ]);
         if ($reserva) {
             BitacoraService::registrar('RESERVA_CONCRETADA', 'Reservas', "La reserva #{$reserva->idreserva} se concretó en el contrato #{$contrato->idcontrato}", [

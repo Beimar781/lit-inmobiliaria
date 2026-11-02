@@ -326,7 +326,7 @@ class CU27_GestionarContratosTest extends SistemaTestCase
         $this->actingAs($this->admin())->get(route('contratos.create'))->assertSee('Disponible de otro');
     }
 
-    public function test_lo_que_el_cliente_pago_para_reservar_se_descuenta_del_contrato(): void
+    public function test_lo_que_el_cliente_pago_para_reservar_queda_como_el_primer_pago_del_contrato(): void
     {
         $ana = $this->agente();
         $propiedad = $this->propiedad([], $ana);
@@ -337,11 +337,16 @@ class CU27_GestionarContratosTest extends SistemaTestCase
         $this->contratar($ana, $propiedad, $cliente, ['monto' => '85000'])->assertSessionHasNoErrors();
 
         $contrato = Contrato::firstOrFail();
-        $this->assertSame(1000.0, $contrato->abonoDeReservaUsd());
+        $pago = $contrato->pagos()->firstOrFail();
+        $this->assertSame(Pago::PAGADO, $pago->estado);
+        $this->assertSame(Pago::EFECTIVO, $pago->metodo);
+        $this->assertSame('1000.00', (string) $pago->montousd);
+        $this->assertSame('CP-2026-000001', $pago->comprobante);
         $this->assertSame(1000.0, $contrato->totalPagadoUsd());
         $this->assertSame(84000.0, $contrato->saldoUsd());
         $this->actingAs($ana)->get(route('contratos.show', $contrato))
-            ->assertSee('Incluye USD 1,000.00 que el cliente pagó para reservar.')
+            ->assertSee('El pago inicial viene de la reserva N.º ' . $reserva->idreserva)
+            ->assertSee('CP-2026-000001')
             ->assertSee('USD 84,000.00');
     }
 
@@ -361,14 +366,29 @@ class CU27_GestionarContratosTest extends SistemaTestCase
         $this->assertSame(Propiedad::RESERVADO, $propiedad->fresh()->estadopropiedad);
     }
 
-    public function test_un_contrato_sin_reserva_no_tiene_abono(): void
+    public function test_un_contrato_sin_reserva_nace_sin_pagos(): void
     {
         $ana = $this->agente();
         $this->contratar($ana, $this->propiedad([], $ana));
 
         $contrato = Contrato::firstOrFail();
-        $this->assertSame(0.0, $contrato->abonoDeReservaUsd());
+        $this->assertSame(0, $contrato->pagos()->count());
+        $this->assertSame(0.0, $contrato->totalPagadoUsd());
         $this->assertSame(85000.5, $contrato->saldoUsd());
+    }
+
+    public function test_una_reserva_sin_pago_registrado_no_genera_pago_inicial(): void
+    {
+        $ana = $this->agente();
+        $propiedad = $this->propiedad([], $ana);
+        $cliente = $this->prospecto($ana);
+        $reserva = $this->reservar($propiedad, $cliente); // reserva antigua, sin dinero registrado
+
+        $this->contratar($ana, $propiedad, $cliente)->assertSessionHasNoErrors();
+
+        $this->assertNull($reserva->fresh()->montousd);
+        $this->assertSame(0, Contrato::firstOrFail()->pagos()->count());
+        $this->assertSame(Reserva::CONCRETADA, $reserva->fresh()->estado);
     }
 
     // ============================================ paso 6 y 7: cambiar el estado

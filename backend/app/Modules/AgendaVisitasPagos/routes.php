@@ -51,12 +51,11 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
     Route::patch('/contratos/{contrato}/estado', [ContratoController::class, 'cambiarEstado'])->whereNumber('contrato')->name('contratos.estado');
 });
 
-// CU26: Gestionar reservas. La reserva se paga en efectivo: la registra, la cancela y devuelve el dinero quien maneja el efectivo
-// (Asistente Administrativo y Administrador). El Agente solo consulta las reservas de sus propiedades.
+// CU26: Gestionar reservas. La reserva se paga en efectivo: la registra, la cancela y devuelve el dinero el Agente (con las
+// propiedades que registró) o, si el agente no puede, el Asistente Administrativo o el Administrador (con cualquiera).
+// Que el Agente solo toque lo suyo se comprueba en el formulario y en el controlador.
 Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE . ',' . Rol::ASISTENTE])->group(function () {
     Route::get('/reservas', [ReservaController::class, 'index'])->name('reservas.index');
-});
-Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::ASISTENTE])->group(function () {
     Route::get('/reservas/crear', [ReservaController::class, 'crear'])->name('reservas.create');
     Route::post('/reservas', [ReservaController::class, 'guardar'])->name('reservas.store');
     Route::patch('/reservas/{reserva}/cancelar', [ReservaController::class, 'cancelar'])->whereNumber('reserva')->name('reservas.cancelar');
