@@ -400,9 +400,9 @@ class ModelosCiclo3Test extends SistemaTestCase
 
     public function test_las_migraciones_nuevas_se_pueden_revertir_y_volver_a_aplicar(): void
     {
-        $this->artisan('migrate:rollback', ['--step' => 6])->assertSuccessful();
+        $this->artisan('migrate:rollback', ['--step' => 8])->assertSuccessful();
 
-        foreach (['visita', 'reserva', 'contrato', 'pago', 'tipopago'] as $tabla) {
+        foreach (['visita', 'reserva', 'contrato', 'pago', 'tipopago', 'movimientoreserva'] as $tabla) {
             $this->assertFalse(Schema::hasTable($tabla), $tabla);
         }
         $this->assertFalse(Schema::hasColumn('cliente', 'idusuariocuenta'));
@@ -412,6 +412,8 @@ class ModelosCiclo3Test extends SistemaTestCase
         $this->artisan('migrate')->assertSuccessful();
 
         $this->assertTrue(Schema::hasTable('pago'));
+        $this->assertTrue(Schema::hasTable('movimientoreserva'));
+        $this->assertTrue(Schema::hasColumns('reserva', ['idvisita', 'montousd']));
         $this->assertTrue(Schema::hasColumn('cliente', 'idusuariocuenta'));
     }
 }

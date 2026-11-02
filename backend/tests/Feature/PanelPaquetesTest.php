@@ -113,19 +113,24 @@ class PanelPaquetesTest extends SistemaTestCase
             ->assertDontSee(route('bitacora.index'), false);
     }
 
-    public function test_el_asistente_ve_solo_el_paquete_p1_sin_gestionar_usuarios(): void
+    public function test_el_asistente_ve_el_paquete_p1_y_solo_las_reservas_del_paquete_p5(): void
     {
         $respuesta = $this->panel($this->asistente());
 
         $respuesta->assertSee(self::PAQUETES['P1'])
             ->assertSee('Cerrar sesión')
+            ->assertSee(self::PAQUETES['P5'])
+            ->assertSee('Gestionar reservas de propiedad')
             ->assertDontSee('Gestionar usuarios')
             ->assertDontSee('Registrar propiedad')
             ->assertDontSee('Buscar propiedades')
             ->assertDontSee('Gestionar prospectos CRM')
+            ->assertDontSee('Agendar visita a inmueble')
+            ->assertDontSee('Ver calendario de visitas')
+            ->assertDontSee('Gestionar contratos')
             ->assertDontSee('Bitácora');
 
-        foreach (['P2', 'P3', 'P4', 'P5', 'P6'] as $codigo) {
+        foreach (['P2', 'P3', 'P4', 'P6'] as $codigo) {
             $respuesta->assertDontSee(self::PAQUETES[$codigo]);
         }
     }

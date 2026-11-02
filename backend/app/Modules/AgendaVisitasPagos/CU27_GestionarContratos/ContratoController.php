@@ -145,6 +145,11 @@ class ContratoController extends Controller
                     return ['error' => 'Ese cliente no está entre tus prospectos.', 'campo' => 'idcliente'];
                 }
 
+                // Lo que el cliente pagó para reservar se descuenta del contrato: el monto no puede ser menor.
+                if ($reserva && (float) $reserva->montousd > (float) $request->input('monto')) {
+                    return ['error' => 'El monto del contrato no puede ser menor a lo que el cliente ya pagó por la reserva (USD ' . number_format((float) $reserva->montousd, 2, '.', ',') . ').', 'campo' => 'monto'];
+                }
+
                 // Paso 8: el contrato queda "Vigente". El tipo sale de la propiedad.
                 $contrato = Contrato::create([
                     'idpropiedad' => $propiedad->idpropiedad,

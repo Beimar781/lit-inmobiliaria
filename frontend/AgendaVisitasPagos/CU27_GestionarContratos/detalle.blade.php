@@ -33,7 +33,12 @@
                     <dt class="col-sm-4">Monto</dt>
                     <dd class="col-sm-8">USD {{ number_format($contrato->monto, 2, '.', ',') }}</dd>
                     <dt class="col-sm-4">Pagado</dt>
-                    <dd class="col-sm-8">USD {{ number_format($pagado, 2, '.', ',') }}</dd>
+                    <dd class="col-sm-8">
+                        USD {{ number_format($pagado, 2, '.', ',') }}
+                        @if ($contrato->abonoDeReservaUsd() > 0)
+                            <div class="small text-muted">Incluye USD {{ number_format($contrato->abonoDeReservaUsd(), 2, '.', ',') }} que el cliente pagó para reservar.</div>
+                        @endif
+                    </dd>
                     <dt class="col-sm-4">Saldo</dt>
                     <dd class="col-sm-8">USD {{ number_format($saldo, 2, '.', ',') }}</dd>
                     <dt class="col-sm-4">Inicio</dt>

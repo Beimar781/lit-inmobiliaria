@@ -42,6 +42,7 @@ class BitacoraService
         'RESERVA_REGISTRADA' => 'Reserva registrada',
         'RESERVA_CANCELADA' => 'Reserva cancelada',
         'RESERVA_VENCIDA' => 'Reserva vencida',
+        'RESERVA_DEVUELTA' => 'Reserva devuelta al cliente',
         'RESERVA_CONCRETADA' => 'Reserva concretada en contrato',
         'CONTRATO_REGISTRADO' => 'Contrato registrado',
         'CONTRATO_FINALIZADO' => 'Contrato finalizado',

@@ -71,7 +71,7 @@ return [
             ['codigo' => 'CU15', 'nombre' => 'Reagendar visita', 'ciclo' => 'III', 'ruta' => 'visitas.calendario', 'roles' => $personal, 'nota' => 'Desde el detalle de la visita'],
             ['codigo' => 'CU16', 'nombre' => 'Cancelar visita', 'ciclo' => 'III', 'ruta' => 'visitas.calendario', 'roles' => $personal, 'nota' => 'Desde el detalle de la visita'],
             ['codigo' => 'CU17', 'nombre' => 'Ver calendario de visitas', 'ciclo' => 'III', 'ruta' => 'visitas.calendario', 'roles' => $personal],
-            ['codigo' => 'CU26', 'nombre' => 'Gestionar reservas de propiedad', 'ciclo' => 'III', 'ruta' => 'reservas.index', 'roles' => $personal],
+            ['codigo' => 'CU26', 'nombre' => 'Gestionar reservas de propiedad', 'ciclo' => 'III', 'ruta' => 'reservas.index', 'roles' => array_merge($personal, [Rol::ASISTENTE])],
             ['codigo' => 'CU27', 'nombre' => 'Gestionar contratos', 'ciclo' => 'III', 'ruta' => 'contratos.index', 'roles' => $personal],
         ],
     ],

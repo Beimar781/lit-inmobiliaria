@@ -326,6 +326,51 @@ class CU27_GestionarContratosTest extends SistemaTestCase
         $this->actingAs($this->admin())->get(route('contratos.create'))->assertSee('Disponible de otro');
     }
 
+    public function test_lo_que_el_cliente_pago_para_reservar_se_descuenta_del_contrato(): void
+    {
+        $ana = $this->agente();
+        $propiedad = $this->propiedad([], $ana);
+        $cliente = $this->prospecto($ana);
+        $reserva = $this->reservar($propiedad, $cliente);
+        $reserva->update(['montousd' => 1000]);
+
+        $this->contratar($ana, $propiedad, $cliente, ['monto' => '85000'])->assertSessionHasNoErrors();
+
+        $contrato = Contrato::firstOrFail();
+        $this->assertSame(1000.0, $contrato->abonoDeReservaUsd());
+        $this->assertSame(1000.0, $contrato->totalPagadoUsd());
+        $this->assertSame(84000.0, $contrato->saldoUsd());
+        $this->actingAs($ana)->get(route('contratos.show', $contrato))
+            ->assertSee('Incluye USD 1,000.00 que el cliente pagó para reservar.')
+            ->assertSee('USD 84,000.00');
+    }
+
+    public function test_el_contrato_no_puede_ser_menor_a_lo_que_el_cliente_ya_pago_por_la_reserva(): void
+    {
+        $ana = $this->agente();
+        $propiedad = $this->propiedad([], $ana);
+        $cliente = $this->prospecto($ana);
+        $reserva = $this->reservar($propiedad, $cliente);
+        $reserva->update(['montousd' => 1000]);
+
+        $this->contratar($ana, $propiedad, $cliente, ['monto' => '999.99'])
+            ->assertSessionHasErrors(['monto' => 'El monto del contrato no puede ser menor a lo que el cliente ya pagó por la reserva (USD 1,000.00).']);
+
+        $this->assertSame(0, Contrato::count());
+        $this->assertSame(Reserva::VIGENTE, $reserva->fresh()->estado);
+        $this->assertSame(Propiedad::RESERVADO, $propiedad->fresh()->estadopropiedad);
+    }
+
+    public function test_un_contrato_sin_reserva_no_tiene_abono(): void
+    {
+        $ana = $this->agente();
+        $this->contratar($ana, $this->propiedad([], $ana));
+
+        $contrato = Contrato::firstOrFail();
+        $this->assertSame(0.0, $contrato->abonoDeReservaUsd());
+        $this->assertSame(85000.5, $contrato->saldoUsd());
+    }
+
     // ============================================ paso 6 y 7: cambiar el estado
 
     public function test_rescindir_un_contrato_vigente_devuelve_la_propiedad_a_disponible(): void
