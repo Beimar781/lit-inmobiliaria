@@ -99,7 +99,7 @@
                                 <div class="col-sm-5">
                                     <x-campo name="monto" label="Monto que se paga" type="number" step="0.01" min="0.01" />
                                 </div>
-                                <div class="col-sm-3">
+                                <div class="col-sm-3" id="bloque-moneda">
                                     <x-seleccion name="moneda" label="Moneda" :opciones="['USD' => 'Dólares (USD)', 'BOB' => 'Bolivianos (BOB)']" valor="USD" />
                                 </div>
                                 <div class="col-sm-4" id="bloque-tipocambio">
@@ -123,7 +123,7 @@
                                         @error('metodo')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
-                                        <div class="form-text" id="ayuda-tarjeta" style="display: none">Se abre la página segura de Stripe para escribir la tarjeta. Stripe cobra en dólares: un pago en bolivianos se cobra por su equivalente con el tipo de cambio de arriba. Mínimo USD 0.50.</div>
+                                        <div class="form-text" id="ayuda-tarjeta" style="display: none">Se abre la página segura de Stripe para escribir la tarjeta. El pago se registra en dólares (mínimo USD 0.50); en la página de Stripe el cliente puede pagar en dólares o en bolivianos con el tipo de cambio de Stripe.</div>
                                     </div>
                                 </div>
                             </div>
@@ -154,10 +154,17 @@
             // El tipo de cambio solo se pide en bolivianos; el equivalente en dólares es una ayuda (el servidor lo calcula al guardar).
             var metodo = document.getElementById('metodo');
             var ayudaTarjeta = document.getElementById('ayuda-tarjeta');
+            var bloqueMoneda = document.getElementById('bloque-moneda');
+            var etiquetaMonto = document.querySelector('label[for="monto"]');
 
             function actualizar() {
-                ayudaTarjeta.style.display = metodo.value === 'TARJETA' ? '' : 'none';
-                var bob = moneda.value === 'BOB';
+                // Con tarjeta el pago es siempre en dólares: no hay selector de moneda ni tipo de cambio manual.
+                var tarjeta = metodo.value === 'TARJETA';
+                if (tarjeta) { moneda.value = 'USD'; }
+                bloqueMoneda.style.display = tarjeta ? 'none' : '';
+                etiquetaMonto.textContent = tarjeta ? 'Monto que se paga (USD)' : 'Monto que se paga';
+                ayudaTarjeta.style.display = tarjeta ? '' : 'none';
+                var bob = !tarjeta && moneda.value === 'BOB';
                 bloque.style.display = bob ? '' : 'none';
                 var m = parseFloat(monto.value), t = parseFloat(cambio.value);
                 equivalente.textContent = bob && m > 0 && t > 0 ? 'Equivale a USD ' + (Math.round(m / t * 100) / 100).toFixed(2) : '';

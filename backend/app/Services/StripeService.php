@@ -26,9 +26,9 @@ class StripeService
     }
 
     /**
-     * Crea una sesión de Stripe Checkout para pagar un monto en dólares. Stripe SIEMPRE cobra en USD: un pago en bolivianos
-     * llega aquí ya convertido con el tipo de cambio manual del día (nunca con el de Stripe), y la conversión automática de
-     * Stripe (Adaptive Pricing) se desactiva para que la página muestre solo dólares, sin selector de moneda.
+     * Crea una sesión de Stripe Checkout para pagar un monto en dólares. No se toca Adaptive Pricing (la conversión automática
+     * de Stripe, que se administra en el Dashboard): si está activa, en la página de Stripe el cliente puede elegir pagar en
+     * dólares o en su moneda local (por ejemplo bolivianos) con el tipo de cambio de Stripe; el pago siempre se liquida en USD.
      *
      * @param int    $centavos      monto en dólares, en centavos
      * @param string $descripcion   texto que ve el cliente en la página de Stripe
@@ -39,7 +39,6 @@ class StripeService
     {
         $sesion = $this->cliente()->checkout->sessions->create([
             'mode' => 'payment',
-            'adaptive_pricing' => ['enabled' => false],
             'line_items' => [[
                 'quantity' => 1,
                 'price_data' => [
@@ -62,11 +61,16 @@ class StripeService
     /**
      * Consulta una sesión a Stripe desde el servidor (no se confía en lo que traiga la URL de vuelta).
      *
-     * @return array{id: string, payment_status: string, payment_intent: ?string, amount_total: ?int, currency: ?string, client_reference_id: ?string, metadata: array}
+     * Con Adaptive Pricing, la API actual deja la sesión en dólares y agrega presentment_details (lo que vio y pagó el cliente
+     * en su moneda); la API anterior (sesiones creadas antes del 2025-03-31) deja la sesión en la moneda del cliente y agrega
+     * currency_conversion (con los dólares y el tipo de cambio). Se devuelven ambos tal cual para que PagoConTarjeta los lea.
+     *
+     * @return array{id: string, payment_status: string, payment_intent: ?string, amount_total: ?int, currency: ?string, client_reference_id: ?string, metadata: array, currency_conversion: ?array, presentment_details: ?array}
      */
     public function obtenerSesion(string $id): array
     {
         $sesion = $this->cliente()->checkout->sessions->retrieve($id);
+        $datos = $sesion->toArray();
 
         return [
             'id' => $sesion->id,
@@ -76,6 +80,8 @@ class StripeService
             'currency' => $sesion->currency,
             'client_reference_id' => $sesion->client_reference_id,
             'metadata' => $sesion->metadata ? $sesion->metadata->toArray() : [],
+            'currency_conversion' => $datos['currency_conversion'] ?? null,
+            'presentment_details' => $datos['presentment_details'] ?? null,
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\Contrato;
 use App\Models\Pago;
 use App\Models\Usuario;
+use App\Modules\AgendaVisitasPagos\Compartido\PagoConTarjeta;
 use App\Services\StripeService;
 use Carbon\CarbonImmutable;
 use Tests\Support\StripeFalso;
@@ -367,174 +368,235 @@ class CU28_PagoConTarjetaTest extends SistemaTestCase
 
     // ============================================ validaciones del cobro con tarjeta
 
-    // ============================================ tarjeta en dólares o en bolivianos (Stripe siempre cobra en USD)
+    // ============================================ tarjeta siempre en dólares; el cliente puede pagar en Bs en la página de Stripe
 
-    public function test_la_tarjeta_en_bolivianos_cobra_en_dolares_con_el_tipo_de_cambio_manual_del_dia(): void
+    public function test_la_tarjeta_se_registra_en_dolares_sin_tipo_de_cambio_manual_aunque_lleguen_otros_datos(): void
     {
         $contrato = $this->contrato(1000);
 
-        $this->pagarConTarjeta($this->asistente(), $contrato, ['moneda' => 'BOB', 'tipocambio' => '6.96', 'monto' => '696.50'])
+        // El formulario oculta moneda y tipo de cambio con tarjeta; aun si llegara un tipo de cambio, no se usa.
+        $this->pagarConTarjeta($this->asistente(), $contrato, ['monto' => '100', 'tipocambio' => '6.96'])
             ->assertRedirect('https://checkout.stripe.test/pay/cs_test_1');
 
         $pago = Pago::firstOrFail();
-        $this->assertSame(Pago::PENDIENTE, $pago->estado);
-        $this->assertSame(Pago::TARJETA, $pago->metodo);
-        $this->assertSame('BOB', $pago->moneda);
-        $this->assertSame('696.50', (string) $pago->monto, 'se guarda el monto original en bolivianos');
-        $this->assertSame('6.9600', (string) $pago->tipocambio);
-        $this->assertSame('100.07', (string) $pago->montousd);
-        $this->assertSame('6.9600', (string) $pago->tipopago->cambiodemonedalocal);
-        $this->assertSame('2026-12-15', $pago->tipopago->fecha->format('Y-m-d'), 'fecha del tipo de cambio = día del pago');
-        $sesion = $this->stripe->ultimaSesion();
-        $this->assertSame('usd', $sesion['currency'], 'Stripe nunca cobra en bolivianos');
-        $this->assertSame(10007, $sesion['amount_total'], 'se cobran los centavos del equivalente en USD, no los de los bolivianos');
-        $this->assertSame(0.0, $contrato->totalPagadoUsd(), 'pendiente: todavía no descuenta el saldo');
+        $this->assertSame('USD', $pago->moneda);
+        $this->assertSame('100.00', (string) $pago->monto);
+        $this->assertSame('100.00', (string) $pago->montousd);
+        $this->assertNull($pago->tipocambio, 'el tipo de cambio manual solo existe en el efectivo');
+        $this->assertNull($pago->tipopago);
+        $this->assertNull($pago->moneda_cliente);
+        $this->assertSame(10000, $this->stripe->ultimaSesion()['amount_total']);
+        $this->assertSame('usd', $this->stripe->ultimaSesion()['currency']);
     }
 
-    public function test_el_pago_con_tarjeta_en_bolivianos_se_confirma_al_volver_de_stripe_y_queda_pagado_con_su_montousd(): void
+    public function test_un_pago_con_tarjeta_en_bolivianos_desde_el_formulario_se_rechaza_porque_la_tarjeta_es_en_dolares(): void
+    {
+        // Sin pedir tipo de cambio: la moneda es lo que se rechaza.
+        $this->pagarConTarjeta($this->asistente(), $this->contrato(), ['moneda' => 'BOB', 'tipocambio' => '', 'monto' => '696'])
+            ->assertSessionHasErrors(['moneda' => 'El pago con tarjeta se registra en dólares: en la página de Stripe el cliente puede elegir pagar en bolivianos.'])
+            ->assertSessionDoesntHaveErrors('tipocambio');
+
+        $this->assertSame(0, Pago::count());
+        $this->assertSame([], $this->stripe->sesiones);
+    }
+
+    public function test_el_pago_en_dolares_en_la_pagina_de_stripe_no_guarda_datos_de_otra_moneda(): void
     {
         $asistente = $this->asistente();
         $contrato = $this->contrato(1000);
-        $this->pagarConTarjeta($asistente, $contrato, ['moneda' => 'BOB', 'tipocambio' => '6.96', 'monto' => '696']);
-        $pago = Pago::firstOrFail();
+        $pago = $this->pendiente($contrato, '100');
         $this->stripe->pagar('cs_test_1');
 
         $this->actingAs($asistente)->get(route('pagos.tarjeta.exito', $pago))->assertRedirect(route('pagos.comprobante', $pago));
 
         $pago = $pago->fresh();
         $this->assertSame(Pago::PAGADO, $pago->estado);
-        $this->assertSame('696.00', (string) $pago->monto);
-        $this->assertSame('BOB', $pago->moneda);
-        $this->assertSame('100.00', (string) $pago->montousd);
-        $this->assertSame('CP-2026-000001', $pago->comprobante);
+        $this->assertNull($pago->moneda_cliente);
+        $this->assertNull($pago->monto_cliente);
+        $this->assertNull($pago->tipocambio_stripe);
+        $this->assertFalse($pago->pagoEnMonedaDelCliente());
         $this->assertSame(100.0, $contrato->totalPagadoUsd());
-        $this->assertSame(900.0, $contrato->saldoUsd());
     }
 
-    public function test_el_comprobante_de_un_pago_con_tarjeta_en_bolivianos_muestra_los_bolivianos_el_tipo_de_cambio_y_los_dolares(): void
+    public function test_si_el_cliente_pago_en_bolivianos_en_stripe_el_pago_sigue_en_dolares_y_se_guardan_los_datos_del_cliente(): void
     {
         $asistente = $this->asistente();
-        $this->pagarConTarjeta($asistente, $this->contrato(1000), ['moneda' => 'BOB', 'tipocambio' => '6.96', 'monto' => '696.50']);
-        $pago = Pago::firstOrFail();
+        $contrato = $this->contrato(1000);
+        $pago = $this->pendiente($contrato, '100');
+        // Stripe liquida USD 100.00 y al cliente le cobra Bs 702.50 (tipo de cambio de Stripe: 7.025, con su comisión).
+        $this->stripe->pagarEnMonedaLocal('cs_test_1', 70250);
+
+        $this->actingAs($asistente)->get(route('pagos.tarjeta.exito', $pago))->assertRedirect(route('pagos.comprobante', $pago));
+
+        $pago = $pago->fresh();
+        $this->assertSame(Pago::PAGADO, $pago->estado);
+        $this->assertSame('USD', $pago->moneda, 'el pago se registra en dólares');
+        $this->assertSame('100.00', (string) $pago->monto);
+        $this->assertSame('100.00', (string) $pago->montousd);
+        $this->assertNull($pago->tipocambio, 'no se usa el tipo de cambio manual');
+        $this->assertSame('BOB', $pago->moneda_cliente);
+        $this->assertSame('702.50', (string) $pago->monto_cliente);
+        $this->assertSame('7.025000', (string) $pago->tipocambio_stripe);
+        $this->assertTrue($pago->pagoEnMonedaDelCliente());
+        $this->assertSame('CP-2026-000001', $pago->comprobante);
+        $this->assertSame(100.0, $contrato->totalPagadoUsd(), 'se descuenta el monto en dólares que liquida Stripe');
+        $this->assertSame(900.0, $contrato->saldoUsd());
+        $this->assertSame('702.50', Bitacora::where('accion', 'PAGO_TARJETA_CONFIRMADO')->firstOrFail()->detalle['monto_cliente']);
+    }
+
+    public function test_el_webhook_confirma_el_pago_hecho_en_bolivianos_con_la_api_actual_y_con_la_anterior(): void
+    {
+        foreach (['actual', 'anterior'] as $forma) {
+            $contrato = $this->contrato(1000);
+            $pago = $this->pendiente($contrato, '100');
+            $id = $pago->fresh()->stripe_session_id;
+            $this->stripe->pagarEnMonedaLocal($id, 70250, 'bob', 7.025, $forma);
+
+            $contenido = $this->evento($this->stripe->sesiones[$id]);
+            $this->webhook($contenido, $this->firma($contenido))->assertOk();
+
+            $pago = $pago->fresh();
+            $this->assertSame(Pago::PAGADO, $pago->estado, $forma);
+            $this->assertSame('USD', $pago->moneda, $forma);
+            $this->assertSame('100.00', (string) $pago->montousd, $forma);
+            $this->assertSame('BOB', $pago->moneda_cliente, $forma);
+            $this->assertSame('702.50', (string) $pago->monto_cliente, $forma);
+            $this->assertSame('7.025000', (string) $pago->tipocambio_stripe, $forma);
+            $this->assertSame(100.0, $contrato->totalPagadoUsd(), $forma);
+        }
+    }
+
+    public function test_se_rechaza_si_lo_que_stripe_liquido_en_dolares_no_coincide_con_el_pago(): void
+    {
+        $contrato = $this->contrato(1000);
+        $pago = $this->pendiente($contrato, '100');
+        $base = $this->stripe->sesiones['cs_test_1'];
+        $base['payment_status'] = 'paid';
+
+        $casos = [
+            'pagó en USD pero otro monto' => array_merge($base, ['amount_total' => 9999]),
+            'pagó en Bs y los dólares liquidados no coinciden (API actual)' => array_merge($base, ['amount_total' => 9000, 'presentment_details' => ['presentment_amount' => 70250, 'presentment_currency' => 'bob']]),
+            'pagó en Bs y los dólares liquidados no coinciden (API anterior)' => array_merge($base, ['currency' => 'bob', 'amount_total' => 70250, 'currency_conversion' => ['amount_total' => 9000, 'fx_rate' => '7.025', 'source_currency' => 'usd']]),
+            'cobrado en Bs sin datos de conversión (el número de los Bs no son dólares)' => array_merge($base, ['currency' => 'bob', 'amount_total' => 10000]),
+            'cobrado en otra moneda de origen' => array_merge($base, ['currency' => 'bob', 'amount_total' => 70250, 'currency_conversion' => ['amount_total' => 10000, 'fx_rate' => '7.025', 'source_currency' => 'eur']]),
+            'moneda de la sesión sin monto' => array_merge($base, ['amount_total' => null]),
+        ];
+
+        foreach ($casos as $nombre => $sesion) {
+            $contenido = $this->evento($sesion);
+            $this->webhook($contenido, $this->firma($contenido))->assertOk();
+            $actual = $pago->fresh();
+            $this->assertSame(Pago::PENDIENTE, $actual->estado, $nombre);
+            $this->assertNull($actual->moneda_cliente, $nombre);
+            $this->assertNull($actual->comprobante, $nombre);
+        }
+
+        $this->assertSame(0.0, $contrato->totalPagadoUsd());
+        $this->assertSame(count($casos), Bitacora::where('accion', 'PAGO_TARJETA_DISCREPANCIA')->count(), 'cada discrepancia queda en la bitácora');
+    }
+
+    public function test_el_comprobante_de_tarjeta_pagado_en_dolares_muestra_solo_los_dolares(): void
+    {
+        $asistente = $this->asistente();
+        $pago = $this->pendiente($this->contrato(1000), '100');
         $this->stripe->pagar('cs_test_1');
         $this->actingAs($asistente)->get(route('pagos.tarjeta.exito', $pago));
 
         $this->get(route('pagos.comprobante', $pago))->assertOk()
-            ->assertSee('BOB 696.50')->assertSee('6.96 Bs por USD')->assertSee('USD 100.07')->assertSee('Tarjeta');
+            ->assertSee('USD 100.00')->assertSee('Tarjeta')
+            ->assertDontSee('Pagado por el cliente en')->assertDontSee('Tipo de cambio aplicado por Stripe');
     }
 
-    public function test_el_webhook_deja_pagado_un_pago_en_bolivianos_solo_si_stripe_cobro_el_equivalente_en_dolares(): void
-    {
-        $contrato = $this->contrato(1000);
-        $this->pagarConTarjeta($this->asistente(), $contrato, ['moneda' => 'BOB', 'tipocambio' => '6.96', 'monto' => '696']);
-        $pago = Pago::firstOrFail();
-        $this->stripe->pagar('cs_test_1');
-        $sesion = $this->stripe->sesiones['cs_test_1'];
-
-        // Cobrado en bolivianos: no coincide, aunque el número sea el de los dólares.
-        $enBob = $this->evento(array_merge($sesion, ['currency' => 'bob']));
-        $this->webhook($enBob, $this->firma($enBob))->assertOk();
-        $this->assertSame(Pago::PENDIENTE, $pago->fresh()->estado);
-
-        // Cobrado en dólares, pero por el número de los bolivianos (69 600 centavos): tampoco coincide.
-        $montoDeBs = $this->evento(array_merge($sesion, ['amount_total' => 69600]));
-        $this->webhook($montoDeBs, $this->firma($montoDeBs))->assertOk();
-        $this->assertSame(Pago::PENDIENTE, $pago->fresh()->estado);
-        $this->assertSame(0.0, $contrato->totalPagadoUsd());
-
-        // Cobrado en dólares por el equivalente (10 000 centavos): el pago queda PAGADO con su montousd.
-        $buena = $this->evento($sesion);
-        $this->webhook($buena, $this->firma($buena))->assertOk();
-        $pago = $pago->fresh();
-        $this->assertSame(Pago::PAGADO, $pago->estado);
-        $this->assertSame('100.00', (string) $pago->montousd);
-        $this->assertSame('696.00', (string) $pago->monto);
-        $this->assertSame('CP-2026-000001', $pago->comprobante);
-        $this->assertSame(100.0, $contrato->totalPagadoUsd());
-    }
-
-    public function test_la_tarjeta_en_bolivianos_exige_el_tipo_de_cambio(): void
-    {
-        $this->pagarConTarjeta($this->asistente(), $this->contrato(), ['moneda' => 'BOB', 'tipocambio' => '', 'monto' => '696'])
-            ->assertSessionHasErrors(['tipocambio' => 'Indica el tipo de cambio oficial del día para el pago en bolivianos.']);
-
-        $this->assertSame(0, Pago::count());
-        $this->assertSame([], $this->stripe->sesiones);
-    }
-
-    public function test_el_equivalente_en_dolares_se_redondea_a_dos_decimales_y_eso_es_lo_que_cobra_stripe(): void
-    {
-        $contrato = $this->contrato(1000);
-        $asistente = $this->asistente();
-
-        // [bolivianos, tipo de cambio, USD esperado, centavos que se le piden a Stripe]
-        $casos = [
-            ['100', '6.96', '14.37', 1437],  // 14,3678 sube
-            ['50', '6.96', '7.18', 718],     // 7,1839 baja
-            ['10.50', '6.9650', '1.51', 151], // con 4 decimales de tipo de cambio: 1,5075 sube
-            ['3.48', '6.96', '0.50', 50],    // justo el mínimo de Stripe
-        ];
-
-        foreach ($casos as [$bolivianos, $cambio, $usd, $centavos]) {
-            $this->pagarConTarjeta($asistente, $contrato, ['moneda' => 'BOB', 'tipocambio' => $cambio, 'monto' => $bolivianos])
-                ->assertSessionHasNoErrors();
-
-            $this->assertSame($usd, (string) Pago::orderByDesc('idpago')->firstOrFail()->montousd, "{$bolivianos} Bs a {$cambio}");
-            $this->assertSame($centavos, $this->stripe->ultimaSesion()['amount_total'], "{$bolivianos} Bs a {$cambio}");
-            $this->assertSame('usd', $this->stripe->ultimaSesion()['currency']);
-        }
-    }
-
-    public function test_el_minimo_de_stripe_se_mide_por_el_equivalente_en_dolares(): void
+    public function test_el_comprobante_de_tarjeta_pagado_en_bolivianos_muestra_los_bolivianos_el_tipo_de_cambio_de_stripe_y_los_dolares(): void
     {
         $asistente = $this->asistente();
-        $contrato = $this->contrato();
+        $pago = $this->pendiente($this->contrato(1000), '100');
+        $this->stripe->pagarEnMonedaLocal('cs_test_1', 70250);
+        $this->actingAs($asistente)->get(route('pagos.tarjeta.exito', $pago));
 
-        // 3 Bs a 6,96 son USD 0,43: menos del mínimo de 0,50.
-        $this->pagarConTarjeta($asistente, $contrato, ['moneda' => 'BOB', 'tipocambio' => '6.96', 'monto' => '3'])
-            ->assertSessionHasErrors(['monto' => 'El pago con tarjeta debe ser de al menos USD 0.50 (equivale a USD 0.43).']);
-        $this->assertSame(0, Pago::count());
-        $this->assertSame([], $this->stripe->sesiones);
-
-        // 3,47 Bs son USD 0,4985 -> 0,50: se acepta, porque el redondeo ya llega al mínimo.
-        $this->pagarConTarjeta($asistente, $contrato, ['moneda' => 'BOB', 'tipocambio' => '6.96', 'monto' => '3.47'])
-            ->assertSessionHasNoErrors();
-        $this->assertSame('0.50', (string) Pago::firstOrFail()->montousd);
+        $this->get(route('pagos.comprobante', $pago))->assertOk()
+            ->assertSee('USD 100.00')
+            ->assertSee('Pagado por el cliente en bolivianos')->assertSee('Bs 702.50')
+            ->assertSee('Tipo de cambio aplicado por Stripe')->assertSee('7.025 Bs por USD')
+            ->assertSee('no el tipo de cambio manual de la empresa')
+            ->assertSee('Equivalente en dólares')->assertSee('se descuenta del contrato');
     }
 
-    public function test_la_tarjeta_en_bolivianos_no_puede_superar_el_saldo_en_dolares(): void
+    public function test_el_historial_de_pagos_muestra_los_bolivianos_y_los_dolares_del_pago_con_tarjeta(): void
     {
-        $this->pagarConTarjeta($this->asistente(), $this->contrato(100), ['moneda' => 'BOB', 'tipocambio' => '6.96', 'monto' => '700'])
-            ->assertSessionHasErrors(['monto' => 'El pago equivale a USD 100.57 y supera el saldo del contrato (USD 100.00).']);
+        $asistente = $this->asistente();
+        $contrato = $this->contrato(1000);
+        $pago = $this->pendiente($contrato, '100');
+        $this->stripe->pagarEnMonedaLocal('cs_test_1', 70250);
+        $this->actingAs($asistente)->get(route('pagos.tarjeta.exito', $pago));
+        $this->flushSession();
 
-        $this->assertSame(0, Pago::count());
-        $this->assertSame([], $this->stripe->sesiones);
+        $this->get(route('pagos.index', ['contrato' => $contrato->idcontrato]))->assertOk()
+            ->assertSee('USD 100.00')->assertSee('Pagó Bs 702.50')->assertSee('Stripe: 7.025');
+        $this->get(route('pagos.show', $pago))->assertOk()
+            ->assertSee('Pagado por el cliente en bolivianos')->assertSee('Bs 702.50')->assertSee('7.025 Bs por USD')->assertSee('USD 100.00');
     }
 
-    public function test_el_formulario_ofrece_la_tarjeta_en_cualquier_moneda_y_deja_los_dolares_preseleccionados(): void
+    public function test_el_formulario_no_pide_moneda_ni_tipo_de_cambio_con_tarjeta_y_lo_explica(): void
     {
         $contrato = $this->contrato();
 
         $this->actingAs($this->asistente())->get(route('pagos.create', ['contrato' => $contrato->idcontrato]))
             ->assertOk()
-            ->assertSee('<option value="USD" selected>', false)
-            ->assertDontSee('<option value="BOB" selected>', false)
-            ->assertSee('<option value="TARJETA"', false)
             ->assertSee('>Tarjeta</option>', false)
             ->assertDontSee('solo en dólares', false)
-            ->assertDontSee('Solo en dólares')
-            ->assertSee('Stripe cobra en dólares');
+            // el bloque de la moneda y el del tipo de cambio existen para que el método Tarjeta los oculte
+            ->assertSee('id="bloque-moneda"', false)->assertSee('id="bloque-tipocambio"', false)
+            ->assertSee("bloqueMoneda.style.display = tarjeta ? 'none' : ''", false)
+            ->assertSee('el cliente puede pagar en dólares o en bolivianos con el tipo de cambio de Stripe')
+            ->assertSee('<option value="USD" selected>', false)
+            ->assertDontSee('<option value="BOB" selected>', false);
     }
 
-    public function test_el_formulario_sugiere_el_ultimo_tipo_de_cambio_usado(): void
+    public function test_el_efectivo_en_bolivianos_sigue_igual_con_su_tipo_de_cambio_manual_del_dia(): void
     {
         $asistente = $this->asistente();
-        $this->pagarConTarjeta($asistente, $this->contrato(), ['moneda' => 'BOB', 'tipocambio' => '6.9650', 'monto' => '696']);
-        $otro = $this->contrato();
+        $contrato = $this->contrato(1000);
 
+        // Sin tipo de cambio se sigue rechazando.
+        $this->actingAs($asistente)->post(route('pagos.store'), ['idcontrato' => $contrato->idcontrato, 'monto' => '696', 'moneda' => 'BOB', 'tipocambio' => '', 'fechapago' => '2026-12-15', 'metodo' => 'EFECTIVO'])
+            ->assertSessionHasErrors(['tipocambio' => 'Indica el tipo de cambio oficial del día para el pago en bolivianos.']);
+
+        $this->actingAs($asistente)->post(route('pagos.store'), ['idcontrato' => $contrato->idcontrato, 'monto' => '696.50', 'moneda' => 'BOB', 'tipocambio' => '6.96', 'fechapago' => '2026-12-15', 'metodo' => 'EFECTIVO'])
+            ->assertSessionHasNoErrors();
+
+        $pago = Pago::firstOrFail();
+        $this->assertSame(Pago::EFECTIVO, $pago->metodo);
+        $this->assertSame(Pago::PAGADO, $pago->estado);
+        $this->assertSame('BOB', $pago->moneda);
+        $this->assertSame('6.9600', (string) $pago->tipocambio);
+        $this->assertSame('100.07', (string) $pago->montousd);
+        $this->assertSame('6.9600', (string) $pago->tipopago->cambiodemonedalocal);
+        $this->assertNull($pago->moneda_cliente, 'los datos de Stripe solo aplican a la tarjeta');
+        $this->assertSame([], $this->stripe->sesiones, 'el efectivo no toca Stripe');
+
+        // El siguiente pago en efectivo sugiere el último tipo de cambio usado y deja los dólares preseleccionados.
+        $otro = $this->contrato();
         $this->actingAs($asistente)->get(route('pagos.create', ['contrato' => $otro->idcontrato]))
-            ->assertSee('name="tipocambio"', false)->assertSee('value="6.965"', false)
-            ->assertSee('<option value="USD" selected>', false);
+            ->assertSee('value="6.96"', false)->assertSee('<option value="USD" selected>', false);
+    }
+
+    public function test_la_liquidacion_se_lee_de_las_dos_formas_de_la_api_de_stripe(): void
+    {
+        $this->assertSame(['usd_centavos' => 10000, 'cliente' => null], PagoConTarjeta::liquidacion(['currency' => 'usd', 'amount_total' => 10000]));
+        $this->assertSame(['usd_centavos' => 10000, 'cliente' => null], PagoConTarjeta::liquidacion([
+            'currency' => 'usd', 'amount_total' => 10000, 'presentment_details' => ['presentment_amount' => 10000, 'presentment_currency' => 'usd'],
+        ]));
+        // API actual: en dólares + presentment_details; el tipo de cambio sale de dividir lo pagado entre los dólares.
+        $this->assertSame(['usd_centavos' => 10000, 'cliente' => ['moneda' => 'BOB', 'monto' => 702.5, 'tipocambio' => 7.025]], PagoConTarjeta::liquidacion([
+            'currency' => 'usd', 'amount_total' => 10000, 'presentment_details' => ['presentment_amount' => 70250, 'presentment_currency' => 'bob'],
+        ]));
+        // API anterior: en la moneda del cliente + currency_conversion con los dólares y el tipo de cambio de Stripe.
+        $this->assertSame(['usd_centavos' => 10000, 'cliente' => ['moneda' => 'BOB', 'monto' => 702.5, 'tipocambio' => 7.025]], PagoConTarjeta::liquidacion([
+            'currency' => 'bob', 'amount_total' => 70250, 'currency_conversion' => ['amount_total' => 10000, 'fx_rate' => '7.025', 'source_currency' => 'usd'],
+        ]));
+        $this->assertNull(PagoConTarjeta::liquidacion(['currency' => 'bob', 'amount_total' => 70250]));
+        $this->assertNull(PagoConTarjeta::liquidacion(['amount_total' => 100]));
     }
 
     public function test_el_monto_minimo_con_tarjeta_es_cincuenta_centavos(): void

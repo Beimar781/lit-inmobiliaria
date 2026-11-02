@@ -24,9 +24,9 @@ use Illuminate\View\View;
  * Registra los pagos de un contrato VIGENTE. Los contratos están en dólares (USD); el pago puede hacerse en dólares o en
  * bolivianos (BOB). En bolivianos el tipo de cambio oficial del día es obligatorio y lo escribe la persona; el equivalente en
  * dólares (monto / tipo de cambio, 2 decimales) es lo que descuenta el saldo del contrato. El método puede ser efectivo o tarjeta
- * (Stripe Checkout; Stripe cobra siempre en dólares, también un pago en bolivianos, que se cobra por su equivalente en USD con el
- * tipo de cambio del día: el pago queda PENDIENTE hasta que Stripe confirma el cobro). Incluye el CU30: al confirmarse el pago se
- * genera el comprobante.
+ * (Stripe Checkout, siempre en dólares: el pago queda PENDIENTE hasta que Stripe confirma el cobro; en la página de Stripe el
+ * cliente puede elegir pagar en bolivianos con el tipo de cambio de Stripe). Incluye el CU30: al confirmarse el pago se genera
+ * el comprobante.
  * Flujo principal:
  *  1. El actor accede a "Registrar pago"                                      -> crear()
  *  2. El actor busca y selecciona el contrato vigente                         -> crear.blade.php (paso 1)
@@ -159,23 +159,24 @@ class PagoController extends Controller
 
     /**
      * Pago con tarjeta: guarda el pago PENDIENTE y manda al cliente a la página de Stripe para escribir la tarjeta.
-     * Puede ser en dólares o en bolivianos; Stripe siempre cobra en dólares, así que en bolivianos se cobra el equivalente
-     * con el tipo de cambio del día que escribió la persona (igual que en efectivo).
+     * Siempre es en dólares y no lleva el tipo de cambio manual: si el cliente elige pagar en bolivianos en la página de
+     * Stripe, Stripe aplica su propio tipo de cambio y el pago se sigue registrando por el monto en dólares.
      */
     private function pagarConTarjeta(RegistrarPagoRequest $request, PagoConTarjeta $tarjeta): RedirectResponse
     {
-        $moneda = $request->input('moneda');
-        $monto = round((float) $request->input('monto'), 2);
-        $tipoCambio = $moneda === Pago::BOB ? $request->input('tipocambio') : null;
-        $montoUsd = DineroDeReservas::aUsd($monto, $moneda, $tipoCambio);
+        if ($request->input('moneda') !== Pago::USD) {
+            return back()->withInput()->withErrors(['moneda' => 'El pago con tarjeta se registra en dólares: en la página de Stripe el cliente puede elegir pagar en bolivianos.']);
+        }
 
-        // El mínimo de Stripe (USD 0.50) se mide por el equivalente en dólares.
-        if ($error = PagoConTarjeta::errorDeMinimo($montoUsd, $moneda)) {
+        $montoUsd = round((float) $request->input('monto'), 2);
+
+        // El mínimo de Stripe es USD 0.50.
+        if ($error = PagoConTarjeta::errorDeMinimo($montoUsd)) {
             return back()->withInput()->withErrors(['monto' => $error]);
         }
 
         $contrato = Contrato::findOrFail($request->input('idcontrato'));
-        $resultado = $tarjeta->iniciar($contrato, $montoUsd, $request->user(), AgendaDeVisitas::ahora()->toDateTimeString(), $monto, $moneda, $tipoCambio);
+        $resultado = $tarjeta->iniciar($contrato, $montoUsd, $request->user(), AgendaDeVisitas::ahora()->toDateTimeString());
 
         if (isset($resultado['error'])) {
             return back()->withInput()->withErrors([$resultado['campo'] => $resultado['error']]);

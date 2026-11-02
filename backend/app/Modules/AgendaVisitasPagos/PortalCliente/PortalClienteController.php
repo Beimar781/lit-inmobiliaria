@@ -8,20 +8,18 @@ use App\Models\Contrato;
 use App\Models\Pago;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
 use App\Modules\AgendaVisitasPagos\Compartido\ComprobanteDePago;
-use App\Modules\AgendaVisitasPagos\Compartido\DineroDeReservas;
 use App\Modules\AgendaVisitasPagos\Compartido\PagoConTarjeta;
 use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 /**
  * Portal del cliente «Mis contratos y pagos» (solo rol Cliente). No es un caso de uso del documento v6: extiende el CU28, el CU29 y el CU30.
  * El cliente entra con la cuenta que se le creó después de su primer pago y ve SOLO lo suyo:
  *  - sus contratos (propiedad, tipo, monto, pagado, saldo y estado) y el detalle con sus pagos y comprobantes;
- *  - el botón «Pagar con tarjeta» (Stripe, en dólares o en bolivianos; Stripe cobra siempre en USD) en cada contrato vigente con saldo.
+ *  - el botón «Pagar con tarjeta» (Stripe, en dólares; en la página de Stripe puede elegir pagar en bolivianos) en cada contrato vigente con saldo.
  * Lo que no es suyo (contratos, pagos o comprobantes de otro cliente) responde 404. El cliente no ve ningún módulo del personal.
  */
 class PortalClienteController extends Controller
@@ -46,7 +44,6 @@ class PortalClienteController extends Controller
             'pagado' => $contrato->totalPagadoUsd(),
             'saldo' => $contrato->saldoUsd(),
             'minimo' => PagoConTarjeta::MINIMO_USD,
-            'tipoCambioSugerido' => DineroDeReservas::ultimoTipoCambioDePago(),
         ]);
     }
 
@@ -77,8 +74,8 @@ class PortalClienteController extends Controller
     }
 
     /**
-     * «Pagar con tarjeta»: el pago queda pendiente y el cliente va a la página de Stripe. Puede ser en dólares (lo
-     * preseleccionado) o en bolivianos con el tipo de cambio del día que escribe el cliente; Stripe siempre cobra en dólares.
+     * «Pagar con tarjeta»: el pago queda pendiente y el cliente va a la página de Stripe. Siempre es un monto en dólares; en
+     * la página de Stripe el cliente puede elegir pagar en bolivianos (con el tipo de cambio de Stripe).
      */
     public function pagar(Request $request, Contrato $contrato, PagoConTarjeta $tarjeta): RedirectResponse
     {
@@ -86,33 +83,21 @@ class PortalClienteController extends Controller
 
         $datos = $request->validate([
             'monto' => ['required', 'numeric', 'gt:0', 'max:9999999999.99', 'decimal:0,2'],
-            'moneda' => ['nullable', Rule::in(Pago::MONEDAS)],
-            'tipocambio' => [Rule::requiredIf(fn () => $request->input('moneda') === Pago::BOB), 'nullable', 'numeric', 'gt:0', 'max:99999', 'decimal:0,4'],
         ], [
             'monto.required' => 'Indica cuánto quieres pagar.',
             'monto.numeric' => 'El monto debe ser un número.',
             'monto.gt' => 'El monto debe ser mayor a cero.',
             'monto.max' => 'El monto es demasiado grande.',
             'monto.decimal' => 'El monto puede tener como máximo 2 decimales.',
-            'moneda.in' => 'La moneda debe ser dólares (USD) o bolivianos (BOB).',
-            'tipocambio.required' => 'Indica el tipo de cambio oficial del día para pagar en bolivianos.',
-            'tipocambio.numeric' => 'El tipo de cambio debe ser un número.',
-            'tipocambio.gt' => 'El tipo de cambio debe ser mayor a cero.',
-            'tipocambio.max' => 'El tipo de cambio es demasiado grande.',
-            'tipocambio.decimal' => 'El tipo de cambio puede tener como máximo 4 decimales.',
         ]);
 
-        $moneda = ($datos['moneda'] ?? null) ?: Pago::USD;
         $monto = round((float) $datos['monto'], 2);
-        $tipoCambio = $moneda === Pago::BOB ? $datos['tipocambio'] : null;
-        $montoUsd = DineroDeReservas::aUsd($monto, $moneda, $tipoCambio);
-
-        if ($error = PagoConTarjeta::errorDeMinimo($montoUsd, $moneda)) {
+        if ($error = PagoConTarjeta::errorDeMinimo($monto)) {
             return back()->withInput()->withErrors(['monto' => $error]);
         }
 
         $resultado = $tarjeta->iniciar(
-            $contrato, $montoUsd, $request->user(), AgendaDeVisitas::ahora()->toDateTimeString(), $monto, $moneda, $tipoCambio,
+            $contrato, $monto, $request->user(), AgendaDeVisitas::ahora()->toDateTimeString(),
             rutaExito: 'portal.tarjeta.exito', rutaCancelado: 'portal.tarjeta.cancelado'
         );
 
