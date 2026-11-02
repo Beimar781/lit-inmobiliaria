@@ -404,14 +404,73 @@ class PortalClienteTest extends SistemaTestCase
         $this->assertSame(1000.0, $contrato->saldoUsd());
     }
 
-    public function test_el_portal_no_cobra_en_bolivianos_aunque_se_envie_otra_moneda(): void
+    public function test_el_formulario_del_portal_deja_los_dolares_preseleccionados_y_pide_el_tipo_de_cambio_para_bolivianos(): void
     {
         [$cuenta, $cliente] = $this->clienteConCuenta();
         $contrato = $this->contrato($cliente);
 
-        $this->actingAs($cuenta)->post(route('portal.pagar', $contrato), ['monto' => '100', 'moneda' => 'BOB', 'tipocambio' => '6.96']);
+        $this->actingAs($cuenta)->get(route('portal.contrato', $contrato))
+            ->assertSee('<option value="USD" selected>', false)
+            ->assertDontSee('<option value="BOB" selected>', false)
+            ->assertSee('name="moneda"', false)->assertSee('name="tipocambio"', false)
+            ->assertDontSee('El pago es en dólares');
+    }
 
-        $this->assertSame('USD', Pago::firstOrFail()->moneda);
+    public function test_sin_moneda_el_portal_cobra_en_dolares(): void
+    {
+        [$cuenta, $cliente] = $this->clienteConCuenta();
+        $contrato = $this->contrato($cliente);
+
+        $this->actingAs($cuenta)->post(route('portal.pagar', $contrato), ['monto' => '100']);
+
+        $pago = Pago::firstOrFail();
+        $this->assertSame('USD', $pago->moneda);
+        $this->assertSame('100.00', (string) $pago->montousd);
         $this->assertSame('usd', $this->stripe->ultimaSesion()['currency']);
+    }
+
+    public function test_el_cliente_paga_con_tarjeta_en_bolivianos_y_stripe_cobra_el_equivalente_en_dolares(): void
+    {
+        [$cuenta, $cliente] = $this->clienteConCuenta();
+        $contrato = $this->contrato($cliente, 1000);
+
+        $this->actingAs($cuenta)->post(route('portal.pagar', $contrato), ['monto' => '696.50', 'moneda' => 'BOB', 'tipocambio' => '6.96'])
+            ->assertRedirect('https://checkout.stripe.test/pay/cs_test_1');
+
+        $pago = Pago::firstOrFail();
+        $this->assertSame('BOB', $pago->moneda);
+        $this->assertSame('696.50', (string) $pago->monto);
+        $this->assertSame('6.9600', (string) $pago->tipocambio);
+        $this->assertSame('100.07', (string) $pago->montousd);
+        $this->assertSame('6.9600', (string) $pago->tipopago->cambiodemonedalocal);
+        $this->assertSame(Pago::PENDIENTE, $pago->estado);
+        $this->assertSame('usd', $this->stripe->ultimaSesion()['currency']);
+        $this->assertSame(10007, $this->stripe->ultimaSesion()['amount_total']);
+
+        // Al volver de Stripe el pago queda pagado, descuenta el equivalente en dólares y el cliente ve su comprobante.
+        $this->stripe->pagar('cs_test_1');
+        $this->actingAs($cuenta)->get(route('portal.tarjeta.exito', $pago))->assertRedirect(route('portal.comprobante', $pago));
+        $this->assertSame(Pago::PAGADO, $pago->fresh()->estado);
+        $this->assertSame(100.07, $contrato->totalPagadoUsd());
+        $this->get(route('portal.comprobante', $pago))->assertSee('BOB 696.50')->assertSee('6.96 Bs por USD')->assertSee('USD 100.07');
+    }
+
+    public function test_el_portal_valida_la_moneda_el_tipo_de_cambio_y_el_minimo_en_dolares(): void
+    {
+        [$cuenta, $cliente] = $this->clienteConCuenta();
+        $contrato = $this->contrato($cliente, 100);
+        $this->actingAs($cuenta);
+
+        $this->post(route('portal.pagar', $contrato), ['monto' => '100', 'moneda' => 'EUR'])
+            ->assertSessionHasErrors(['moneda' => 'La moneda debe ser dólares (USD) o bolivianos (BOB).']);
+        $this->post(route('portal.pagar', $contrato), ['monto' => '100', 'moneda' => 'BOB', 'tipocambio' => ''])
+            ->assertSessionHasErrors(['tipocambio' => 'Indica el tipo de cambio oficial del día para pagar en bolivianos.']);
+        $this->post(route('portal.pagar', $contrato), ['monto' => '3', 'moneda' => 'BOB', 'tipocambio' => '6.96'])
+            ->assertSessionHasErrors(['monto' => 'El pago con tarjeta debe ser de al menos USD 0.50 (equivale a USD 0.43).']);
+        $this->post(route('portal.pagar', $contrato), ['monto' => '700', 'moneda' => 'BOB', 'tipocambio' => '6.96'])
+            ->assertSessionHasErrors(['monto' => 'El pago equivale a USD 100.57 y supera el saldo del contrato (USD 100.00).']);
+
+        $this->assertSame(0, Pago::count());
+        $this->assertSame([], $this->stripe->sesiones);
     }
 }

@@ -80,13 +80,15 @@ class StripeServiceTest extends TestCase
         $this->assertSame('https://lit.test/pagos/7/tarjeta/cancelado', $p['cancel_url']);
     }
 
-    public function test_la_sesion_se_puede_pedir_en_bolivianos(): void
+    public function test_la_sesion_desactiva_la_conversion_automatica_para_mostrar_solo_dolares(): void
     {
-        (new StripeService())->crearSesionDePago(69650, 'Pago contrato 3 - Casa', '7', ['idpago' => '7'], 'https://lit.test/ok', 'https://lit.test/no', 'BOB');
+        (new StripeService())->crearSesionDePago(10007, 'Pago contrato 3 - Casa', '7', ['idpago' => '7'], 'https://lit.test/ok', 'https://lit.test/no');
 
-        $linea = $this->peticiones[0]['params']['line_items'][0];
-        $this->assertSame('bob', $linea['price_data']['currency'], 'la moneda va en minúsculas, como pide Stripe');
-        $this->assertSame(69650, $linea['price_data']['unit_amount']);
+        $p = $this->peticiones[0]['params'];
+        // La librería codifica el booleano como texto al armar el formulario que recibe Stripe.
+        $this->assertSame(['enabled' => 'false'], $p['adaptive_pricing'], 'sin Adaptive Pricing: Stripe no ofrece otra moneda ni convierte');
+        $this->assertSame('usd', $p['line_items'][0]['price_data']['currency'], 'Stripe siempre cobra en dólares');
+        $this->assertSame(10007, $p['line_items'][0]['price_data']['unit_amount']);
     }
 
     public function test_la_sesion_se_consulta_a_stripe_y_se_leen_los_datos_del_cobro(): void

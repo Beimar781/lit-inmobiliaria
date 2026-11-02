@@ -31,8 +31,6 @@ return [
     'stripe' => [
         'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
-        // Cobrar también en bolivianos (BOB) con tarjeta. Apagado hasta comprobar que la cuenta de Stripe acepta BOB.
-        'acepta_bob' => filter_var(env('STRIPE_ACEPTA_BOB', false), FILTER_VALIDATE_BOOLEAN),
     ],
 
     'ses' => [
