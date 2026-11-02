@@ -36,6 +36,7 @@ class BitacoraService
         'PROSPECTO_SEGUIMIENTO' => 'Seguimiento de prospecto actualizado',
         'PROSPECTO_REASIGNADO' => 'Prospecto reasignado',
         'VISITA_PROGRAMADA' => 'Visita agendada',
+        'VISITA_REALIZADA' => 'Visita marcada como realizada',
     ];
 
     /**

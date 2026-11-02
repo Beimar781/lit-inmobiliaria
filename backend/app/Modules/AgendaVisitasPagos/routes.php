@@ -1,6 +1,9 @@
 <?php
 
 use App\Modules\AgendaVisitasPagos\CU14_AgendarVisita\AgendarVisitaController;
+use App\Http\Middleware\RolMiddleware;
+use App\Models\Rol;
+use App\Modules\AgendaVisitasPagos\CU17_VerCalendarioVisitas\CalendarioVisitasController;
 use Illuminate\Support\Facades\Route;
 
 // Paquete P5 - Agenda, Visitas y Pagos
@@ -18,3 +21,13 @@ Route::get('/visitas/{visita}/confirmacion', [AgendarVisitaController::class, 'c
     ->whereNumber('visita')
     ->middleware('signed')         // el enlace de la confirmación va firmado
     ->name('visitas.confirmacion');
+
+// Agente y Administrador (el Agente solo ve lo suyo: se comprueba en el controlador)
+Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE])->group(function () {
+
+    // CU17: Ver calendario de visitas (mes o semana) y detalle de la visita
+    Route::get('/agenda/visitas', [CalendarioVisitasController::class, 'index'])->name('visitas.calendario');
+    Route::get('/agenda/visitas/{visita}', [CalendarioVisitasController::class, 'show'])->whereNumber('visita')->name('visitas.show');
+    // Acción del detalle (decisión del equipo): marcar la visita como realizada
+    Route::patch('/agenda/visitas/{visita}/realizada', [CalendarioVisitasController::class, 'marcarRealizada'])->whereNumber('visita')->name('visitas.realizada');
+});

@@ -68,6 +68,7 @@ return [
         'casos' => [
             // CU14 a CU17 y CU26 a CU30 (ciclo III): cada prompt del ciclo agrega los suyos aquí.
             ['codigo' => 'CU14', 'nombre' => 'Agendar visita a inmueble', 'ciclo' => 'III', 'ruta' => 'propiedades.index', 'roles' => $personal, 'nota' => 'Desde el inventario o un prospecto. El cliente público, desde el catálogo'],
+            ['codigo' => 'CU17', 'nombre' => 'Ver calendario de visitas', 'ciclo' => 'III', 'ruta' => 'visitas.calendario', 'roles' => $personal],
         ],
     ],
 

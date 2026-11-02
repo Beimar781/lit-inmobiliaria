@@ -41,7 +41,10 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ route('catalogo.detalle', $visita->propiedad) }}" class="btn btn-outline-secondary">Volver a la ficha</a>
             @if ($personal)
-                <a href="{{ route('propiedades.index') }}" class="btn btn-primary">Ir al inventario</a>
+                @if (Route::has('visitas.calendario'))
+                    <a href="{{ route('visitas.calendario', ['fecha' => $visita->fecha->format('Y-m-d')]) }}" class="btn btn-primary">Ver calendario de visitas</a>
+                @endif
+                <a href="{{ route('propiedades.index') }}" class="btn btn-outline-primary">Ir al inventario</a>
             @else
                 <a href="{{ route('catalogo.index') }}" class="btn btn-primary">Ver más propiedades</a>
             @endif

@@ -48,7 +48,11 @@ class PanelPaquetesTest extends SistemaTestCase
             }
         }
 
-        $this->assertSame(array_map(fn ($n) => "CU{$n}", range(1, 14)), $codigos);
+        // Sin importar el orden dentro de cada paquete: están todos los CU implementados hasta ahora.
+        sort($codigos, SORT_NATURAL);
+        $esperados = array_map(fn ($n) => "CU{$n}", array_merge(range(1, 14), [17]));
+        sort($esperados, SORT_NATURAL);
+        $this->assertSame($esperados, $codigos);
     }
 
     public function test_el_administrador_ve_los_6_paquetes_y_los_cu_de_los_ciclos_i_ii_y_iii(): void
@@ -62,7 +66,7 @@ class PanelPaquetesTest extends SistemaTestCase
             'Iniciar sesión', 'Cerrar sesión', 'Recuperar contraseña', 'Gestionar usuarios',
             'Registrar propiedad', 'Modificar propiedad', 'Eliminar propiedad', 'Cambiar estado de propiedad',
             'Buscar propiedades', 'Filtrar propiedades', 'Ver detalle de propiedad',
-            'Gestionar prospectos CRM', 'Agendar visita a inmueble',
+            'Gestionar prospectos CRM', 'Agendar visita a inmueble', 'Ver calendario de visitas',
         ] as $caso) {
             $respuesta->assertSee($caso);
         }
@@ -99,7 +103,7 @@ class PanelPaquetesTest extends SistemaTestCase
             ->assertSee('Iniciar sesión')->assertSee('Cerrar sesión')->assertSee('Recuperar contraseña')
             ->assertSee('Registrar propiedad')->assertSee('Modificar propiedad')->assertSee('Cambiar estado de propiedad')
             ->assertSee('Buscar propiedades')->assertSee('Filtrar propiedades')->assertSee('Ver detalle de propiedad')
-            ->assertSee('Registrar cliente interesado')->assertSee('Gestionar prospectos CRM')->assertSee('Agendar visita a inmueble')
+            ->assertSee('Registrar cliente interesado')->assertSee('Gestionar prospectos CRM')->assertSee('Agendar visita a inmueble')->assertSee('Ver calendario de visitas')
             ->assertSee(route('prospectos.create'), false)
             // lo que no es del agente
             ->assertDontSee('Gestionar usuarios')
