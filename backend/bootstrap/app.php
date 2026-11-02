@@ -14,6 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Railway entrega el tráfico por un proxy HTTPS: se confía en él para generar URLs https y ver la IP real.
         $middleware->trustProxies(at: '*');
+
+        // El webhook de Stripe lo llama el servidor de Stripe (sin sesión ni token): su seguridad es la firma del mensaje.
+        $middleware->validateCsrfTokens(except: ['stripe/webhook']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

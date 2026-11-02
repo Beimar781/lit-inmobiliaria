@@ -49,6 +49,11 @@ class BitacoraService
         'CONTRATO_RESCINDIDO' => 'Contrato rescindido',
         'PAGO_REGISTRADO' => 'Pago registrado',
         'COMPROBANTE_GENERADO' => 'Comprobante de pago generado',
+        'PAGO_TARJETA_INICIADO' => 'Pago con tarjeta iniciado',
+        'PAGO_TARJETA_CONFIRMADO' => 'Pago con tarjeta confirmado',
+        'PAGO_TARJETA_CANCELADO' => 'Pago con tarjeta cancelado',
+        'PAGO_TARJETA_FALLIDO' => 'Pago con tarjeta no iniciado',
+        'PAGO_TARJETA_DISCREPANCIA' => 'Pago con tarjeta con datos que no coinciden',
     ];
 
     /**

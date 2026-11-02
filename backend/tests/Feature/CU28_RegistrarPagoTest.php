@@ -327,10 +327,8 @@ class CU28_RegistrarPagoTest extends SistemaTestCase
         $this->assertSame('2026-12-10', Pago::orderBy('idpago')->firstOrFail()->fechapago->format('Y-m-d'));
     }
 
-    public function test_el_pago_con_tarjeta_todavia_no_esta_disponible(): void
+    public function test_un_metodo_de_pago_que_no_existe_se_rechaza(): void
     {
-        $this->pagar($this->asistente(), $this->contrato(), ['metodo' => 'TARJETA'])
-            ->assertSessionHasErrors(['metodo' => 'El pago con tarjeta todavía no está disponible: registra el pago en efectivo.']);
         $this->pagar($this->asistente(), $this->contrato(), ['metodo' => 'CHEQUE'])->assertSessionHasErrors('metodo');
 
         $this->assertSame(0, Pago::count());
@@ -367,7 +365,7 @@ class CU28_RegistrarPagoTest extends SistemaTestCase
             ->assertSee('CP-2026-000001')->assertSee('Pagado')
             ->assertSee('name="monto"', false)->assertSee('name="tipocambio"', false)
             ->assertSee('Efectivo')
-            ->assertSee('<option value="TARJETA" disabled>', false);
+            ->assertSee('<option value="TARJETA"', false);
     }
 
     public function test_el_formulario_sugiere_el_ultimo_tipo_de_cambio_usado(): void

@@ -6,6 +6,8 @@ use App\Models\Rol;
 use App\Modules\AgendaVisitasPagos\CU15_ReagendarVisita\ReagendarVisitaController;
 use App\Modules\AgendaVisitasPagos\CU16_CancelarVisita\CancelarVisitaController;
 use App\Modules\AgendaVisitasPagos\CU28_RegistrarPago\PagoController;
+use App\Modules\AgendaVisitasPagos\CU28_RegistrarPago\PagoTarjetaController;
+use App\Modules\AgendaVisitasPagos\CU28_RegistrarPago\StripeWebhookController;
 use App\Modules\AgendaVisitasPagos\CU30_GenerarComprobante\ComprobanteController;
 use App\Modules\AgendaVisitasPagos\CU26_GestionarReservas\ReservaController;
 use App\Modules\AgendaVisitasPagos\CU27_GestionarContratos\ContratoController;
@@ -70,4 +72,10 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
     Route::get('/pagos/crear', [PagoController::class, 'crear'])->name('pagos.create');
     Route::post('/pagos', [PagoController::class, 'guardar'])->name('pagos.store');
     Route::get('/pagos/{pago}/comprobante', [ComprobanteController::class, 'mostrar'])->name('pagos.comprobante');
+    // Pago con tarjeta: a dónde vuelve el cliente desde la página de Stripe
+    Route::get('/pagos/{pago}/tarjeta/exito', [PagoTarjetaController::class, 'exito'])->whereNumber('pago')->name('pagos.tarjeta.exito');
+    Route::get('/pagos/{pago}/tarjeta/cancelado', [PagoTarjetaController::class, 'cancelado'])->whereNumber('pago')->name('pagos.tarjeta.cancelado');
 });
+
+// Webhook de Stripe: sin sesión ni token CSRF (ver bootstrap/app.php); se protege con la firma del mensaje.
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'recibir'])->name('stripe.webhook');

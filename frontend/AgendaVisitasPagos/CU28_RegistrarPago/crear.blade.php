@@ -112,18 +112,19 @@
                                     <div class="mb-3">
                                         <label for="metodo" class="form-label">Método de pago</label>
                                         <select id="metodo" name="metodo" class="form-select @error('metodo') is-invalid @enderror">
-                                            <option value="EFECTIVO" selected>Efectivo</option>
-                                            <option value="TARJETA" disabled>Tarjeta (próximamente)</option>
+                                            <option value="EFECTIVO" @selected(old('metodo', 'EFECTIVO') === 'EFECTIVO')>Efectivo</option>
+                                            <option value="TARJETA" @selected(old('metodo') === 'TARJETA')>Tarjeta (solo en dólares)</option>
                                         </select>
                                         @error('metodo')
                                             <div class="invalid-feedback">{{ $message }}</div>
                                         @enderror
+                                        <div class="form-text" id="ayuda-tarjeta" style="display: none">Se abre la página segura de Stripe para escribir la tarjeta. Solo en dólares, mínimo USD 0.50.</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="d-flex flex-wrap gap-2">
-                                <button type="submit" class="btn btn-primary">Registrar pago</button>
+                                <button type="submit" class="btn btn-primary" id="boton-registrar">Registrar pago</button>
                                 <a href="{{ route('pagos.create') }}" class="btn btn-outline-secondary">Cancelar</a>
                             </div>
                         </form>
@@ -146,13 +147,21 @@
             if (!moneda) { return; }
 
             // El tipo de cambio solo se pide en bolivianos; el equivalente en dólares es una ayuda (el servidor lo calcula al guardar).
+            var metodo = document.getElementById('metodo');
+            var ayudaTarjeta = document.getElementById('ayuda-tarjeta');
+
             function actualizar() {
+                // Con tarjeta el pago es siempre en dólares (Stripe cobra en USD): se bloquea la opción de bolivianos.
+                var tarjeta = metodo.value === 'TARJETA';
+                moneda.querySelector('option[value="BOB"]').disabled = tarjeta;
+                if (tarjeta) { moneda.value = 'USD'; }
+                ayudaTarjeta.style.display = tarjeta ? '' : 'none';
                 var bob = moneda.value === 'BOB';
                 bloque.style.display = bob ? '' : 'none';
                 var m = parseFloat(monto.value), t = parseFloat(cambio.value);
                 equivalente.textContent = bob && m > 0 && t > 0 ? 'Equivale a USD ' + (Math.round(m / t * 100) / 100).toFixed(2) : '';
             }
-            [moneda, monto, cambio].forEach(function (campo) { campo.addEventListener('input', actualizar); campo.addEventListener('change', actualizar); });
+            [moneda, monto, cambio, metodo].forEach(function (campo) { campo.addEventListener('input', actualizar); campo.addEventListener('change', actualizar); });
             actualizar();
         })();
     </script>

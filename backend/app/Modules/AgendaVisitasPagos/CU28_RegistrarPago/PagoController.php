@@ -10,6 +10,7 @@ use App\Models\TipoPago;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
 use App\Modules\AgendaVisitasPagos\Compartido\ComprobanteDePago;
 use App\Modules\AgendaVisitasPagos\Compartido\DineroDeReservas;
+use App\Modules\AgendaVisitasPagos\Compartido\PagoConTarjeta;
 use App\Services\BitacoraService;
 use App\Support\ParametrosConsulta;
 use Illuminate\Database\QueryException;
@@ -22,8 +23,9 @@ use Illuminate\View\View;
  * CU28: Registrar pago (Asistente Administrativo y Administrador)
  * Registra los pagos de un contrato VIGENTE. Los contratos están en dólares (USD); el pago puede hacerse en dólares o en
  * bolivianos (BOB). En bolivianos el tipo de cambio oficial del día es obligatorio y lo escribe la persona; el equivalente en
- * dólares (monto / tipo de cambio, 2 decimales) es lo que descuenta el saldo del contrato. Hoy el método es efectivo; la tarjeta
- * (Stripe) se habilita en el siguiente prompt. Incluye el CU30: al guardar se genera el comprobante.
+ * dólares (monto / tipo de cambio, 2 decimales) es lo que descuenta el saldo del contrato. El método puede ser efectivo o tarjeta
+ * (Stripe Checkout, solo en dólares: el pago queda PENDIENTE hasta que Stripe confirma el cobro). Incluye el CU30: al confirmarse
+ * el pago se genera el comprobante.
  * Flujo principal:
  *  1. El actor accede a "Registrar pago"                                      -> crear()
  *  2. El actor busca y selecciona el contrato vigente                         -> crear.blade.php (paso 1)
@@ -62,16 +64,16 @@ class PagoController extends Controller
         ]);
     }
 
-    public function guardar(RegistrarPagoRequest $request, ComprobanteDePago $comprobantes): RedirectResponse
+    public function guardar(RegistrarPagoRequest $request, ComprobanteDePago $comprobantes, PagoConTarjeta $tarjeta): RedirectResponse
     {
         $usuario = $request->user();
         $moneda = $request->input('moneda');
         $monto = $request->input('monto');
         $tipoCambio = $moneda === Pago::BOB ? $request->input('tipocambio') : null;
 
-        // La tarjeta (Stripe) se habilita más adelante: por ahora solo se registran pagos en efectivo.
-        if ($request->input('metodo') !== Pago::EFECTIVO) {
-            return back()->withInput()->withErrors(['metodo' => 'El pago con tarjeta todavía no está disponible: registra el pago en efectivo.']);
+        // Pago con tarjeta (Stripe Checkout): siempre en dólares, de al menos USD 0.50 y sin pasar el saldo.
+        if ($request->input('metodo') === Pago::TARJETA) {
+            return $this->pagarConTarjeta($request, $tarjeta);
         }
 
         $montoUsd = DineroDeReservas::aUsd($monto, $moneda, $tipoCambio);
@@ -148,6 +150,29 @@ class PagoController extends Controller
         // Paso 9: el pago registrado con su comprobante.
         return redirect()->route('pagos.comprobante', $pago)
             ->with('status', 'Pago registrado. Saldo restante del contrato: USD ' . number_format($resultado['saldo'], 2, '.', ',') . '.');
+    }
+
+    /** Pago con tarjeta: guarda el pago PENDIENTE y manda al cliente a la página de Stripe para escribir la tarjeta. */
+    private function pagarConTarjeta(RegistrarPagoRequest $request, PagoConTarjeta $tarjeta): RedirectResponse
+    {
+        if ($request->input('moneda') !== Pago::USD) {
+            return back()->withInput()->withErrors(['moneda' => 'El pago con tarjeta es solo en dólares: Stripe cobra en USD. En bolivianos el pago es en efectivo.']);
+        }
+
+        $monto = round((float) $request->input('monto'), 2);
+        if ($monto < PagoConTarjeta::MINIMO_USD) {
+            return back()->withInput()->withErrors(['monto' => 'El pago con tarjeta debe ser de al menos USD ' . number_format(PagoConTarjeta::MINIMO_USD, 2) . '.']);
+        }
+
+        $contrato = Contrato::findOrFail($request->input('idcontrato'));
+        $resultado = $tarjeta->iniciar($contrato, $monto, $request->user(), AgendaDeVisitas::ahora()->toDateTimeString());
+
+        if (isset($resultado['error'])) {
+            return back()->withInput()->withErrors([$resultado['campo'] => $resultado['error']]);
+        }
+
+        // A la página segura de Stripe (en prueba, con las tarjetas de prueba). Al terminar vuelve a la página de éxito o de cancelación.
+        return redirect()->away($resultado['url']);
     }
 
     /** El último tipo de cambio usado en un pago o en una reserva en bolivianos; se sugiere, pero la persona debe confirmarlo. */
