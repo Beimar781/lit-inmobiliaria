@@ -44,6 +44,8 @@ class StripeWebhookController extends Controller
                     'payment_intent' => $sesion['payment_intent'] ?? null,
                     'amount_total' => $sesion['amount_total'] ?? null,
                     'currency' => $sesion['currency'] ?? null,
+                    'currency_conversion' => $sesion['currency_conversion'] ?? null,
+                    'presentment_details' => $sesion['presentment_details'] ?? null,
                 ]);
             }
         }

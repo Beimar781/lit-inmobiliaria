@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Validaciones del CU28 (paso 6): contrato, monto mayor a cero, moneda (USD o BOB), tipo de cambio obligatorio en bolivianos,
+ * Validaciones del CU28 (paso 6): contrato, monto mayor a cero, moneda (USD o BOB), tipo de cambio obligatorio en bolivianos (efectivo),
  * fecha de pago que no sea futura y método de pago.
  */
 class RegistrarPagoRequest extends FormRequest
@@ -24,8 +24,9 @@ class RegistrarPagoRequest extends FormRequest
             'idcontrato' => ['required', 'exists:contrato,idcontrato'],
             'monto' => ['required', 'numeric', 'gt:0', 'max:9999999999.99', 'decimal:0,2'],
             'moneda' => ['required', Rule::in(Pago::MONEDAS)],
-            // El dólar oficial cambia a diario: en bolivianos el tipo de cambio es obligatorio y lo escribe la persona.
-            'tipocambio' => [Rule::requiredIf(fn () => $this->input('moneda') === Pago::BOB), 'nullable', 'numeric', 'gt:0', 'max:99999', 'decimal:0,4'],
+            // El dólar oficial cambia a diario: en bolivianos (efectivo) el tipo de cambio es obligatorio y lo escribe la persona.
+            // Con tarjeta no se pide: Stripe cobra en dólares y, si el cliente elige bolivianos, aplica su propio tipo de cambio.
+            'tipocambio' => [Rule::requiredIf(fn () => $this->input('moneda') === Pago::BOB && $this->input('metodo') !== Pago::TARJETA), 'nullable', 'numeric', 'gt:0', 'max:99999', 'decimal:0,4'],
             'fechapago' => [
                 'bail', 'required', 'date_format:Y-m-d',
                 function (string $atributo, mixed $fecha, \Closure $falla) {

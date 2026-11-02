@@ -34,7 +34,7 @@ class StripeServiceTest extends TestCase
                 $this->pruebas->anotar($method, $absUrl, $params, $headers);
 
                 $cuerpo = str_contains($absUrl, '/v1/checkout/sessions/cs_test_abc')
-                    ? ['id' => 'cs_test_abc', 'object' => 'checkout.session', 'payment_status' => 'paid', 'payment_intent' => 'pi_123', 'amount_total' => 30000, 'currency' => 'usd', 'client_reference_id' => '7', 'metadata' => ['idpago' => '7']]
+                    ? ['id' => 'cs_test_abc', 'object' => 'checkout.session', 'payment_status' => 'paid', 'payment_intent' => 'pi_123', 'amount_total' => 30000, 'currency' => 'usd', 'client_reference_id' => '7', 'metadata' => ['idpago' => '7'], 'presentment_details' => ['presentment_amount' => 210750, 'presentment_currency' => 'bob']]
                     : ['id' => 'cs_test_nueva', 'object' => 'checkout.session', 'url' => 'https://checkout.stripe.com/c/pay/cs_test_nueva'];
 
                 return [json_encode($cuerpo), 200, []];
@@ -80,14 +80,13 @@ class StripeServiceTest extends TestCase
         $this->assertSame('https://lit.test/pagos/7/tarjeta/cancelado', $p['cancel_url']);
     }
 
-    public function test_la_sesion_desactiva_la_conversion_automatica_para_mostrar_solo_dolares(): void
+    public function test_la_sesion_deja_activa_la_conversion_automatica_de_stripe_y_se_pide_en_dolares(): void
     {
         (new StripeService())->crearSesionDePago(10007, 'Pago contrato 3 - Casa', '7', ['idpago' => '7'], 'https://lit.test/ok', 'https://lit.test/no');
 
         $p = $this->peticiones[0]['params'];
-        // La librería codifica el booleano como texto al armar el formulario que recibe Stripe.
-        $this->assertSame(['enabled' => 'false'], $p['adaptive_pricing'], 'sin Adaptive Pricing: Stripe no ofrece otra moneda ni convierte');
-        $this->assertSame('usd', $p['line_items'][0]['price_data']['currency'], 'Stripe siempre cobra en dólares');
+        $this->assertArrayNotHasKey('adaptive_pricing', $p, 'no se desactiva Adaptive Pricing: el cliente puede elegir dólares o bolivianos en Stripe');
+        $this->assertSame('usd', $p['line_items'][0]['price_data']['currency'], 'el precio siempre se fija en dólares');
         $this->assertSame(10007, $p['line_items'][0]['price_data']['unit_amount']);
     }
 
@@ -104,6 +103,8 @@ class StripeServiceTest extends TestCase
         $this->assertSame('usd', $sesion['currency']);
         $this->assertSame('7', $sesion['client_reference_id']);
         $this->assertSame(['idpago' => '7'], $sesion['metadata']);
+        $this->assertSame(['presentment_amount' => 210750, 'presentment_currency' => 'bob'], $sesion['presentment_details'], 'lo que pagó el cliente en su moneda (Adaptive Pricing)');
+        $this->assertNull($sesion['currency_conversion']);
     }
 
     public function test_sin_la_llave_de_stripe_no_se_intenta_ninguna_llamada(): void

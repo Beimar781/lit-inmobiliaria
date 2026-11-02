@@ -58,6 +58,25 @@ class StripeFalso extends StripeService
         $this->sesiones[$id]['payment_intent'] = 'pi_test_' . $id;
     }
 
+    /**
+     * El cliente pagó en bolivianos en la página de Stripe (Adaptive Pricing). Stripe liquida los dólares de la sesión.
+     * $forma 'actual': la sesión sigue en USD y trae presentment_details (API actual);
+     * $forma 'anterior': la sesión queda en la moneda del cliente y trae currency_conversion (API anterior al 2025-03-31).
+     */
+    public function pagarEnMonedaLocal(string $id, int $centavosLocal, string $moneda = 'bob', float $tipoCambio = 6.96, string $forma = 'actual'): void
+    {
+        $this->pagar($id);
+        $usd = $this->sesiones[$id]['amount_total'];
+
+        if ($forma === 'anterior') {
+            $this->sesiones[$id]['currency'] = $moneda;
+            $this->sesiones[$id]['amount_total'] = $centavosLocal;
+            $this->sesiones[$id]['currency_conversion'] = ['amount_subtotal' => $usd, 'amount_total' => $usd, 'fx_rate' => (string) $tipoCambio, 'source_currency' => 'usd'];
+        } else {
+            $this->sesiones[$id]['presentment_details'] = ['presentment_amount' => $centavosLocal, 'presentment_currency' => $moneda];
+        }
+    }
+
     public function ultimaSesion(): array
     {
         return end($this->sesiones) ?: [];

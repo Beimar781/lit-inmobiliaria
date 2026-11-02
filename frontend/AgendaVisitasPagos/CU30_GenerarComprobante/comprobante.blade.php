@@ -45,6 +45,7 @@
             <dd class="col-sm-8">{{ $pago->metodo_etiqueta }}</dd>
             <dt class="col-sm-4">Monto recibido</dt>
             <dd class="col-sm-8 fw-bold">{{ $pago->moneda }} {{ $formato($pago->monto) }}</dd>
+            @include('agendavisitaspagos::Compartido.pago-en-moneda-del-cliente', ['pago' => $pago, 'formato' => $formato])
             @if ($pago->moneda !== 'USD')
                 <dt class="col-sm-4">Tipo de cambio</dt>
                 <dd class="col-sm-8">{{ rtrim(rtrim(number_format((float) ($pago->tipopago?->cambiodemonedalocal ?? $pago->tipocambio), 4, '.', ''), '0'), '.') }} Bs por USD</dd>

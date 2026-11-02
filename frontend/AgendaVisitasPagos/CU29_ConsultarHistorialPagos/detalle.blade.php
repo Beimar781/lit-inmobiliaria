@@ -31,6 +31,7 @@
                     <dd class="col-sm-8">N.º {{ $contrato->idcontrato }} &middot; {{ $contrato->tipocontrato }} &middot; USD {{ $formato($contrato->monto) }}</dd>
                     <dt class="col-sm-4">Monto</dt>
                     <dd class="col-sm-8 fw-bold">{{ $pago->moneda }} {{ $formato($pago->monto) }}</dd>
+                    @include('agendavisitaspagos::Compartido.pago-en-moneda-del-cliente', ['pago' => $pago, 'formato' => $formato])
                     @if ($pago->moneda !== 'USD')
                         <dt class="col-sm-4">Tipo de cambio</dt>
                         <dd class="col-sm-8">
@@ -38,8 +39,10 @@
                             @if ($pago->tipopago?->fecha) <span class="text-muted small">(del {{ $pago->tipopago->fecha->format('d/m/Y') }})</span> @endif
                         </dd>
                     @endif
-                    <dt class="col-sm-4">Equivalente en dólares</dt>
-                    <dd class="col-sm-8">USD {{ $formato($pago->montousd) }}</dd>
+                    @unless ($pago->pagoEnMonedaDelCliente())
+                        <dt class="col-sm-4">Equivalente en dólares</dt>
+                        <dd class="col-sm-8">USD {{ $formato($pago->montousd) }}</dd>
+                    @endunless
                     <dt class="col-sm-4">Método de pago</dt>
                     <dd class="col-sm-8">{{ $pago->metodo_etiqueta }}</dd>
                     <dt class="col-sm-4">Registró</dt>

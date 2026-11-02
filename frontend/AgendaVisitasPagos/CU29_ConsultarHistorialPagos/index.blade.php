@@ -91,7 +91,12 @@
                             N.º {{ $pago->idcontrato }} &middot; {{ $pago->contrato->cliente->nombre }}
                             <div class="text-muted">{{ $pago->contrato->propiedad->codigo }}</div>
                         </td>
-                        <td class="text-end">{{ $pago->moneda }} {{ $formato($pago->monto) }}</td>
+                        <td class="text-end">
+                            {{ $pago->moneda }} {{ $formato($pago->monto) }}
+                            @if ($pago->pagoEnMonedaDelCliente())
+                                <div class="text-muted small">Pagó {{ $pago->moneda_cliente === 'BOB' ? 'Bs' : $pago->moneda_cliente }} {{ $formato($pago->monto_cliente) }} (Stripe: {{ $pago->tipoCambioStripeTexto() }})</div>
+                            @endif
+                        </td>
                         <td>{{ $pago->metodo_etiqueta }}</td>
                         <td class="text-end">{{ $formato($pago->montousd) }}</td>
                         <td>{{ $pago->comprobante ?: '—' }}</td>

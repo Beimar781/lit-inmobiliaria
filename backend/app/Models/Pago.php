@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 /**
  * Pago de un contrato (CU28 a CU30). monto/moneda es lo que se pagó (USD o BOB);
  * montousd es su equivalente en dólares y es el que descuenta el saldo del contrato.
+ * Un pago con tarjeta siempre es en USD; si el cliente pagó en bolivianos en la página de Stripe (Adaptive Pricing), lo
+ * que pagó está en moneda_cliente / monto_cliente / tipocambio_stripe (el tipocambio manual solo existe en el efectivo).
  */
 class Pago extends Model
 {
@@ -40,6 +42,7 @@ class Pago extends Model
     protected $fillable = [
         'idcontrato', 'monto', 'moneda', 'tipocambio', 'fechapago', 'comprobante', 'estado',
         'montousd', 'metodo', 'idusuario', 'stripe_session_id', 'stripe_payment_intent',
+        'moneda_cliente', 'monto_cliente', 'tipocambio_stripe',
     ];
 
     protected function casts(): array
@@ -48,6 +51,8 @@ class Pago extends Model
             'monto' => 'decimal:2',
             'tipocambio' => 'decimal:4',
             'montousd' => 'decimal:2',
+            'monto_cliente' => 'decimal:2',
+            'tipocambio_stripe' => 'decimal:6',
             'fechapago' => 'datetime',
         ];
     }
@@ -67,6 +72,21 @@ class Pago extends Model
     public function tipopago(): HasOne
     {
         return $this->hasOne(TipoPago::class, 'idpago', 'idpago');
+    }
+
+    /**
+     * ¿El cliente pagó con tarjeta en otra moneda (por ejemplo bolivianos) en la página de Stripe? El pago igual se registra
+     * en dólares; estos datos (moneda, monto y tipo de cambio de Stripe) son lo que el cliente realmente pagó.
+     */
+    public function pagoEnMonedaDelCliente(): bool
+    {
+        return $this->monto_cliente !== null && $this->moneda_cliente !== null;
+    }
+
+    /** Tipo de cambio de Stripe sin ceros de más (por ejemplo «6.96»). */
+    public function tipoCambioStripeTexto(): string
+    {
+        return rtrim(rtrim(number_format((float) $this->tipocambio_stripe, 6, '.', ''), '0'), '.');
     }
 
     public function getEstadoEtiquetaAttribute(): string
