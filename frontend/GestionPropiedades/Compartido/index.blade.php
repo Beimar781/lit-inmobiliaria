@@ -62,11 +62,15 @@
                     <p class="fw-bold mb-0">$ {{ number_format($p->precio, 0, ".", ",") }}@if($p->tipopropiedad === 'Alquiler') <small class="text-muted fw-normal">/ mes</small>@endif</p>
                 </div>
 
-                <div class="card-footer bg-white d-flex gap-2">
+                <div class="card-footer bg-white d-flex flex-wrap gap-2">
                     <a href="{{ route('propiedades.edit', $p) }}" class="btn btn-sm btn-outline-primary">Modificar</a>
                     {{-- CU8: el Agente solo la ve en las propiedades que él registró --}}
                     @if (auth()->user()->tieneRol('Administrador') || $p->idusuario === auth()->id())
                         <a href="{{ route('propiedades.estado', $p) }}" class="btn btn-sm btn-outline-secondary">Cambiar estado</a>
+                    @endif
+                    {{-- CU14: agendar una visita en nombre de un cliente (solo propiedades disponibles) --}}
+                    @if ($p->estadopropiedad === 'DISPONIBLE')
+                        <a href="{{ route('visitas.create', $p) }}" class="btn btn-sm btn-outline-success">Agendar visita</a>
                     @endif
                     @if (auth()->user()->tieneRol('Administrador'))
                         <a href="{{ route('propiedades.baja', $p) }}" class="btn btn-sm btn-outline-danger">Dar de baja</a>

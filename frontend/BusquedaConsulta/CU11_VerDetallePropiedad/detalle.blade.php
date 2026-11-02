@@ -102,8 +102,9 @@
             </div>
         @endif
 
-        {{-- CU12: "Me interesa" (solo si está disponible) --}}
+        {{-- CU14: "Agendar visita" y CU12: "Me interesa" (solo si está disponible) --}}
         @if ($disponible)
+            @include('agendavisitaspagos::CU14_AgendarVisita.boton')
             @include('crmgestionclientes::CU12_RegistrarClienteInteresado.me-interesa')
         @else
             <div class="alert alert-secondary">

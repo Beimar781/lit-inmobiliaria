@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Event;
  */
 class BitacoraService
 {
-    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM'];
+    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM', 'Agenda'];
 
     public const ETIQUETAS = [
         'INICIO_SESION' => 'Inicio de sesión',
@@ -35,6 +35,7 @@ class BitacoraService
         'INTERES_REGISTRADO' => 'Cliente interesado registrado',
         'PROSPECTO_SEGUIMIENTO' => 'Seguimiento de prospecto actualizado',
         'PROSPECTO_REASIGNADO' => 'Prospecto reasignado',
+        'VISITA_PROGRAMADA' => 'Visita agendada',
     ];
 
     /**

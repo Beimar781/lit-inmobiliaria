@@ -71,9 +71,15 @@
                                 <p class="fw-semibold mb-0">{{ $interes->propiedad->titulo }}</p>
                                 <p class="small text-muted mb-0">{{ ucfirst(strtolower($interes->propiedad->estadopropiedad)) }}</p>
                             </div>
-                            @if ($interes->propiedad->estadopropiedad !== 'BAJA')
-                                <a href="{{ route('catalogo.detalle', $interes->propiedad) }}" class="btn btn-sm btn-outline-secondary align-self-start">Ver ficha</a>
-                            @endif
+                            <div class="d-flex flex-wrap gap-1 align-self-start">
+                                @if ($interes->propiedad->estadopropiedad === 'DISPONIBLE')
+                                    {{-- CU14: agendar una visita de este prospecto --}}
+                                    <a href="{{ route('visitas.create', ['propiedad' => $interes->propiedad, 'cliente' => $cliente->idcliente]) }}" class="btn btn-sm btn-outline-success">Agendar visita</a>
+                                @endif
+                                @if ($interes->propiedad->estadopropiedad !== 'BAJA')
+                                    <a href="{{ route('catalogo.detalle', $interes->propiedad) }}" class="btn btn-sm btn-outline-secondary">Ver ficha</a>
+                                @endif
+                            </div>
                         </div>
                         @if ($interes->mensaje)
                             <p class="mb-0 mt-2 fst-italic">«{{ $interes->mensaje }}»</p>

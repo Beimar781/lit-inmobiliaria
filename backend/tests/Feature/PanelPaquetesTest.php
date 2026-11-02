@@ -48,10 +48,10 @@ class PanelPaquetesTest extends SistemaTestCase
             }
         }
 
-        $this->assertSame(array_map(fn ($n) => "CU{$n}", range(1, 13)), $codigos);
+        $this->assertSame(array_map(fn ($n) => "CU{$n}", range(1, 14)), $codigos);
     }
 
-    public function test_el_administrador_ve_los_6_paquetes_y_los_cu_de_los_ciclos_i_y_ii(): void
+    public function test_el_administrador_ve_los_6_paquetes_y_los_cu_de_los_ciclos_i_ii_y_iii(): void
     {
         $respuesta = $this->panel($this->admin());
 
@@ -62,7 +62,7 @@ class PanelPaquetesTest extends SistemaTestCase
             'Iniciar sesión', 'Cerrar sesión', 'Recuperar contraseña', 'Gestionar usuarios',
             'Registrar propiedad', 'Modificar propiedad', 'Eliminar propiedad', 'Cambiar estado de propiedad',
             'Buscar propiedades', 'Filtrar propiedades', 'Ver detalle de propiedad',
-            'Gestionar prospectos CRM',
+            'Gestionar prospectos CRM', 'Agendar visita a inmueble',
         ] as $caso) {
             $respuesta->assertSee($caso);
         }
@@ -90,7 +90,7 @@ class PanelPaquetesTest extends SistemaTestCase
     {
         $respuesta = $this->panel($this->agente());
 
-        foreach (['P1' => true, 'P2' => true, 'P3' => true, 'P4' => true, 'P5' => false, 'P6' => false] as $codigo => $visible) {
+        foreach (['P1' => true, 'P2' => true, 'P3' => true, 'P4' => true, 'P5' => true, 'P6' => false] as $codigo => $visible) {
             $visible
                 ? $respuesta->assertSee(self::PAQUETES[$codigo])
                 : $respuesta->assertDontSee(self::PAQUETES[$codigo]);
@@ -99,7 +99,7 @@ class PanelPaquetesTest extends SistemaTestCase
             ->assertSee('Iniciar sesión')->assertSee('Cerrar sesión')->assertSee('Recuperar contraseña')
             ->assertSee('Registrar propiedad')->assertSee('Modificar propiedad')->assertSee('Cambiar estado de propiedad')
             ->assertSee('Buscar propiedades')->assertSee('Filtrar propiedades')->assertSee('Ver detalle de propiedad')
-            ->assertSee('Registrar cliente interesado')->assertSee('Gestionar prospectos CRM')
+            ->assertSee('Registrar cliente interesado')->assertSee('Gestionar prospectos CRM')->assertSee('Agendar visita a inmueble')
             ->assertSee(route('prospectos.create'), false)
             // lo que no es del agente
             ->assertDontSee('Gestionar usuarios')
@@ -166,7 +166,7 @@ class PanelPaquetesTest extends SistemaTestCase
 
         $this->panel($this->admin())->assertSee('Caso de prueba del paquete cinco');
         $this->panel($this->asistente())->assertSee('Caso de prueba del paquete cinco')->assertSee(self::PAQUETES['P5']);
-        $this->panel($this->agente())->assertDontSee('Caso de prueba del paquete cinco')->assertDontSee(self::PAQUETES['P5']);
+        $this->panel($this->agente())->assertDontSee('Caso de prueba del paquete cinco');
     }
 
     public function test_el_panel_esta_preparado_para_celular(): void
