@@ -9,6 +9,7 @@ use App\Models\Pago;
 use App\Models\TipoPago;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
 use App\Modules\AgendaVisitasPagos\Compartido\ComprobanteDePago;
+use App\Modules\AgendaVisitasPagos\Compartido\CuentaDelCliente;
 use App\Modules\AgendaVisitasPagos\Compartido\DineroDeReservas;
 use App\Modules\AgendaVisitasPagos\Compartido\PagoConTarjeta;
 use App\Services\BitacoraService;
@@ -65,7 +66,7 @@ class PagoController extends Controller
         ]);
     }
 
-    public function guardar(RegistrarPagoRequest $request, ComprobanteDePago $comprobantes, PagoConTarjeta $tarjeta): RedirectResponse
+    public function guardar(RegistrarPagoRequest $request, ComprobanteDePago $comprobantes, PagoConTarjeta $tarjeta, CuentaDelCliente $cuentas): RedirectResponse
     {
         $usuario = $request->user();
         $moneda = $request->input('moneda');
@@ -148,9 +149,13 @@ class PagoController extends Controller
             'comprobante' => $pago->comprobante,
         ]);
 
+        // Después del primer pago el cliente pasa a ser cliente formal: se le crea su cuenta de acceso (si tiene correo).
+        $cuenta = CuentaDelCliente::mensajes($cuentas->asegurar($contrato->cliente), $contrato->cliente);
+
         // Paso 9: el pago registrado con su comprobante.
         return redirect()->route('pagos.comprobante', $pago)
-            ->with('status', 'Pago registrado. Saldo restante del contrato: USD ' . number_format($resultado['saldo'], 2, '.', ',') . '.');
+            ->with('status', 'Pago registrado. Saldo restante del contrato: USD ' . number_format($resultado['saldo'], 2, '.', ',') . '.')
+            ->with($cuenta);
     }
 
     /**

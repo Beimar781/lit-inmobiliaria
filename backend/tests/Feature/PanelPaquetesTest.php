@@ -35,7 +35,7 @@ class PanelPaquetesTest extends SistemaTestCase
         $codigos = [];
 
         foreach (config('paquetes') as $paquete) {
-            foreach (array_merge($paquete['casos'], $paquete['administracion'] ?? []) as $caso) {
+            foreach (array_merge($paquete['casos'], $paquete['administracion'] ?? [], $paquete['portal'] ?? []) as $caso) {
                 $this->assertNotEmpty($caso['nombre']);
                 $this->assertNotEmpty($caso['roles'], $caso['nombre']);
                 $this->assertTrue(Route::has($caso['ruta']), "Falta la ruta {$caso['ruta']} de {$caso['nombre']}");
@@ -137,13 +137,23 @@ class PanelPaquetesTest extends SistemaTestCase
         }
     }
 
-    public function test_el_cliente_no_ve_ningun_paquete_del_personal(): void
+    public function test_el_cliente_solo_ve_su_opcion_mis_contratos_y_pagos(): void
     {
         $respuesta = $this->panel($this->cliente());
 
-        $respuesta->assertSee('Por ahora tu rol no tiene opciones disponibles');
-        foreach (self::PAQUETES as $nombre) {
-            $respuesta->assertDontSee($nombre);
+        $respuesta->assertSee('Mis contratos y pagos')->assertSee('Mi cuenta')->assertDontSee('no tiene opciones disponibles');
+        foreach (['P1', 'P2', 'P3', 'P4', 'P6'] as $codigo) {
+            $respuesta->assertDontSee(self::PAQUETES[$codigo]);
+        }
+        foreach (['Gestionar reservas', 'Gestionar contratos', 'Registrar pago', 'Consultar historial', 'Agendar visita', 'Ver calendario'] as $texto) {
+            $respuesta->assertDontSee($texto);
+        }
+    }
+
+    public function test_el_personal_no_ve_la_opcion_del_cliente(): void
+    {
+        foreach ([$this->admin(), $this->agente(), $this->asistente()] as $usuario) {
+            $this->panel($usuario)->assertDontSee('Mis contratos y pagos');
         }
     }
 

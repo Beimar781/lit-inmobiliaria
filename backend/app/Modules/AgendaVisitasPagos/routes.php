@@ -10,6 +10,7 @@ use App\Modules\AgendaVisitasPagos\CU28_RegistrarPago\PagoTarjetaController;
 use App\Modules\AgendaVisitasPagos\CU28_RegistrarPago\StripeWebhookController;
 use App\Modules\AgendaVisitasPagos\CU29_ConsultarHistorialPagos\HistorialPagosController;
 use App\Modules\AgendaVisitasPagos\CU30_GenerarComprobante\ComprobanteController;
+use App\Modules\AgendaVisitasPagos\PortalCliente\PortalClienteController;
 use App\Modules\AgendaVisitasPagos\CU26_GestionarReservas\ReservaController;
 use App\Modules\AgendaVisitasPagos\CU27_GestionarContratos\ContratoController;
 use App\Modules\AgendaVisitasPagos\CU17_VerCalendarioVisitas\CalendarioVisitasController;
@@ -84,3 +85,13 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
 
 // Webhook de Stripe: sin sesión ni token CSRF (ver bootstrap/app.php); se protege con la firma del mensaje.
 Route::post('/stripe/webhook', [StripeWebhookController::class, 'recibir'])->name('stripe.webhook');
+
+// Portal del cliente «Mis contratos y pagos»: solo el rol Cliente, y solo con lo suyo (lo ajeno responde 404).
+Route::middleware(['auth', RolMiddleware::class . ':' . Rol::CLIENTE])->group(function () {
+    Route::get('/mis-contratos', [PortalClienteController::class, 'contratos'])->name('portal.contratos');
+    Route::get('/mis-contratos/{contrato}', [PortalClienteController::class, 'contrato'])->whereNumber('contrato')->name('portal.contrato');
+    Route::post('/mis-contratos/{contrato}/pagar', [PortalClienteController::class, 'pagar'])->whereNumber('contrato')->middleware('throttle:10,1')->name('portal.pagar');
+    Route::get('/mis-contratos/pagos/{pago}/comprobante', [PortalClienteController::class, 'comprobante'])->name('portal.comprobante');
+    Route::get('/mis-contratos/pagos/{pago}/tarjeta/exito', [PortalClienteController::class, 'exito'])->whereNumber('pago')->name('portal.tarjeta.exito');
+    Route::get('/mis-contratos/pagos/{pago}/tarjeta/cancelado', [PortalClienteController::class, 'cancelado'])->whereNumber('pago')->name('portal.tarjeta.cancelado');
+});

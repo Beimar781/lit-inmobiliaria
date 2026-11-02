@@ -4,6 +4,7 @@ namespace App\Modules\AgendaVisitasPagos\CU28_RegistrarPago;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pago;
+use App\Modules\AgendaVisitasPagos\Compartido\CuentaDelCliente;
 use App\Modules\AgendaVisitasPagos\Compartido\PagoConTarjeta;
 use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
@@ -42,7 +43,8 @@ class PagoTarjetaController extends Controller
 
         if ($resultado['confirmado']) {
             return redirect()->route('pagos.comprobante', $resultado['pago'])
-                ->with('status', 'Pago con tarjeta confirmado. Su comprobante está listo para imprimir.');
+                ->with('status', 'Pago con tarjeta confirmado. Su comprobante está listo para imprimir.')
+                ->with(isset($resultado['cuenta']) ? CuentaDelCliente::mensajes($resultado['cuenta'], $resultado['pago']->contrato->cliente) : []);
         }
 
         return $this->volver($pago, ($resultado['motivo'] ?? 'Stripe todavía no confirma el pago.') . ' Si ya se descontó de la tarjeta, se confirmará solo en unos minutos.');

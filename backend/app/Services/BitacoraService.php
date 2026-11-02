@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Event;
  */
 class BitacoraService
 {
-    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM', 'Agenda', 'Reservas', 'Contratos', 'Pagos'];
+    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM', 'Agenda', 'Reservas', 'Contratos', 'Pagos', 'Clientes'];
 
     public const ETIQUETAS = [
         'INICIO_SESION' => 'Inicio de sesión',
@@ -49,6 +49,8 @@ class BitacoraService
         'CONTRATO_RESCINDIDO' => 'Contrato rescindido',
         'PAGO_REGISTRADO' => 'Pago registrado',
         'COMPROBANTE_GENERADO' => 'Comprobante de pago generado',
+        'CUENTA_CLIENTE_CREADA' => 'Cuenta de cliente creada',
+        'CUENTA_CLIENTE_NO_CREADA' => 'Cuenta de cliente no creada',
         'PAGO_TARJETA_INICIADO' => 'Pago con tarjeta iniciado',
         'PAGO_TARJETA_CONFIRMADO' => 'Pago con tarjeta confirmado',
         'PAGO_TARJETA_CANCELADO' => 'Pago con tarjeta cancelado',

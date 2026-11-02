@@ -58,7 +58,17 @@
                         @endforeach
                     @endif
 
-                    @if (! $paquete['casos'] && ! $paquete['administracion'])
+                    @if ($paquete['portal'])
+                        <li class="list-group-item bg-light small text-uppercase text-muted fw-semibold">Mi cuenta</li>
+                        @foreach ($paquete['portal'] as $funcion)
+                            <li class="list-group-item">
+                                <a href="{{ route($funcion['ruta']) }}" class="text-decoration-none">{{ $funcion['nombre'] }}</a>
+                                <div class="small text-muted">{{ $funcion['descripcion'] }}</div>
+                            </li>
+                        @endforeach
+                    @endif
+
+                    @if (! $paquete['casos'] && ! $paquete['administracion'] && ! $paquete['portal'])
                         <li class="list-group-item text-muted small">Sus casos de uso aún no están disponibles.</li>
                     @endif
                 </ul>

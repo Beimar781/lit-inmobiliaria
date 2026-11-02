@@ -22,7 +22,7 @@ class PagoConTarjeta
     /** Monto mínimo que Stripe permite cobrar en dólares. */
     public const MINIMO_USD = 0.50;
 
-    public function __construct(private StripeService $stripe, private ComprobanteDePago $comprobantes)
+    public function __construct(private StripeService $stripe, private ComprobanteDePago $comprobantes, private CuentaDelCliente $cuentas)
     {
     }
 
@@ -43,7 +43,7 @@ class PagoConTarjeta
      *
      * @return array{pago?: Pago, url?: string, error?: string, campo?: string}
      */
-    public function iniciar(Contrato $contrato, float $montoUsd, ?Usuario $actor, string $fecha, ?float $monto = null, string $moneda = Pago::USD, ?string $tipoCambio = null): array
+    public function iniciar(Contrato $contrato, float $montoUsd, ?Usuario $actor, string $fecha, ?float $monto = null, string $moneda = Pago::USD, ?string $tipoCambio = null, string $rutaExito = 'pagos.tarjeta.exito', string $rutaCancelado = 'pagos.tarjeta.cancelado'): array
     {
         $monto ??= $montoUsd;
 
@@ -93,8 +93,8 @@ class PagoConTarjeta
                 $descripcion,
                 (string) $pago->idpago,
                 ['idpago' => (string) $pago->idpago, 'idcontrato' => (string) $actual->idcontrato],
-                route('pagos.tarjeta.exito', $pago) . '?session_id={CHECKOUT_SESSION_ID}',
-                route('pagos.tarjeta.cancelado', $pago),
+                route($rutaExito, $pago) . '?session_id={CHECKOUT_SESSION_ID}',
+                route($rutaCancelado, $pago),
                 strtolower($moneda),
             );
         } catch (\Throwable $error) {
@@ -120,7 +120,7 @@ class PagoConTarjeta
      * Confirma el pago con los datos de la sesión de Stripe (los trae la consulta a Stripe o el webhook). Idempotente.
      *
      * @param array $sesion datos de la sesión: id, payment_status, payment_intent, amount_total, currency
-     * @return array{pago: Pago, confirmado: bool, nuevo: bool, motivo?: string}
+     * @return array{pago: Pago, confirmado: bool, nuevo: bool, motivo?: string, cuenta?: array} cuenta: lo que pasó con la cuenta de acceso del cliente
      */
     public function confirmar(Pago $pago, array $sesion): array
     {
@@ -174,7 +174,12 @@ class PagoConTarjeta
             ]);
         }
 
-        return ['pago' => $actual, 'confirmado' => $actual->estado === Pago::PAGADO, 'nuevo' => $nuevo] + ($motivo ? ['motivo' => $motivo] : []);
+        // Tras el primer pago confirmado, el cliente recibe su cuenta de acceso (si tiene correo y todavía no la tiene).
+        $cuenta = $nuevo ? $this->cuentas->asegurar($actual->contrato->cliente) : null;
+
+        return ['pago' => $actual, 'confirmado' => $actual->estado === Pago::PAGADO, 'nuevo' => $nuevo]
+            + ($motivo ? ['motivo' => $motivo] : [])
+            + ($cuenta ? ['cuenta' => $cuenta] : []);
     }
 
     /** El cliente canceló en la página de Stripe: el pago pendiente queda ANULADO, sin comprobante. Si ya estaba pagado, no se toca. */

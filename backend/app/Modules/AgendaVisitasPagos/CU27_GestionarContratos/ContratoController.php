@@ -9,6 +9,7 @@ use App\Models\Propiedad;
 use App\Models\Reserva;
 use App\Models\Rol;
 use App\Modules\AgendaVisitasPagos\Compartido\ClientesDelActor;
+use App\Modules\AgendaVisitasPagos\Compartido\CuentaDelCliente;
 use App\Modules\AgendaVisitasPagos\Compartido\DineroDeReservas;
 use App\Modules\AgendaVisitasPagos\Compartido\VencimientoDeReservas;
 use App\Modules\GestionPropiedades\Compartido\CambioDeEstadoPropiedad;
@@ -109,7 +110,7 @@ class ContratoController extends Controller
         ]);
     }
 
-    public function guardar(ContratoRequest $request, VencimientoDeReservas $vencimiento, CambioDeEstadoPropiedad $cambio, DineroDeReservas $dinero): RedirectResponse
+    public function guardar(ContratoRequest $request, VencimientoDeReservas $vencimiento, CambioDeEstadoPropiedad $cambio, DineroDeReservas $dinero, CuentaDelCliente $cuentas): RedirectResponse
     {
         $vencimiento->vencer(); // una reserva vencida libera la propiedad antes de intentar formalizarla
 
@@ -208,9 +209,13 @@ class ContratoController extends Controller
         }
         $cambio->registrarEnBitacora($propiedad, $anterior, $nuevo, $motivo, ['idcontrato' => $contrato->idcontrato]);
 
+        // Si el contrato trae un pago inicial (el de la reserva), el cliente ya es cliente formal: se le crea su cuenta de acceso.
+        $cuenta = $pagoInicial ? CuentaDelCliente::mensajes($cuentas->asegurar($cliente), $cliente) : [];
+
         // Paso 10: confirmación.
         return redirect()->route('contratos.show', $contrato)
-            ->with('status', "Contrato registrado: «{$propiedad->titulo}» ahora está " . strtolower($nuevo) . '.');
+            ->with('status', "Contrato registrado: «{$propiedad->titulo}» ahora está " . strtolower($nuevo) . '.')
+            ->with($cuenta);
     }
 
     public function show(Request $request, Contrato $contrato): View

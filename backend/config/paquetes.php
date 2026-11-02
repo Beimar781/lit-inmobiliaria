@@ -65,6 +65,10 @@ return [
     [
         'codigo' => 'P5',
         'nombre' => 'Agenda, Visitas y Pagos',
+        // Lo que ve el rol Cliente (no es un caso de uso del documento v6: extiende el CU28, el CU29 y el CU30).
+        'portal' => [
+            ['nombre' => 'Mis contratos y pagos', 'descripcion' => 'Tus contratos, lo que has pagado, tus comprobantes y el pago con tarjeta', 'ruta' => 'portal.contratos', 'roles' => [Rol::CLIENTE]],
+        ],
         'casos' => [
             // CU14 a CU17 y CU26 a CU30 (ciclo III): cada prompt del ciclo agrega los suyos aquí.
             ['codigo' => 'CU14', 'nombre' => 'Agendar visita a inmueble', 'ciclo' => 'III', 'ruta' => 'propiedades.index', 'roles' => $personal, 'nota' => 'Desde el inventario o un prospecto. El cliente público, desde el catálogo'],

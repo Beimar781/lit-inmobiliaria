@@ -24,14 +24,15 @@ class PanelController extends Controller
                 'nombre' => $paquete['nombre'],
                 'casos' => $this->visibles($paquete['casos'] ?? [], $rol),
                 'administracion' => $this->visibles($paquete['administracion'] ?? [], $rol),
+                'portal' => $this->visibles($paquete['portal'] ?? [], $rol),
             ])
             // El administrador ve los 6 paquetes; los demás roles, solo los que tienen algo para ellos.
-            ->filter(fn (array $paquete) => $esAdministrador || $paquete['casos'] || $paquete['administracion'])
+            ->filter(fn (array $paquete) => $esAdministrador || $paquete['casos'] || $paquete['administracion'] || $paquete['portal'])
             ->values();
 
         return view('autentificacionseguridad::CU1_IniciarSesion.panel', [
             'paquetes' => $paquetes,
-            'sinOpciones' => $paquetes->every(fn (array $paquete) => ! $paquete['casos'] && ! $paquete['administracion']),
+            'sinOpciones' => $paquetes->every(fn (array $paquete) => ! $paquete['casos'] && ! $paquete['administracion'] && ! $paquete['portal']),
         ]);
     }
 

@@ -17,7 +17,7 @@
 
 @section('contenido')
 <div class="no-imprimir mb-3 d-flex flex-wrap gap-2">
-    <a href="{{ route('pagos.create', ['contrato' => $contrato->idcontrato]) }}" class="btn btn-outline-secondary">&larr; Volver al contrato</a>
+    <a href="{{ $volver ?? route('pagos.create', ['contrato' => $contrato->idcontrato]) }}" class="btn btn-outline-secondary">&larr; {{ $textoVolver ?? 'Volver al contrato' }}</a>
     <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir o guardar como PDF</button>
 </div>
 
