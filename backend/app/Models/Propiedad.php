@@ -114,4 +114,19 @@ class Propiedad extends Model
     {
         return $this->hasMany(Historial::class, 'idpropiedad', 'idpropiedad');
     }
+
+    public function visitas(): HasMany
+    {
+        return $this->hasMany(Visita::class, 'idpropiedad', 'idpropiedad');
+    }
+
+    public function reservas(): HasMany
+    {
+        return $this->hasMany(Reserva::class, 'idpropiedad', 'idpropiedad');
+    }
+
+    public function contratos(): HasMany
+    {
+        return $this->hasMany(Contrato::class, 'idpropiedad', 'idpropiedad');
+    }
 }

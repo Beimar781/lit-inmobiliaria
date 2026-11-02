@@ -254,7 +254,7 @@ lit-inmobiliaria/
 │   │   ├── CrmGestionClientes/      ← P4: CRM y gestión de clientes
 │   │   │   ├── CU12_RegistrarClienteInteresado/
 │   │   │   └── CU13_GestionarProspectos/
-│   │   ├── AgendaVisitas/           ← P5: Agenda y gestión de visitas (ciclo posterior)
+│   │   ├── AgendaVisitasPagos/      ← P5: Agenda, Visitas y Pagos (ciclo 3)
 │   │   └── ReportesAdministracion/  ← P6: Reportes y administración (hoy: bitácora del administrador)
 │   │       └── Bitacora/
 │   ├── app/Models/                  ← una clase por tabla del diagrama de clases
@@ -264,7 +264,7 @@ lit-inmobiliaria/
 │   ├── database/seeders/            ← cargan los datos compartidos (o los de ejemplo si no existen)
 │   └── tests/                       ← pruebas automáticas
 └── frontend/                        ← pantallas (Blade + Bootstrap)
-    ├── AutentificacionSeguridad/ · GestionPropiedades/ · BusquedaConsulta/ · CrmGestionClientes/ · AgendaVisitas/ · ReportesAdministracion/   ← pantalla de cada CU, misma ruta que en backend
+    ├── AutentificacionSeguridad/ · GestionPropiedades/ · BusquedaConsulta/ · CrmGestionClientes/ · AgendaVisitasPagos/ · ReportesAdministracion/   ← pantalla de cada CU, misma ruta que en backend
     ├── layouts/                     ← diseño general (menú, estructura de la página)
     ├── components/                  ← campos reutilizables
     └── errors/                      ← pantallas de error (403, 404, 419, 429)

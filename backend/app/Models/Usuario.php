@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -31,6 +32,12 @@ class Usuario extends Authenticatable
     public function rol(): BelongsTo
     {
         return $this->belongsTo(Rol::class, 'idrol', 'idrol');
+    }
+
+    /** Si es la cuenta de un cliente (rol Cliente), el cliente al que pertenece. */
+    public function clienteAsociado(): HasOne
+    {
+        return $this->hasOne(Cliente::class, 'idusuariocuenta', 'idusuario');
     }
 
     public function estaActivo(): bool
