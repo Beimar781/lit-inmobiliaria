@@ -4,7 +4,7 @@
 
 @section('contenido')
 <a href="{{ route('propiedades.index') }}" class="text-decoration-none">&larr; Volver a propiedades</a>
-<h1 class="h3 my-3">Cambiar estado de propiedad</h1>
+<h1 class="h3 my-3">Cambiar estado de propiedad <span class="cu-etiqueta">(CU8)</span></h1>
 
 @php($colores = ['DISPONIBLE' => 'success', 'RESERVADO' => 'warning', 'VENDIDO' => 'secondary', 'ALQUILADO' => 'info'])
 

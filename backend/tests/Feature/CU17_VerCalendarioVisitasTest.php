@@ -411,14 +411,14 @@ class CU17_VerCalendarioVisitasTest extends SistemaTestCase
 
     // ============================================ panel y diseño
 
-    public function test_el_panel_lista_el_cu17_para_el_agente_y_el_administrador(): void
+    public function test_el_panel_ofrece_el_calendario_de_visitas_al_agente_y_al_administrador(): void
     {
         foreach ([$this->agente(), $this->admin()] as $usuario) {
             $this->actingAs($usuario)->get(route('panel'))
-                ->assertSee('Ver calendario de visitas')
+                ->assertSee('Calendario de visitas')
                 ->assertSee(route('visitas.calendario'), false);
         }
-        $this->actingAs($this->asistente())->get(route('panel'))->assertDontSee('Ver calendario de visitas');
+        $this->actingAs($this->asistente())->get(route('panel'))->assertDontSee('Calendario de visitas');
     }
 
     public function test_el_calendario_se_adapta_a_celular_y_el_dia_actual_esta_marcado(): void

@@ -215,14 +215,13 @@ class CU1_IniciarSesionTest extends SistemaTestCase
             ->assertDontSee(route('bitacora.index'), false);
     }
 
-    public function test_el_panel_del_asistente_solo_muestra_autentificacion_reservas_y_pagos(): void
+    public function test_el_panel_del_asistente_solo_muestra_reservas_y_pagos(): void
     {
         $this->actingAs($this->asistente())->get(route('panel'))
             ->assertOk()
-            ->assertSee('Autentificación y Seguridad')
             ->assertSee('Cerrar sesión')
-            ->assertSee('Gestionar reservas de propiedad')->assertSee('Registrar pago')
-            ->assertDontSee('Gestionar usuarios')
+            ->assertSee('Reservas')->assertSee('Registrar pago')->assertSee('Historial de pagos')
+            ->assertDontSee('Usuarios')
             ->assertDontSee(route('propiedades.index'), false)
             ->assertDontSee(route('usuarios.index'), false);
     }
@@ -236,7 +235,7 @@ class CU1_IniciarSesionTest extends SistemaTestCase
             ->assertDontSee('no tiene opciones disponibles')
             ->assertDontSee(route('propiedades.index'), false)
             ->assertDontSee(route('usuarios.index'), false)
-            ->assertDontSee('Gestionar contratos')->assertDontSee('Registrar pago');
+            ->assertDontSee('Contratos')->assertDontSee('Registrar pago');
     }
 
     public function test_si_desactivan_la_cuenta_con_la_sesion_abierta_se_cierra_en_la_siguiente_accion(): void

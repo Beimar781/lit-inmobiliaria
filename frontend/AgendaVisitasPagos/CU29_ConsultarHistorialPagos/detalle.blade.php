@@ -10,7 +10,7 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 my-3">
     <div>
-        <h1 class="h3 mb-1">Pago N.º {{ $pago->idpago }}</h1>
+        <h1 class="h3 mb-1">Pago N.º {{ $pago->idpago }} <span class="cu-etiqueta">(CU29)</span></h1>
         <p class="text-muted mb-0">Contrato N.º {{ $contrato->idcontrato }} &middot; {{ $contrato->cliente->nombre }}</p>
     </div>
     <span class="badge text-bg-{{ $colores[$pago->estado] ?? 'secondary' }} fs-6">{{ $pago->estado_etiqueta }}</span>

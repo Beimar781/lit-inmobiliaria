@@ -9,7 +9,7 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 my-3">
     <div>
-        <h1 class="h3 mb-1">Visita del {{ $visita->fecha->format('d/m/Y') }} a las {{ $visita->hora_corta }}</h1>
+        <h1 class="h3 mb-1">Visita del {{ $visita->fecha->format('d/m/Y') }} a las {{ $visita->hora_corta }} <span class="cu-etiqueta">(CU17)</span></h1>
         <p class="text-muted mb-0">{{ $visita->propiedad->codigo }} &middot; {{ $visita->propiedad->titulo }}</p>
     </div>
     <span class="badge text-bg-{{ $colores[$visita->estado] ?? 'secondary' }} fs-6">{{ $visita->estado_etiqueta }}</span>

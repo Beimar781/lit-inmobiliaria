@@ -207,7 +207,7 @@ Contraseña de todos: `Lit2026*`
 | Asistente Administrativo | rjustiniano@inmobiliaria.com | Cobra y devuelve el efectivo de las **reservas**, **registra pagos** de los contratos (efectivo o tarjeta), consulta el **historial de pagos** y emite los **comprobantes** |
 | Cliente | croca@gmail.com | Entra al portal «Mis contratos y pagos». Esta cuenta de prueba no está asociada a ningún cliente del CRM, así que su portal sale vacío. Las cuentas reales de clientes se crean solas (ver la sección 5) |
 
-El panel de inicio muestra los **6 paquetes** del documento y, dentro de cada uno, los casos de uso que el rol puede usar (se configura en `backend/config/paquetes.php`). El Administrador ve los 6; los demás roles, solo los suyos; el Cliente ve únicamente «Mis contratos y pagos».
+El panel de inicio muestra una tarjeta por módulo (Usuarios, Propiedades, Prospectos CRM, Catálogo, Calendario de visitas, Reservas, Contratos, Registrar pago, Historial de pagos, Bitácora), solo las que el rol puede usar; se configuran en `backend/config/paquetes.php`, donde cada tarjeta indica a cuál de los 6 paquetes del documento pertenece. El Cliente ve únicamente «Mis contratos y pagos». El número del caso de uso aparece, en gris suave, junto al título de cada pantalla (por ejemplo «Agendar visita (CU14)»).
 
 El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con o sin sesión. Los correos se guardan y se buscan siempre en **minúsculas**. Si el equipo creó más usuarios, los ves en el menú *Usuarios* con el administrador.
 
@@ -277,7 +277,7 @@ lit-inmobiliaria/
 │   │       └── Bitacora/
 │   ├── app/Models/                  ← una clase por tabla del diagrama de clases
 │   ├── app/Services/                ← HistorialService, BitacoraService, InstantaneaDatos (datos compartidos) y StripeService (pagos con tarjeta)
-│   ├── config/paquetes.php          ← los 6 paquetes y sus casos de uso (lo que muestra el panel)
+│   ├── config/paquetes.php          ← los 6 paquetes y las tarjetas del panel de cada rol
 │   ├── database/migrations/         ← creación de las tablas en PostgreSQL
 │   ├── database/datos/              ← datos compartidos del equipo: datos.json + fotos (uploads)
 │   ├── database/seeders/            ← cargan los datos compartidos (o los de ejemplo si no existen)

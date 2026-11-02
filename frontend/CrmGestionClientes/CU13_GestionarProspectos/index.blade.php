@@ -6,7 +6,7 @@
 @php($colores = ['NUEVO' => 'primary', 'CONTACTADO' => 'info', 'EN_NEGOCIACION' => 'warning', 'CERRADO' => 'success', 'DESCARTADO' => 'secondary'])
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">Prospectos CRM</h1>
+    <h1 class="h3 mb-0">Prospectos CRM <span class="cu-etiqueta">(CU13)</span></h1>
     @if (auth()->user()->tieneRol('Agente Inmobiliario'))
         <a href="{{ route('prospectos.create') }}" class="btn btn-primary">Registrar cliente interesado</a>
     @endif

@@ -4,7 +4,7 @@
 
 @section('contenido')
 <a href="{{ route('prospectos.index') }}" class="text-decoration-none">&larr; Volver a prospectos</a>
-<h1 class="h3 my-3">Registrar cliente interesado</h1>
+<h1 class="h3 my-3">Registrar cliente interesado <span class="cu-etiqueta">(CU12)</span></h1>
 
 <div class="card shadow-sm">
     <div class="card-body">

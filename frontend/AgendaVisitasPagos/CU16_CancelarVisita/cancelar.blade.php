@@ -5,7 +5,7 @@
 @section('contenido')
 <a href="{{ route('visitas.show', $visita) }}" class="text-decoration-none">&larr; Volver al detalle de la visita</a>
 
-<h1 class="h3 my-3">Cancelar visita</h1>
+<h1 class="h3 my-3">Cancelar visita <span class="cu-etiqueta">(CU16)</span></h1>
 
 <div class="row justify-content-center">
     <div class="col-lg-8">

@@ -387,14 +387,14 @@ class CU29_ConsultarHistorialPagosTest extends SistemaTestCase
 
     // ============================================ panel y enlaces
 
-    public function test_el_panel_lista_el_cu29_para_el_asistente_y_el_administrador_pero_no_para_el_agente(): void
+    public function test_el_panel_ofrece_el_historial_de_pagos_al_asistente_y_al_administrador_pero_no_para_el_agente(): void
     {
         foreach ([$this->asistente(), $this->admin()] as $usuario) {
             $this->actingAs($usuario)->get(route('panel'))
-                ->assertSee('Consultar historial de pagos')
+                ->assertSee('Historial de pagos')
                 ->assertSee(route('pagos.index'), false);
         }
-        $this->actingAs($this->agente())->get(route('panel'))->assertDontSee('Consultar historial de pagos');
+        $this->actingAs($this->agente())->get(route('panel'))->assertDontSee('Historial de pagos');
     }
 
     public function test_el_filtro_del_formulario_ofrece_los_contratos_y_solo_los_clientes_con_contratos(): void

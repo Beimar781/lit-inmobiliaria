@@ -6,7 +6,7 @@
 
 @section('contenido')
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="h3 mb-0">Contratos</h1>
+    <h1 class="h3 mb-0">Contratos <span class="cu-etiqueta">(CU27)</span></h1>
     <a href="{{ route('contratos.create') }}" class="btn btn-primary">Nuevo contrato</a>
 </div>
 

@@ -35,7 +35,7 @@
 
 @section('contenido')
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="h3 mb-0">Calendario de visitas</h1>
+    <h1 class="h3 mb-0">Calendario de visitas <span class="cu-etiqueta">(CU17)</span></h1>
     <div class="btn-group" role="group" aria-label="Vista del calendario">
         <a href="{{ $enlaceMes }}" class="btn btn-sm {{ $vista === 'mes' ? 'btn-primary' : 'btn-outline-primary' }}">Mes</a>
         <a href="{{ $enlaceSemana }}" class="btn btn-sm {{ $vista === 'semana' ? 'btn-primary' : 'btn-outline-primary' }}">Semana</a>

@@ -10,7 +10,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 my-3">
     <div>
         <p class="text-muted small mb-1">{{ $propiedad->codigo }}</p>
-        <h1 class="h3 mb-1">{{ $propiedad->titulo }}</h1>
+        <h1 class="h3 mb-1">{{ $propiedad->titulo }} <span class="cu-etiqueta">(CU11)</span></h1>
         <p class="text-muted mb-0">
             {{ $propiedad->categoria?->nombre }} &middot; {{ $propiedad->tipopropiedad }}
             @if ($propiedad->ubicacion?->zona) &middot; {{ $propiedad->ubicacion->zona }} @endif

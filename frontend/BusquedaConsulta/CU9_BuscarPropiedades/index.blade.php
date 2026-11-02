@@ -3,7 +3,7 @@
 @section('titulo', 'Catálogo de propiedades - LIT Inmobiliaria')
 
 @section('contenido')
-<h1 class="h3 mb-1">Catálogo de propiedades</h1>
+<h1 class="h3 mb-1">Catálogo de propiedades <span class="cu-etiqueta">(CU9)</span></h1>
 <p class="text-muted">Propiedades disponibles en Santa Cruz de la Sierra, dentro del 4.º anillo.</p>
 
 @if ($errors->any())

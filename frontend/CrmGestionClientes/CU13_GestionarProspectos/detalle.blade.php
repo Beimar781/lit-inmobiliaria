@@ -9,7 +9,7 @@
 
 <div class="d-flex justify-content-between align-items-start my-3">
     <div>
-        <h1 class="h3 mb-1">{{ $cliente->nombre }}</h1>
+        <h1 class="h3 mb-1">{{ $cliente->nombre }} <span class="cu-etiqueta">(CU13)</span></h1>
         <p class="text-muted mb-0">{{ $cliente->tipocliente }} &middot; registrado el {{ $cliente->fecharegistro?->format('d/m/Y') }}</p>
     </div>
     <span class="badge text-bg-{{ $colores[$cliente->estadoseguimiento] ?? 'secondary' }} fs-6">{{ $cliente->estado_etiqueta }}</span>

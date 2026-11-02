@@ -4,7 +4,7 @@
 
 @section('contenido')
 <a href="{{ route('propiedades.index') }}" class="text-decoration-none">&larr; Volver a propiedades</a>
-<h1 class="h3 my-3">Registrar propiedad</h1>
+<h1 class="h3 my-3">Registrar propiedad <span class="cu-etiqueta">(CU5)</span></h1>
 
 <div class="card shadow-sm">
     <div class="card-body">

@@ -1007,11 +1007,11 @@ class CU26_GestionarReservasTest extends SistemaTestCase
         $this->assertSame(Propiedad::DISPONIBLE, $propiedad->fresh()->estadopropiedad);
     }
 
-    public function test_el_panel_lista_el_cu26_para_el_agente_el_administrador_y_el_asistente(): void
+    public function test_el_panel_ofrece_las_reservas_al_agente_el_administrador_y_el_asistente(): void
     {
         foreach ([$this->agente(), $this->admin(), $this->asistente()] as $usuario) {
             $this->actingAs($usuario)->get(route('panel'))
-                ->assertSee('Gestionar reservas de propiedad')
+                ->assertSee('Reservas')
                 ->assertSee(route('reservas.index'), false);
         }
     }
