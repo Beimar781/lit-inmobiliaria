@@ -28,6 +28,7 @@ abstract class PropiedadRequestBase extends FormRequest
             'banos' => ['nullable', 'integer', 'min:0', 'max:100'],
             'antiguedad' => ['nullable', 'integer', 'min:0', 'max:200'],
             'sector' => ['nullable', Rule::in(Propiedad::SECTORES)],
+            'contacto' => ['nullable', 'string', 'max:150'],
             'idcategoria' => ['required', 'exists:categoria,idcategoria'],
 
             // Propietario existente, o datos del nuevo propietario si no se elige ninguno

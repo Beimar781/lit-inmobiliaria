@@ -41,6 +41,9 @@
         <x-seleccion name="sector" label="Sector" :opciones="array_combine(\App\Models\Propiedad::SECTORES, \App\Models\Propiedad::SECTORES)"
                      :valor="$propiedad?->sector" vacio="Sin sector" />
     </div>
+    <div class="col-md-8">
+        <x-campo name="contacto" label="Contacto (nombre o teléfono)" maxlength="150" :valor="$propiedad?->contacto" />
+    </div>
 </div>
 
 <hr class="my-4">

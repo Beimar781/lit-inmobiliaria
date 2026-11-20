@@ -37,6 +37,7 @@ class HistorialService
             'banos' => $propiedad->banos,
             'antiguedad' => $propiedad->antiguedad,
             'sector' => $propiedad->sector,
+            'contacto' => $propiedad->contacto,
             'idpropietario' => $propiedad->idpropietario,
             'idcategoria' => $propiedad->idcategoria,
             'zona' => $propiedad->ubicacion?->zona,

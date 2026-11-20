@@ -83,6 +83,7 @@ class ModificarPropiedadController extends Controller
                 'banos' => $request->input('banos'),
                 'antiguedad' => $request->input('antiguedad'),
                 'sector' => $request->input('sector'),
+                'contacto' => $request->input('contacto'),
             ]);
 
             // Imágenes: borrar las marcadas (solo de esta propiedad) y agregar las nuevas

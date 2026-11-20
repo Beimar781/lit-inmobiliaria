@@ -31,7 +31,7 @@ class Propiedad extends Model
     protected $fillable = [
         'idpropietario', 'idcategoria', 'idubicacion', 'idusuario',
         'titulo', 'descripcion', 'precio', 'tipopropiedad', 'estadopropiedad',
-        'superficie', 'areaconstruida', 'habitaciones', 'banos', 'antiguedad', 'sector',
+        'superficie', 'areaconstruida', 'habitaciones', 'banos', 'antiguedad', 'sector', 'contacto',
     ];
 
     protected function casts(): array

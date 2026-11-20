@@ -72,6 +72,7 @@ class RegistrarPropiedadController extends Controller
                 'banos' => $request->input('banos'),
                 'antiguedad' => $request->input('antiguedad'),
                 'sector' => $request->input('sector'),
+                'contacto' => $request->input('contacto'),
             ]);
 
             $nuevas = GestorImagenes::guardar($propiedad, $request->file('imagenes') ?? []);

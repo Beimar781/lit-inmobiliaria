@@ -72,6 +72,8 @@
                     <dd class="col-sm-8">{{ $propiedad->antiguedad !== null ? $propiedad->antiguedad . ' años' : '—' }}</dd>
                     <dt class="col-sm-4">Sector</dt>
                     <dd class="col-sm-8">{{ $propiedad->sector ?: '—' }}</dd>
+                    <dt class="col-sm-4">Contacto</dt>
+                    <dd class="col-sm-8">{{ $propiedad->contacto ?: '—' }}</dd>
                 </dl>
             </div>
         </div>
