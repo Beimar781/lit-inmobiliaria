@@ -41,6 +41,10 @@
             <dd class="col-sm-8">{{ $reserva->propiedad->codigo }} &middot; {{ $reserva->propiedad->titulo }}</dd>
             <dt class="col-sm-4">Reserva</dt>
             <dd class="col-sm-8">N.º {{ $reserva->idreserva }} &middot; plazo hasta el {{ $reserva->fechaplazo->format('d/m/Y') }}</dd>
+            @if ($reserva->detalles)
+                <dt class="col-sm-4">Detalles</dt>
+                <dd class="col-sm-8">{{ $reserva->detalles }}</dd>
+            @endif
             <dt class="col-sm-4">Forma de pago</dt>
             <dd class="col-sm-8">Efectivo</dd>
             <dt class="col-sm-4">{{ $esCobro ? 'Monto recibido' : 'Monto devuelto' }}</dt>

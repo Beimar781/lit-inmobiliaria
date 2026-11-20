@@ -53,7 +53,9 @@
                     @php($calculo = $pendiente ? $dinero->calcularDevolucion($reserva) : null)
                     <tr>
                         <td>{{ $reserva->idreserva }}</td>
-                        <td>{{ $reserva->propiedad->codigo }} &middot; {{ $reserva->propiedad->titulo }}</td>
+                        <td>{{ $reserva->propiedad->codigo }} &middot; {{ $reserva->propiedad->titulo }}
+                            @if ($reserva->detalles) <div class="small text-muted">{{ $reserva->detalles }}</div> @endif
+                        </td>
                         <td>{{ $reserva->cliente->nombre }}</td>
                         <td>{{ $reserva->fechaplazo->format('d/m/Y') }}</td>
                         <td class="small">

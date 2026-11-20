@@ -66,6 +66,15 @@
                     <x-campo name="fechaplazo" label="Plazo de la reserva (hasta qué día)" type="date" :min="$minimo"
                              ayuda="La propiedad queda reservada hasta el final de ese día. Después vuelve a estar disponible." />
 
+                    <div class="mb-3">
+                        <label for="detalles" class="form-label">Detalles <span class="text-muted">(opcional)</span></label>
+                        <textarea id="detalles" name="detalles" rows="3" maxlength="1000"
+                                  class="form-control @error('detalles') is-invalid @enderror">{{ old('detalles') }}</textarea>
+                        @error('detalles')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                     <div class="d-flex flex-wrap gap-2">
                         <button type="submit" class="btn btn-primary">Cobrar y guardar reserva</button>
                         <a href="{{ route('reservas.index') }}" class="btn btn-outline-secondary">Cancelar</a>

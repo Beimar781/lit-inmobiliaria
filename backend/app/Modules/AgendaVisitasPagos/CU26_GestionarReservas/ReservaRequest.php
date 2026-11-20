@@ -38,6 +38,7 @@ class ReservaRequest extends FormRequest
             'idpropiedad' => ['required', 'exists:propiedad,idpropiedad'],
             'idcliente' => ['required', 'exists:cliente,idcliente'],
             'idvisita' => ['nullable', 'exists:visita,idvisita'],
+            'detalles' => ['nullable', 'string', 'max:1000'],
             'monto' => ['required', 'numeric', 'gt:0', 'max:9999999999.99', 'decimal:0,2'],
             'moneda' => ['required', Rule::in(Pago::MONEDAS)],
             // El dólar oficial cambia a diario: en bolivianos el tipo de cambio es obligatorio y lo escribe la persona.
@@ -61,6 +62,7 @@ class ReservaRequest extends FormRequest
             'idcliente.required' => 'Elige el cliente que reserva.',
             'idcliente.exists' => 'El cliente no existe en el CRM. Regístralo primero como prospecto.',
             'idvisita.exists' => 'La visita elegida no existe.',
+            'detalles.max' => 'Los detalles no pueden superar los 1000 caracteres.',
             'monto.required' => 'Indica cuánto paga el cliente para reservar.',
             'monto.numeric' => 'El monto debe ser un número.',
             'monto.gt' => 'El monto debe ser mayor a cero.',

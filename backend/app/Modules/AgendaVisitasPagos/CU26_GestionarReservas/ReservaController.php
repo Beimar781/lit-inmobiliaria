@@ -126,6 +126,7 @@ class ReservaController extends Controller
         $monto = $request->input('monto');
         $tipoCambio = $moneda === 'BOB' ? $request->input('tipocambio') : null;
         $plazo = $request->input('fechaplazo');
+        $detalles = $request->input('detalles');
 
         // El Agente solo reserva para sus prospectos.
         if (! ClientesDelActor::permitido($usuario, $cliente)) {
@@ -154,7 +155,7 @@ class ReservaController extends Controller
         }
 
         try {
-            $resultado = DB::transaction(function () use ($propiedadElegida, $visita, $cliente, $usuario, $plazo, $moneda, $monto, $tipoCambio, $montoUsd, $cambio, $dinero) {
+            $resultado = DB::transaction(function () use ($propiedadElegida, $visita, $cliente, $usuario, $plazo, $moneda, $monto, $tipoCambio, $montoUsd, $cambio, $dinero, $detalles) {
                 $propiedad = Propiedad::lockForUpdate()->findOrFail($propiedadElegida->idpropiedad);
 
                 // Paso 6: la propiedad debe seguir disponible y sin otra reserva vigente.
@@ -178,6 +179,7 @@ class ReservaController extends Controller
                     'estado' => Reserva::VIGENTE,
                     'montousd' => $montoUsd,
                     'idusuario' => $usuario->idusuario,
+                    'detalles' => $detalles,
                 ]);
                 $cobro = $dinero->cobrar($reserva, $monto, $moneda, $tipoCambio, $usuario);
 

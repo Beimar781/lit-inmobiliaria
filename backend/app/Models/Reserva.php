@@ -27,7 +27,7 @@ class Reserva extends Model
         self::VENCIDA => 'Vencida',
     ];
 
-    protected $fillable = ['idcliente', 'idpropiedad', 'idvisita', 'fechareserva', 'fechaplazo', 'estado', 'montousd', 'idusuario'];
+    protected $fillable = ['idcliente', 'idpropiedad', 'idvisita', 'fechareserva', 'fechaplazo', 'estado', 'montousd', 'idusuario', 'detalles'];
 
     protected function casts(): array
     {
