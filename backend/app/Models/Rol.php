@@ -16,7 +16,7 @@ class Rol extends Model
     public const ASISTENTE = 'Asistente Administrativo';
     public const CLIENTE = 'Cliente';
 
-    protected $fillable = ['nombre', 'descripcion'];
+    protected $fillable = ['nombre', 'descripcion', 'tipo'];
 
     public function usuarios(): HasMany
     {
