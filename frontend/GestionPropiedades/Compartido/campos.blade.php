@@ -36,6 +36,13 @@
     <div class="col-md-2"><x-campo name="antiguedad" label="Antigüedad (años)" type="number" min="0" :valor="$propiedad?->antiguedad" /></div>
 </div>
 
+<div class="row">
+    <div class="col-md-4">
+        <x-seleccion name="sector" label="Sector" :opciones="array_combine(\App\Models\Propiedad::SECTORES, \App\Models\Propiedad::SECTORES)"
+                     :valor="$propiedad?->sector" vacio="Sin sector" />
+    </div>
+</div>
+
 <hr class="my-4">
 <h2 class="h5 mb-3">Propietario</h2>
 <x-seleccion name="idpropietario" label="Propietario" :opciones="$propietarios"

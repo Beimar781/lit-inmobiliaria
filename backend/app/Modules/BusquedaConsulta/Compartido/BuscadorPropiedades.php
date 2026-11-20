@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class BuscadorPropiedades
 {
-    /** Palabra clave (título, zona o dirección) o código de propiedad: "LIT-0007", "lit 7" o "7". */
+    /** Palabra clave (título, zona, sector o dirección) o código de propiedad: "LIT-0007", "lit 7" o "7". */
     public static function texto(Builder $consulta, ?string $texto): Builder
     {
         $texto = trim((string) $texto);
@@ -22,6 +22,7 @@ class BuscadorPropiedades
 
         return $consulta->where(function (Builder $donde) use ($texto) {
             $donde->whereLike('titulo', "%{$texto}%")
+                ->orWhereLike('sector', "%{$texto}%")
                 ->orWhereHas('ubicacion', fn (Builder $u) => $u
                     ->whereLike('zona', "%{$texto}%")
                     ->orWhereLike('direccion', "%{$texto}%"));
@@ -41,6 +42,7 @@ class BuscadorPropiedades
             ->when($filtros->precioMin !== null, fn (Builder $c) => $c->where('precio', '>=', $filtros->precioMin))
             ->when($filtros->precioMax !== null, fn (Builder $c) => $c->where('precio', '<=', $filtros->precioMax))
             ->when($filtros->zona, fn (Builder $c, $zona) => $c->whereHas('ubicacion', fn (Builder $u) => $u->whereLike('zona', "%{$zona}%")))
+            ->when($filtros->sector, fn (Builder $c, $sector) => $c->whereLike('sector', "%{$sector}%"))
             ->when($filtros->superficieMin !== null, fn (Builder $c) => $c->where('superficie', '>=', $filtros->superficieMin))
             ->when($filtros->superficieMax !== null, fn (Builder $c) => $c->where('superficie', '<=', $filtros->superficieMax))
             ->when($filtros->habitaciones !== null, fn (Builder $c) => $c->where('habitaciones', '>=', $filtros->habitaciones))

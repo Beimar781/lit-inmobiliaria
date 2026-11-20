@@ -44,6 +44,16 @@
             </select>
         </div>
         <div class="col-md-3">
+            <label for="sector" class="form-label small mb-1">Sector</label>
+            <select id="sector" name="sector" class="form-select @error('sector') is-invalid @enderror">
+                <option value="">Todos</option>
+                @foreach (\App\Models\Propiedad::SECTORES as $sector)
+                    <option value="{{ $sector }}" @selected(request('sector') === $sector)>{{ $sector }}</option>
+                @endforeach
+            </select>
+            @error('sector') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+        <div class="col-md-3">
             <label for="superficie_min" class="form-label small mb-1">Superficie mínima (m²)</label>
             <input type="number" id="superficie_min" name="superficie_min" min="0" step="any" value="{{ request('superficie_min') }}"
                    class="form-control @error('superficie_min') is-invalid @enderror">

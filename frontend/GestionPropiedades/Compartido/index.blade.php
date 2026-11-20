@@ -9,10 +9,10 @@
 </div>
 
 <form method="GET" action="{{ route('propiedades.index') }}" class="row g-2 mb-4">
-    <div class="col-md-4">
-        <input type="text" name="q" value="{{ $busqueda }}" class="form-control" placeholder="Buscar por título, zona o código">
-    </div>
     <div class="col-md-3">
+        <input type="text" name="q" value="{{ $busqueda }}" class="form-control" placeholder="Buscar por título, zona, sector o código">
+    </div>
+    <div class="col-md-2">
         <select name="tipo" class="form-select">
             <option value="">Todos los tipos</option>
             @foreach (\App\Models\Propiedad::TIPOS as $tipo)
@@ -20,11 +20,19 @@
             @endforeach
         </select>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
         <select name="estado" class="form-select">
             <option value="">Todos los estados</option>
             @foreach (['DISPONIBLE', 'RESERVADO', 'VENDIDO', 'ALQUILADO'] as $estado)
                 <option value="{{ $estado }}" @selected(request('estado') === $estado)>{{ ucfirst(strtolower($estado)) }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select name="sector" class="form-select">
+            <option value="">Todos los sectores</option>
+            @foreach (\App\Models\Propiedad::SECTORES as $sector)
+                <option value="{{ $sector }}" @selected(request('sector') === $sector)>{{ $sector }}</option>
             @endforeach
         </select>
     </div>
@@ -58,6 +66,7 @@
                     <p class="text-muted small mb-1">
                         {{ $p->categoria?->nombre }} &middot; {{ $p->tipopropiedad }}
                         @if ($p->ubicacion?->zona) &middot; {{ $p->ubicacion->zona }} @endif
+                        @if ($p->sector) &middot; {{ $p->sector }} @endif
                     </p>
                     <p class="fw-bold mb-0">$ {{ number_format($p->precio, 0, ".", ",") }}@if($p->tipopropiedad === 'Alquiler') <small class="text-muted fw-normal">/ mes</small>@endif</p>
                 </div>

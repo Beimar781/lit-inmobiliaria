@@ -27,6 +27,7 @@ abstract class PropiedadRequestBase extends FormRequest
             'habitaciones' => ['nullable', 'integer', 'min:0', 'max:100'],
             'banos' => ['nullable', 'integer', 'min:0', 'max:100'],
             'antiguedad' => ['nullable', 'integer', 'min:0', 'max:200'],
+            'sector' => ['nullable', Rule::in(Propiedad::SECTORES)],
             'idcategoria' => ['required', 'exists:categoria,idcategoria'],
 
             // Propietario existente, o datos del nuevo propietario si no se elige ninguno
@@ -50,6 +51,7 @@ abstract class PropiedadRequestBase extends FormRequest
     public function messages(): array
     {
         return [
+            'sector.in' => 'Elige un sector de la lista.',
             'imagenes.min' => 'Debes subir al menos una imagen de la propiedad.',
             'imagenes.max' => 'Puedes tener como máximo 8 imágenes por propiedad.',
             'imagenes.required' => 'Debes subir al menos una imagen de la propiedad.',

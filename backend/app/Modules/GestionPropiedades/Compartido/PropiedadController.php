@@ -17,12 +17,14 @@ class PropiedadController extends Controller
         $busqueda = ParametrosConsulta::texto($request, 'q');
         $estado = ParametrosConsulta::texto($request, 'estado');
         $tipo = ParametrosConsulta::texto($request, 'tipo');
+        $sector = ParametrosConsulta::texto($request, 'sector');
 
         // La palabra clave (título, zona, dirección o código) es la misma búsqueda del CU9.
         $propiedades = BuscadorPropiedades::texto(Propiedad::vigentes(), $busqueda)
             ->with(['categoria', 'ubicacion', 'imagenes'])
             ->when($estado !== '', fn ($consulta) => $consulta->where('estadopropiedad', $estado))
             ->when($tipo !== '', fn ($consulta) => $consulta->where('tipopropiedad', $tipo))
+            ->when($sector !== '', fn ($consulta) => $consulta->where('sector', $sector))
             ->orderByDesc('idpropiedad')
             ->paginate(9)
             ->withQueryString();

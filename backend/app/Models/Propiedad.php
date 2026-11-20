@@ -22,10 +22,16 @@ class Propiedad extends Model
     public const ESTADOS = [self::DISPONIBLE, self::RESERVADO, self::VENDIDO, self::ALQUILADO, self::BAJA];
     public const TIPOS = ['Venta', 'Alquiler', 'Anticrético'];
 
+    /** Sectores más conocidos dentro del 4.º anillo de Santa Cruz de la Sierra. */
+    public const SECTORES = [
+        'Centro', 'Equipetrol', 'Equipetrol Norte', 'Zona Norte', 'Zona Sur', 'Zona Este', 'Zona Oeste',
+        'Urbarí', 'Sirari', 'Las Palmas', 'Hamacas', 'Barrio Lindo', 'Villa 1.º de Mayo',
+    ];
+
     protected $fillable = [
         'idpropietario', 'idcategoria', 'idubicacion', 'idusuario',
         'titulo', 'descripcion', 'precio', 'tipopropiedad', 'estadopropiedad',
-        'superficie', 'areaconstruida', 'habitaciones', 'banos', 'antiguedad',
+        'superficie', 'areaconstruida', 'habitaciones', 'banos', 'antiguedad', 'sector',
     ];
 
     protected function casts(): array

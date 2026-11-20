@@ -29,6 +29,7 @@ class FiltrarPropiedadesRequest extends FormRequest
             'precio_min' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'precio_max' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'zona' => ['nullable', 'string', 'max:150'],
+            'sector' => ['nullable', Rule::in(Propiedad::SECTORES)],
             'superficie_min' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
             'superficie_max' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
             'habitaciones' => ['nullable', 'integer', 'min:0', 'max:100'],

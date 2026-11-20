@@ -21,7 +21,7 @@
     <div class="row g-2 mb-3">
         <div class="col-md-9">
             <input type="text" name="q" value="{{ $busqueda }}" class="form-control @error('q') is-invalid @enderror"
-                   placeholder="Busca por título, zona o dirección">
+                   placeholder="Busca por título, zona, sector o dirección">
         </div>
         <div class="col-md-3">
             <button type="submit" class="btn btn-primary w-100">Buscar</button>
@@ -60,6 +60,7 @@
                     <p class="text-muted small mb-2">
                         {{ $p->categoria?->nombre }} &middot; {{ $p->tipopropiedad }}
                         @if ($p->ubicacion?->zona) &middot; {{ $p->ubicacion->zona }} @endif
+                        @if ($p->sector) &middot; {{ $p->sector }} @endif
                     </p>
                     <p class="fw-bold mb-0">USD {{ number_format($p->precio, 0, '.', ',') }}@if ($p->tipopropiedad === 'Alquiler') <small class="text-muted fw-normal">/ mes</small>@endif</p>
                 </div>

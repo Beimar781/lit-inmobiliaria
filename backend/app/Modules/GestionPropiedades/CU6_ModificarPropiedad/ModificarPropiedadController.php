@@ -82,6 +82,7 @@ class ModificarPropiedadController extends Controller
                 'habitaciones' => $request->input('habitaciones'),
                 'banos' => $request->input('banos'),
                 'antiguedad' => $request->input('antiguedad'),
+                'sector' => $request->input('sector'),
             ]);
 
             // Imágenes: borrar las marcadas (solo de esta propiedad) y agregar las nuevas

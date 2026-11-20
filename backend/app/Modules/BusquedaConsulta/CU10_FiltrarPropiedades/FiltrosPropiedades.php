@@ -17,6 +17,7 @@ class FiltrosPropiedades
         public readonly ?float $superficieMax = null,
         public readonly ?int $habitaciones = null,
         public readonly ?int $banos = null,
+        public readonly ?string $sector = null,
     ) {
     }
 
@@ -36,6 +37,7 @@ class FiltrosPropiedades
             superficieMax: $numero('superficie_max'),
             habitaciones: $entero('habitaciones'),
             banos: $entero('banos'),
+            sector: $texto('sector'),
         );
     }
 
@@ -59,6 +61,9 @@ class FiltrosPropiedades
         }
         if ($this->zona) {
             $activos[] = "Zona: {$this->zona}";
+        }
+        if ($this->sector) {
+            $activos[] = "Sector: {$this->sector}";
         }
         if ($this->superficieMin !== null) {
             $activos[] = 'Superficie desde ' . $formato($this->superficieMin) . ' m²';
