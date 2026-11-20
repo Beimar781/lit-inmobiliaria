@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Bitacora;
 use App\Models\Cliente;
+use App\Services\BitacoraService;
 
 /** Atributo "estado" del cliente: activo o inactivo (distinto del seguimiento del CRM). */
 class EstadoClienteTest extends SistemaTestCase
@@ -61,6 +63,10 @@ class EstadoClienteTest extends SistemaTestCase
         $this->patch(route('prospectos.seguimiento', $cliente), ['estadoseguimiento' => Cliente::NUEVO, 'estado' => 'inactivo'])
             ->assertSessionHasNoErrors();
         $this->assertSame('inactivo', $cliente->fresh()->estado);
+
+        // El cambio queda en la bitácora con su etiqueta legible.
+        $this->assertSame(1, Bitacora::where('accion', 'PROSPECTO_ESTADO')->count());
+        $this->assertSame('Estado de cliente actualizado', BitacoraService::ETIQUETAS['PROSPECTO_ESTADO']);
 
         $this->patch(route('prospectos.seguimiento', $cliente), ['estadoseguimiento' => Cliente::NUEVO, 'estado' => 'otro'])
             ->assertSessionHasErrors('estado');
