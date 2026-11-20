@@ -27,6 +27,7 @@ class RegistrarClienteController extends Controller
                 ->mapWithKeys(fn (Propiedad $p) => [$p->idpropiedad => "{$p->codigo} · {$p->titulo}"])->all(),
             'propiedadElegida' => $request->query('propiedad'),
             'tipos' => array_combine(Cliente::TIPOS, Cliente::TIPOS),
+            'estadosCliente' => Cliente::ESTADOS_CLIENTE,
         ]);
     }
 

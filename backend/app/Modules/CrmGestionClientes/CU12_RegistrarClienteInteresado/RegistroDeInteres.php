@@ -96,6 +96,7 @@ class RegistroDeInteres
                 'telefono' => $datos['telefono'],
                 'tipocliente' => $datos['tipocliente'] ?? null,
                 'estadoseguimiento' => Cliente::NUEVO,
+                'estado' => $datos['estado'] ?? Cliente::ACTIVO,
                 'idusuario' => $agenteId,
             ]);
         }
@@ -138,6 +139,7 @@ class RegistroDeInteres
             'email' => $correo ?: null,
             'telefono' => $telefono ?: null,
             'tipocliente' => $datos['tipocliente'] ?? null,
+            'estado' => $datos['estado'] ?? null,
             'mensaje' => $mensaje ?: null,
         ];
     }

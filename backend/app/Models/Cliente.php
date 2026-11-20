@@ -29,7 +29,12 @@ class Cliente extends Model
 
     public const TIPOS = ['Comprador', 'Inversionista', 'Inquilino'];
 
-    protected $fillable = ['nombre', 'email', 'telefono', 'tipocliente', 'estadoseguimiento', 'idusuario', 'idusuariocuenta'];
+    /** Estado del cliente (activo / inactivo). No es el seguimiento del CRM (ESTADOS). */
+    public const ACTIVO = 'activo';
+    public const INACTIVO = 'inactivo';
+    public const ESTADOS_CLIENTE = [self::ACTIVO => 'Activo', self::INACTIVO => 'Inactivo'];
+
+    protected $fillable = ['nombre', 'email', 'telefono', 'tipocliente', 'estadoseguimiento', 'idusuario', 'idusuariocuenta', 'estado'];
 
     protected function casts(): array
     {

@@ -33,6 +33,7 @@ class ProspectoController extends Controller
         $esAdmin = $usuario->tieneRol(Rol::ADMINISTRADOR);
         $busqueda = ParametrosConsulta::texto($request, 'q');
         $estado = ParametrosConsulta::opcion($request, 'estado', array_keys(Cliente::ESTADOS));
+        $actividad = ParametrosConsulta::opcion($request, 'actividad', array_keys(Cliente::ESTADOS_CLIENTE));
         $agente = ParametrosConsulta::texto($request, 'agente');
 
         $prospectos = Cliente::with('agente')
@@ -46,6 +47,7 @@ class ProspectoController extends Controller
                 });
             })
             ->when($estado !== null, fn ($c) => $c->where('estadoseguimiento', $estado))
+            ->when($actividad !== null, fn ($c) => $c->where('estado', $actividad))
             ->when($esAdmin && $agente === 'sin', fn ($c) => $c->whereNull('idusuario'))
             ->when($esAdmin && ParametrosConsulta::entero($request, 'agente') !== null, fn ($c) => $c->where('idusuario', ParametrosConsulta::entero($request, 'agente')))
             ->orderByDesc('idcliente')
@@ -56,6 +58,7 @@ class ProspectoController extends Controller
             'prospectos' => $prospectos,
             'busqueda' => $busqueda,
             'estados' => Cliente::ESTADOS,
+            'estadosCliente' => Cliente::ESTADOS_CLIENTE,
             'agentes' => $esAdmin ? $this->agentes() : [],
             'esAdmin' => $esAdmin,
         ]);
@@ -68,6 +71,7 @@ class ProspectoController extends Controller
         return view('crmgestionclientes::CU13_GestionarProspectos.detalle', [
             'cliente' => $cliente->load(['agente', 'intereses.propiedad']),
             'estados' => Cliente::ESTADOS,
+            'estadosCliente' => Cliente::ESTADOS_CLIENTE,
             'agentes' => $request->user()->tieneRol(Rol::ADMINISTRADOR) ? $this->agentes() : [],
             'esAdmin' => $request->user()->tieneRol(Rol::ADMINISTRADOR),
         ]);
@@ -78,14 +82,36 @@ class ProspectoController extends Controller
         $this->autorizar($request, $cliente);
 
         $datos = $request->validate(
-            ['estadoseguimiento' => ['required', Rule::in(array_keys(Cliente::ESTADOS))]],
-            ['estadoseguimiento.required' => 'Elige un estado de seguimiento.', 'estadoseguimiento.in' => 'El estado de seguimiento no es válido.']
+            [
+                'estadoseguimiento' => ['required', Rule::in(array_keys(Cliente::ESTADOS))],
+                'estado' => ['sometimes', Rule::in(array_keys(Cliente::ESTADOS_CLIENTE))],
+            ],
+            [
+                'estadoseguimiento.required' => 'Elige un estado de seguimiento.',
+                'estadoseguimiento.in' => 'El estado de seguimiento no es válido.',
+                'estado.in' => 'El estado del cliente debe ser activo o inactivo.',
+            ]
         );
+
+        // Estado del cliente (activo / inactivo): se guarda aparte del seguimiento.
+        $estadoCambio = false;
+        if (isset($datos['estado']) && $datos['estado'] !== $cliente->estado) {
+            $estadoAnterior = $cliente->estado;
+            $cliente->update(['estado' => $datos['estado']]);
+
+            BitacoraService::registrar('PROSPECTO_ESTADO', 'CRM', "Cambió el estado de {$cliente->nombre} de {$estadoAnterior} a {$cliente->estado}", [
+                'idcliente' => $cliente->idcliente,
+                'estado_anterior' => $estadoAnterior,
+                'estado_nuevo' => $cliente->estado,
+            ]);
+            $estadoCambio = true;
+        }
 
         $anterior = $cliente->estadoseguimiento;
 
         if ($anterior === $datos['estadoseguimiento']) {
-            return redirect()->route('prospectos.show', $cliente)->with('status', 'El estado de seguimiento no cambió.');
+            return redirect()->route('prospectos.show', $cliente)
+                ->with('status', $estadoCambio ? 'Estado del cliente actualizado.' : 'El estado de seguimiento no cambió.');
         }
 
         $cliente->update(['estadoseguimiento' => $datos['estadoseguimiento']]);

@@ -13,7 +13,7 @@
 </div>
 
 <form method="GET" action="{{ route('prospectos.index') }}" class="row g-2 mb-3">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <input type="text" name="q" value="{{ $busqueda }}" class="form-control" placeholder="Buscar por nombre, correo o teléfono">
     </div>
     <div class="col-md-3">
@@ -21,6 +21,14 @@
             <option value="">Todos los estados</option>
             @foreach ($estados as $clave => $texto)
                 <option value="{{ $clave }}" @selected(request('estado') === $clave)>{{ $texto }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select name="actividad" class="form-select">
+            <option value="">Activos e inactivos</option>
+            @foreach ($estadosCliente as $clave => $texto)
+                <option value="{{ $clave }}" @selected(request('actividad') === $clave)>{{ $texto }}</option>
             @endforeach
         </select>
     </div>
@@ -50,6 +58,7 @@
                     <th>Tipo</th>
                     <th>Intereses</th>
                     <th>Seguimiento</th>
+                    <th>Estado</th>
                     @if ($esAdmin) <th>Agente</th> @endif
                     <th class="text-end">Acciones</th>
                 </tr>
@@ -65,6 +74,7 @@
                         <td>{{ $c->tipocliente }}</td>
                         <td>{{ $c->intereses_count }}</td>
                         <td><span class="badge text-bg-{{ $colores[$c->estadoseguimiento] ?? 'secondary' }}">{{ $c->estado_etiqueta }}</span></td>
+                        <td><span class="badge text-bg-{{ $c->estado === 'activo' ? 'success' : 'secondary' }}">{{ $estadosCliente[$c->estado] ?? $c->estado }}</span></td>
                         @if ($esAdmin)
                             <td>{!! $c->agente ? e($c->agente->nombre) : '<span class="text-muted">Sin asignar</span>' !!}</td>
                         @endif
@@ -73,7 +83,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="{{ $esAdmin ? 7 : 6 }}" class="text-center text-muted py-4">No hay prospectos para mostrar.</td></tr>
+                    <tr><td colspan="{{ $esAdmin ? 8 : 7 }}" class="text-center text-muted py-4">No hay prospectos para mostrar.</td></tr>
                 @endforelse
             </tbody>
         </table>

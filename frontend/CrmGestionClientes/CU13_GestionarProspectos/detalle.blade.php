@@ -25,6 +25,8 @@
                     <dd class="col-sm-8">{{ $cliente->email ?: '—' }}</dd>
                     <dt class="col-sm-4">Teléfono</dt>
                     <dd class="col-sm-8">{{ $cliente->telefono ?: '—' }}</dd>
+                    <dt class="col-sm-4">Estado</dt>
+                    <dd class="col-sm-8">{{ $estadosCliente[$cliente->estado] ?? $cliente->estado }}</dd>
                     <dt class="col-sm-4">Agente</dt>
                     <dd class="col-sm-8">{{ $cliente->agente?->nombre ?? 'Sin asignar' }}</dd>
                 </dl>
@@ -38,6 +40,7 @@
                     @csrf
                     @method('PATCH')
                     <x-seleccion name="estadoseguimiento" label="Estado" :opciones="$estados" :valor="$cliente->estadoseguimiento" />
+                    <x-seleccion name="estado" label="Estado del cliente" :opciones="$estadosCliente" :valor="$cliente->estado" />
                     <button type="submit" class="btn btn-primary btn-sm">Guardar seguimiento</button>
                 </form>
             </div>

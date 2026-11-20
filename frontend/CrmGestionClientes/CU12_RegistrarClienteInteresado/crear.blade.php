@@ -23,6 +23,12 @@
                 </div>
             </div>
 
+            <div class="row">
+                <div class="col-md-4">
+                    <x-seleccion name="estado" label="Estado" :opciones="$estadosCliente" valor="activo" />
+                </div>
+            </div>
+
             <x-campo name="nombre" label="Nombre completo" />
             <div class="row">
                 <div class="col-md-6"><x-campo name="email" label="Correo electrónico" type="email" /></div>

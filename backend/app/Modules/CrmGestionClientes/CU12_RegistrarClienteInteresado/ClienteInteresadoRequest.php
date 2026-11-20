@@ -13,6 +13,7 @@ class ClienteInteresadoRequest extends ClienteInteresadoRequestBase
         return array_merge($this->reglasBase(), [
             'idpropiedad' => ['required', 'exists:propiedad,idpropiedad'],
             'tipocliente' => ['required', Rule::in(Cliente::TIPOS)],
+            'estado' => ['nullable', Rule::in(array_keys(Cliente::ESTADOS_CLIENTE))],
         ]);
     }
 
@@ -21,6 +22,7 @@ class ClienteInteresadoRequest extends ClienteInteresadoRequestBase
         return array_merge(parent::messages(), [
             'idpropiedad.required' => 'Elige la propiedad por la que preguntó.',
             'tipocliente.required' => 'Elige el tipo de cliente.',
+            'estado.in' => 'El estado del cliente debe ser activo o inactivo.',
         ]);
     }
 }
