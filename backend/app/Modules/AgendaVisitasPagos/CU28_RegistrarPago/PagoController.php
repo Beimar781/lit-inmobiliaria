@@ -8,6 +8,7 @@ use App\Models\Pago;
 use App\Models\TipoPago;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
 use App\Modules\AgendaVisitasPagos\Compartido\ComprobanteDePago;
+use App\Modules\AgendaVisitasPagos\Compartido\CronogramaDeAlquiler;
 use App\Modules\AgendaVisitasPagos\Compartido\CuentaDelCliente;
 use App\Modules\AgendaVisitasPagos\Compartido\DineroDeReservas;
 use App\Modules\AgendaVisitasPagos\Compartido\PagoConTarjeta;
@@ -59,6 +60,7 @@ class PagoController extends Controller
             'contrato' => $contrato,
             'pagado' => $contrato?->totalPagadoUsd(),
             'saldo' => $contrato?->saldoUsd(),
+            'proximaCuota' => $contrato ? CronogramaDeAlquiler::proxima(CronogramaDeAlquiler::cuotas($contrato)) : null,
             'tipoCambioSugerido' => DineroDeReservas::ultimoTipoCambioDePago(),
             'hoy' => AgendaDeVisitas::ahora()->toDateString(),
             'metodos' => Pago::METODOS,

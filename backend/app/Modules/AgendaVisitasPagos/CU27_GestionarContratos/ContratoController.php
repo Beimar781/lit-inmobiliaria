@@ -9,6 +9,7 @@ use App\Models\Propiedad;
 use App\Models\Reserva;
 use App\Models\Rol;
 use App\Modules\AgendaVisitasPagos\Compartido\ClientesDelActor;
+use App\Modules\AgendaVisitasPagos\Compartido\CronogramaDeAlquiler;
 use App\Modules\AgendaVisitasPagos\Compartido\CuentaDelCliente;
 use App\Modules\AgendaVisitasPagos\Compartido\DineroDeReservas;
 use App\Modules\AgendaVisitasPagos\Compartido\VencimientoDeReservas;
@@ -226,6 +227,7 @@ class ContratoController extends Controller
             'contrato' => $contrato->load(['propiedad.agente', 'cliente', 'reserva', 'agente', 'pagos']),
             'pagado' => $contrato->totalPagadoUsd(),
             'saldo' => $contrato->saldoUsd(),
+            'cuotas' => CronogramaDeAlquiler::cuotas($contrato),
         ]);
     }
 

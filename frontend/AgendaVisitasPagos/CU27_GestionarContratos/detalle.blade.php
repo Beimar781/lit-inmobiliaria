@@ -50,6 +50,8 @@
             </div>
         </div>
 
+        @include('agendavisitaspagos::Compartido.cronograma', ['cuotas' => $cuotas])
+
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2">

@@ -36,6 +36,8 @@
             </div>
         </div>
 
+        @include('agendavisitaspagos::Compartido.cronograma', ['cuotas' => $cuotas])
+
         <div class="card shadow-sm">
             <div class="card-body">
                 <h2 class="h5">Mis pagos</h2>

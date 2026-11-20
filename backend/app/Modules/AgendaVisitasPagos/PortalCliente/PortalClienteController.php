@@ -8,6 +8,7 @@ use App\Models\Contrato;
 use App\Models\Pago;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
 use App\Modules\AgendaVisitasPagos\Compartido\ComprobanteDePago;
+use App\Modules\AgendaVisitasPagos\Compartido\CronogramaDeAlquiler;
 use App\Modules\AgendaVisitasPagos\Compartido\PagoConTarjeta;
 use App\Services\StripeService;
 use Illuminate\Http\RedirectResponse;
@@ -43,6 +44,7 @@ class PortalClienteController extends Controller
             'contrato' => $contrato->load(['propiedad', 'pagos']),
             'pagado' => $contrato->totalPagadoUsd(),
             'saldo' => $contrato->saldoUsd(),
+            'cuotas' => CronogramaDeAlquiler::cuotas($contrato),
             'minimo' => PagoConTarjeta::MINIMO_USD,
         ]);
     }

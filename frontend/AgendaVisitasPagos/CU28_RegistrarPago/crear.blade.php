@@ -94,6 +94,11 @@
                             @error('idcontrato')
                                 <div class="alert alert-danger">{{ $message }}</div>
                             @enderror
+                            @if ($proximaCuota)
+                                <p class="alert alert-info py-2 small">
+                                    Próxima cuota: N.º {{ $proximaCuota['numero'] }}, USD {{ number_format($proximaCuota['falta'], 2, '.', ',') }}, vence el {{ $proximaCuota['vencimiento']->format('d/m/Y') }}
+                                </p>
+                            @endif
 
                             <div class="row">
                                 <div class="col-sm-5">
