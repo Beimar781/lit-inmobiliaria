@@ -5,6 +5,7 @@ use App\Models\Rol;
 use App\Modules\ReportesAdministracion\Bitacora\BitacoraController;
 use App\Modules\ReportesAdministracion\CU22_GestionarPropietarios\PropietarioController;
 use App\Modules\ReportesAdministracion\CU23_GestionarCategorias\CategoriaController;
+use App\Modules\ReportesAdministracion\CU31_ConsultarHistorialPropiedad\HistorialPropiedadController;
 use Illuminate\Support\Facades\Route;
 
 // Paquete P6 - Reportes y Administración del sistema
@@ -31,4 +32,9 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
 // CU22 - Eliminar propietario: solo el Administrador
 Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR])->group(function () {
     Route::delete('/propietarios/{propietario}', [PropietarioController::class, 'eliminar'])->name('propietarios.destroy');
+});
+
+// CU31 - Consultar historial de una propiedad (Administrador y Agente; el Agente solo en las suyas: se comprueba en el controlador)
+Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE])->group(function () {
+    Route::get('/propiedades/{propiedad}/historial', [HistorialPropiedadController::class, 'mostrar'])->name('propiedades.historial');
 });

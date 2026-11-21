@@ -28,6 +28,14 @@ class EtiquetaCuTest extends SistemaTestCase
         }
     }
 
+    public function test_el_historial_de_una_propiedad_muestra_su_numero_de_caso_de_uso(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('propiedades.historial', $this->propiedad()))
+            ->assertOk()
+            ->assertSee('<span class="cu-etiqueta">(CU31)</span>', false);
+    }
+
     public function test_el_catalogo_y_el_inicio_de_sesion_muestran_su_numero_sin_iniciar_sesion(): void
     {
         $this->get(route('catalogo.index'))->assertOk()->assertSee('(CU9)');
