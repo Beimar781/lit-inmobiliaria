@@ -70,7 +70,7 @@ class ProspectoController extends Controller
         $this->autorizar($request, $cliente);
 
         return view('crmgestionclientes::CU13_GestionarProspectos.detalle', [
-            'cliente' => $cliente->load(['agente', 'intereses.propiedad']),
+            'cliente' => $cliente->load(['agente', 'intereses.propiedad', 'inquilino']),
             'ultimoContacto' => $cliente->seguimientos()->orderByDesc('fechacontacto')->orderByDesc('idseguimiento')->first(),
             'proximoContacto' => $cliente->seguimientos()->whereDate('proximocontacto', '>=', today())->min('proximocontacto'),
             'estados' => Cliente::ESTADOS,

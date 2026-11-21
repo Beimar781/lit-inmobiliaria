@@ -55,6 +55,16 @@ class EtiquetaCuTest extends SistemaTestCase
             ->assertSee('<span class="cu-etiqueta">(CU18)</span>', false);
     }
 
+    public function test_el_inquilino_de_un_prospecto_muestra_su_numero_de_caso_de_uso(): void
+    {
+        $cliente = \App\Models\Cliente::create(['nombre' => 'Pedro', 'email' => 'pedro@test.com']);
+
+        $this->actingAs($this->admin())
+            ->get(route('prospectos.inquilino', $cliente))
+            ->assertOk()
+            ->assertSee('<span class="cu-etiqueta">(CU24)</span>', false);
+    }
+
     public function test_la_galeria_de_imagenes_muestra_su_numero_de_caso_de_uso(): void
     {
         $this->actingAs($this->admin())

@@ -52,6 +52,27 @@
 
         <div class="card shadow-sm mb-4">
             <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h5 mb-0">Inquilino</h2>
+                    <a href="{{ route('prospectos.inquilino', $cliente) }}" class="btn btn-sm btn-outline-primary">{{ $cliente->inquilino ? 'Editar inquilino' : 'Inquilino' }}</a>
+                </div>
+                @if ($cliente->inquilino)
+                    @php($inq = $cliente->inquilino)
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Ocupación</dt>
+                        <dd class="col-sm-8">{{ $inq->ocupacion }}</dd>
+                        <dt class="col-sm-4">Garantía</dt>
+                        <dd class="col-sm-8">{{ \App\Models\Inquilino::GARANTIAS[$inq->tipogarantia] ?? $inq->tipogarantia }}@if ($inq->detallegarantia): {{ $inq->detallegarantia }}@endif</dd>
+                        <dt class="col-sm-4">Estado</dt>
+                        <dd class="col-sm-8">{{ \App\Models\Inquilino::ESTADOS[$inq->estado] ?? $inq->estado }} <span class="text-muted small">(registrado el {{ $inq->fecharegistro->format('d/m/Y') }})</span></dd>
+                    </dl>
+                @else
+                    <p class="text-muted small mb-0">Este cliente aún no está registrado como inquilino.</p>
+                @endif
+            </div>
+        </div>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
                 <h2 class="h5">Estado de seguimiento</h2>
                 <form method="POST" action="{{ route('prospectos.seguimiento', $cliente) }}" novalidate>
                     @csrf

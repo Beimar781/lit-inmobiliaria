@@ -6,6 +6,7 @@ use App\Modules\CrmGestionClientes\CU12_RegistrarClienteInteresado\RegistrarClie
 use App\Modules\CrmGestionClientes\CU12_RegistrarClienteInteresado\RegistrarInteresController;
 use App\Modules\CrmGestionClientes\CU13_GestionarProspectos\ProspectoController;
 use App\Modules\CrmGestionClientes\CU18_RegistrarSeguimiento\SeguimientoController;
+use App\Modules\CrmGestionClientes\CU24_GestionarInquilinos\InquilinoController;
 use Illuminate\Support\Facades\Route;
 
 // Paquete P4 - CRM y Gestión de Clientes
@@ -33,6 +34,10 @@ Route::middleware('auth')->group(function () {
         // CU18: historial de contactos y registro de seguimiento (no se editan ni se eliminan)
         Route::get('/crm/prospectos/{cliente}/seguimientos', [SeguimientoController::class, 'mostrar'])->whereNumber('cliente')->name('prospectos.seguimientos');
         Route::post('/crm/prospectos/{cliente}/seguimientos', [SeguimientoController::class, 'guardar'])->whereNumber('cliente')->name('prospectos.seguimientos.guardar');
+
+        // CU24: inquilino del cliente (uno solo por cliente; registrar de nuevo lo actualiza)
+        Route::get('/crm/prospectos/{cliente}/inquilino', [InquilinoController::class, 'mostrar'])->whereNumber('cliente')->name('prospectos.inquilino');
+        Route::post('/crm/prospectos/{cliente}/inquilino', [InquilinoController::class, 'guardar'])->whereNumber('cliente')->name('prospectos.inquilino.guardar');
     });
 
     // CU13: solo el Administrador reasigna prospectos a otro agente
