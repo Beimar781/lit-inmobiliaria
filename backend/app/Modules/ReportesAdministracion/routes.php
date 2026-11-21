@@ -3,6 +3,7 @@
 use App\Http\Middleware\RolMiddleware;
 use App\Models\Rol;
 use App\Modules\ReportesAdministracion\Bitacora\BitacoraController;
+use App\Modules\ReportesAdministracion\CU22_GestionarPropietarios\PropietarioController;
 use App\Modules\ReportesAdministracion\CU23_GestionarCategorias\CategoriaController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,4 +18,17 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR])->gr
     Route::get('/categorias/{categoria}/editar', [CategoriaController::class, 'editar'])->name('categorias.edit');
     Route::put('/categorias/{categoria}', [CategoriaController::class, 'actualizar'])->name('categorias.update');
     Route::delete('/categorias/{categoria}', [CategoriaController::class, 'eliminar'])->name('categorias.destroy');
+});
+
+// CU22 - Gestionar propietarios (Administrador y Agente)
+Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE])->group(function () {
+    Route::get('/propietarios', [PropietarioController::class, 'index'])->name('propietarios.index');
+    Route::post('/propietarios', [PropietarioController::class, 'guardar'])->name('propietarios.store');
+    Route::get('/propietarios/{propietario}/editar', [PropietarioController::class, 'editar'])->name('propietarios.edit');
+    Route::put('/propietarios/{propietario}', [PropietarioController::class, 'actualizar'])->name('propietarios.update');
+});
+
+// CU22 - Eliminar propietario: solo el Administrador
+Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR])->group(function () {
+    Route::delete('/propietarios/{propietario}', [PropietarioController::class, 'eliminar'])->name('propietarios.destroy');
 });

@@ -41,6 +41,7 @@ return [
         ['paquete' => 'P5', 'titulo' => 'Registrar pago', 'descripcion' => 'Cobrar un pago de un contrato en efectivo o con tarjeta', 'ruta' => 'pagos.create', 'roles' => [Rol::ADMINISTRADOR, Rol::ASISTENTE]],
         ['paquete' => 'P5', 'titulo' => 'Historial de pagos', 'descripcion' => 'Consultar los pagos registrados y sus comprobantes', 'ruta' => 'pagos.index', 'roles' => [Rol::ADMINISTRADOR, Rol::ASISTENTE]],
         ['paquete' => 'P5', 'titulo' => 'Mis contratos y pagos', 'descripcion' => 'Tus contratos, lo que has pagado, tus comprobantes y el pago con tarjeta', 'ruta' => 'portal.contratos', 'roles' => [Rol::CLIENTE]],
+        ['paquete' => 'P6', 'titulo' => 'Propietarios', 'descripcion' => 'Administrar los propietarios de las propiedades', 'ruta' => 'propietarios.index', 'roles' => $personal],
         ['paquete' => 'P6', 'titulo' => 'Categorías', 'descripcion' => 'Administrar las categorías de las propiedades', 'ruta' => 'categorias.index', 'roles' => [Rol::ADMINISTRADOR]],
         ['paquete' => 'P6', 'titulo' => 'Bitácora', 'descripcion' => 'Registro de la actividad de todo el sistema', 'ruta' => 'bitacora.index', 'roles' => [Rol::ADMINISTRADOR]],
     ],

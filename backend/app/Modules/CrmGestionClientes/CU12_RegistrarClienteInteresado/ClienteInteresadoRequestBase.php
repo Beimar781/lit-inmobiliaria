@@ -2,6 +2,7 @@
 
 namespace App\Modules\CrmGestionClientes\CU12_RegistrarClienteInteresado;
 
+use App\Support\FormatoTelefono;
 use Illuminate\Foundation\Http\FormRequest;
 
 /** Validaciones comunes del CU12: nombre, y correo y/o teléfono (al menos uno), más un mensaje opcional. */
@@ -17,7 +18,7 @@ abstract class ClienteInteresadoRequestBase extends FormRequest
         return [
             'nombre' => ['required', 'string', 'min:2', 'max:255'],
             'email' => ['nullable', 'required_without:telefono', 'email', 'max:255'],
-            'telefono' => ['nullable', 'required_without:email', 'regex:/^\+?[0-9][0-9\s\-]{5,18}[0-9]$/'],
+            'telefono' => ['nullable', 'required_without:email', 'regex:' . FormatoTelefono::REGEX],
             'mensaje' => ['nullable', 'string', 'max:1000'],
         ];
     }
