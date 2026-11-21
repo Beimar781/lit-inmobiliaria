@@ -4,6 +4,7 @@ use App\Http\Middleware\RolMiddleware;
 use App\Models\Rol;
 use App\Modules\GestionPropiedades\Compartido\PropiedadController;
 use App\Modules\GestionPropiedades\CU19_CargarImagenes\ImagenesController;
+use App\Modules\GestionPropiedades\CU21_GestionarGeolocalizacion\GeolocalizacionController;
 use App\Modules\GestionPropiedades\CU5_RegistrarPropiedad\RegistrarPropiedadController;
 use App\Modules\GestionPropiedades\CU6_ModificarPropiedad\ModificarPropiedadController;
 use App\Modules\GestionPropiedades\CU7_EliminarPropiedad\EliminarPropiedadController;
@@ -16,6 +17,9 @@ Route::middleware('auth')->group(function () {
     // Administrador y Agente: inventario, registrar (CU5), modificar (CU6) y cambiar estado (CU8)
     Route::middleware(RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE)->group(function () {
         Route::get('/propiedades', [PropiedadController::class, 'index'])->name('propiedades.index');
+
+        // CU21: Mapa de la cartera (va antes de las rutas con {propiedad})
+        Route::get('/propiedades/mapa', [GeolocalizacionController::class, 'mapa'])->name('propiedades.mapa');
 
         // CU5: Registrar propiedad
         Route::get('/propiedades/crear', [RegistrarPropiedadController::class, 'crear'])->name('propiedades.create');
@@ -34,6 +38,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/propiedades/{propiedad}/imagenes', [ImagenesController::class, 'subir'])->name('propiedades.imagenes.subir');
         Route::patch('/propiedades/{propiedad}/imagenes/{imagen}/portada', [ImagenesController::class, 'portada'])->name('propiedades.imagenes.portada');
         Route::delete('/propiedades/{propiedad}/imagenes/{imagen}', [ImagenesController::class, 'eliminar'])->name('propiedades.imagenes.eliminar');
+
+        // CU21: Geolocalización de una propiedad (el Agente solo en las que él registró: se comprueba en el controlador)
+        Route::get('/propiedades/{propiedad}/ubicacion', [GeolocalizacionController::class, 'ubicacion'])->name('propiedades.ubicacion');
+        Route::put('/propiedades/{propiedad}/ubicacion', [GeolocalizacionController::class, 'guardar'])->name('propiedades.ubicacion.guardar');
     });
 
     // Solo Administrador: CU7 Eliminar (dar de baja) propiedad

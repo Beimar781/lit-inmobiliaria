@@ -20,6 +20,7 @@ class EtiquetaCuTest extends SistemaTestCase
             'pagos.index' => 'CU29',
             'categorias.index' => 'CU23',
             'propietarios.index' => 'CU22',
+            'propiedades.mapa' => 'CU21',
         ];
 
         foreach ($pantallas as $ruta => $cu) {
@@ -34,6 +35,14 @@ class EtiquetaCuTest extends SistemaTestCase
             ->get(route('propiedades.historial', $this->propiedad()))
             ->assertOk()
             ->assertSee('<span class="cu-etiqueta">(CU31)</span>', false);
+    }
+
+    public function test_la_pantalla_de_ubicacion_muestra_su_numero_de_caso_de_uso(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('propiedades.ubicacion', $this->propiedad()))
+            ->assertOk()
+            ->assertSee('<span class="cu-etiqueta">(CU21)</span>', false);
     }
 
     public function test_la_galeria_de_imagenes_muestra_su_numero_de_caso_de_uso(): void

@@ -5,7 +5,10 @@
 @section('contenido')
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 mb-0">Propiedades</h1>
-    <a href="{{ route('propiedades.create') }}" class="btn btn-primary">Registrar propiedad</a>
+    <div class="d-flex gap-2">
+        <a href="{{ route('propiedades.mapa') }}" class="btn btn-outline-secondary">Mapa de la cartera</a>
+        <a href="{{ route('propiedades.create') }}" class="btn btn-primary">Registrar propiedad</a>
+    </div>
 </div>
 
 <form method="GET" action="{{ route('propiedades.index') }}" class="row g-2 mb-4">
@@ -79,6 +82,7 @@
                     @endif
                     @if (auth()->user()->tieneRol('Administrador') || $p->idusuario === auth()->id())
                         <a href="{{ route('propiedades.imagenes', $p) }}" class="btn btn-sm btn-outline-secondary">Imágenes</a>
+                        <a href="{{ route('propiedades.ubicacion', $p) }}" class="btn btn-sm btn-outline-secondary">Ubicación</a>
                         <a href="{{ route('propiedades.historial', $p) }}" class="btn btn-sm btn-outline-dark">Historial</a>
                     @endif
                     {{-- CU14: agendar una visita en nombre de un cliente (solo propiedades disponibles) --}}
