@@ -3,6 +3,7 @@
 use App\Http\Middleware\RolMiddleware;
 use App\Models\Rol;
 use App\Modules\ReportesAdministracion\Bitacora\BitacoraController;
+use App\Modules\ReportesAdministracion\CU20_GenerarReportes\ReporteController;
 use App\Modules\ReportesAdministracion\CU22_GestionarPropietarios\PropietarioController;
 use App\Modules\ReportesAdministracion\CU23_GestionarCategorias\CategoriaController;
 use App\Modules\ReportesAdministracion\CU31_ConsultarHistorialPropiedad\HistorialPropiedadController;
@@ -37,4 +38,11 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR])->gr
 // CU31 - Consultar historial de una propiedad (Administrador y Agente; el Agente solo en las suyas: se comprueba en el controlador)
 Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE])->group(function () {
     Route::get('/propiedades/{propiedad}/historial', [HistorialPropiedadController::class, 'mostrar'])->name('propiedades.historial');
+});
+
+// CU20 - Generar reportes (Administrador, Agente y Asistente; qué tipos ve cada rol se comprueba en el constructor de reportes)
+Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE . ',' . Rol::ASISTENTE])->group(function () {
+    Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+    Route::get('/reportes/generar', [ReporteController::class, 'generar'])->name('reportes.generar');
+    Route::get('/reportes/exportar/{formato}', [ReporteController::class, 'exportar'])->name('reportes.exportar');
 });

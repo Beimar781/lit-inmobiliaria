@@ -21,6 +21,7 @@ class EtiquetaCuTest extends SistemaTestCase
             'categorias.index' => 'CU23',
             'propietarios.index' => 'CU22',
             'propiedades.mapa' => 'CU21',
+            'reportes.index' => 'CU20',
         ];
 
         foreach ($pantallas as $ruta => $cu) {
