@@ -28,6 +28,8 @@ class VerDetallePropiedadController extends Controller
             'propiedad' => $propiedad,
             'imagenes' => $propiedad->imagenes->sortByDesc('portada')->values(), // la portada va primero
             'disponible' => $propiedad->estadopropiedad === Propiedad::DISPONIBLE,
+            'resenas' => $propiedad->resenas()->with('cliente')->orderByDesc('fecha')->orderByDesc('idresena')->get(),
+            'promedio' => $propiedad->puntuacionPromedio(),
         ]);
     }
 }

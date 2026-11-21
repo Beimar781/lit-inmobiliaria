@@ -14,7 +14,12 @@
         <h1 class="h3 mb-1">Contrato N.º {{ $contrato->idcontrato }} &middot; {{ $contrato->tipocontrato }}</h1>
         <p class="text-muted mb-0">{{ $contrato->propiedad->codigo }} &middot; {{ $contrato->propiedad->titulo }}</p>
     </div>
-    <span class="badge text-bg-{{ $colores[$contrato->estado] ?? 'secondary' }} fs-6">{{ $contrato->estado_etiqueta }}</span>
+    <div class="text-end">
+        <span class="badge text-bg-{{ $colores[$contrato->estado] ?? 'secondary' }} fs-6">{{ $contrato->estado_etiqueta }}</span>
+        @if ($contrato->estado !== 'RESCINDIDO')
+            <div class="mt-2"><a href="{{ route('resenas.crear', $contrato->propiedad) }}" class="btn btn-sm btn-outline-primary">{{ $resenaPublicada ? 'Ver mi reseña' : 'Calificar propiedad' }}</a></div>
+        @endif
+    </div>
 </div>
 
 <div class="row g-4">

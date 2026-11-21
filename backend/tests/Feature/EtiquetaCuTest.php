@@ -65,6 +65,19 @@ class EtiquetaCuTest extends SistemaTestCase
             ->assertSee('<span class="cu-etiqueta">(CU24)</span>', false);
     }
 
+    public function test_la_resena_de_una_propiedad_muestra_su_numero_de_caso_de_uso_al_cliente(): void
+    {
+        $cuenta = $this->cliente();
+        $cliente = \App\Models\Cliente::create(['nombre' => 'Clara', 'email' => $cuenta->email, 'idusuariocuenta' => $cuenta->idusuario]);
+        $propiedad = $this->propiedad();
+        \App\Models\Contrato::create(['idpropiedad' => $propiedad->idpropiedad, 'idcliente' => $cliente->idcliente, 'tipocontrato' => 'Venta', 'monto' => 1000, 'fechainicio' => '2026-12-01']);
+
+        $this->actingAs($cuenta)
+            ->get(route('resenas.crear', $propiedad))
+            ->assertOk()
+            ->assertSee('<span class="cu-etiqueta">(CU25)</span>', false);
+    }
+
     public function test_la_galeria_de_imagenes_muestra_su_numero_de_caso_de_uso(): void
     {
         $this->actingAs($this->admin())

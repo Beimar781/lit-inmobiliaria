@@ -7,6 +7,7 @@ use App\Modules\CrmGestionClientes\CU12_RegistrarClienteInteresado\RegistrarInte
 use App\Modules\CrmGestionClientes\CU13_GestionarProspectos\ProspectoController;
 use App\Modules\CrmGestionClientes\CU18_RegistrarSeguimiento\SeguimientoController;
 use App\Modules\CrmGestionClientes\CU24_GestionarInquilinos\InquilinoController;
+use App\Modules\CrmGestionClientes\CU25_RegistrarResena\ResenaController;
 use Illuminate\Support\Facades\Route;
 
 // Paquete P4 - CRM y Gestión de Clientes
@@ -40,6 +41,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/crm/prospectos/{cliente}/inquilino', [InquilinoController::class, 'guardar'])->whereNumber('cliente')->name('prospectos.inquilino.guardar');
     });
 
+    // CU25: reseña de una propiedad (solo el Cliente con contrato vigente o finalizado sobre ella)
+    Route::middleware(RolMiddleware::class . ':' . Rol::CLIENTE)->group(function () {
+        Route::get('/mis-contratos/propiedad/{propiedad}/resena', [ResenaController::class, 'crear'])->whereNumber('propiedad')->name('resenas.crear');
+        Route::post('/mis-contratos/propiedad/{propiedad}/resena', [ResenaController::class, 'guardar'])->whereNumber('propiedad')->name('resenas.guardar');
+    });
     // CU13: solo el Administrador reasigna prospectos a otro agente
     Route::middleware(RolMiddleware::class . ':' . Rol::ADMINISTRADOR)->group(function () {
         Route::patch('/crm/prospectos/{cliente}/agente', [ProspectoController::class, 'reasignar'])->whereNumber('cliente')->name('prospectos.asignar');

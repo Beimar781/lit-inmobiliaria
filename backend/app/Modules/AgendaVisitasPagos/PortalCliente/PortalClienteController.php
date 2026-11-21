@@ -46,6 +46,7 @@ class PortalClienteController extends Controller
             'saldo' => $contrato->saldoUsd(),
             'cuotas' => CronogramaDeAlquiler::cuotas($contrato),
             'minimo' => PagoConTarjeta::MINIMO_USD,
+            'resenaPublicada' => \App\Models\Resena::where('idcliente', $contrato->idcliente)->where('idpropiedad', $contrato->idpropiedad)->exists(),
         ]);
     }
 

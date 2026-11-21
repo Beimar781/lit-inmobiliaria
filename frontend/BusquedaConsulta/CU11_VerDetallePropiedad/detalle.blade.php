@@ -78,7 +78,29 @@
             </div>
         </div>
 
-        @if ($propiedad->ubicacion?->latitud !== null && $propiedad->ubicacion?->longitud !== null)
+        <div class="card shadow-sm mb-4" id="resenas">
+            <div class="card-body">
+                <h2 class="h5">Reseñas</h2>
+                @if ($resenas->isEmpty())
+                    <p class="text-muted mb-0">Aún sin reseñas</p>
+                @else
+                    <p class="mb-3">
+                        <span class="text-warning fs-5">{{ str_repeat('★', (int) round($promedio)) }}</span><span class="text-muted fs-5">{{ str_repeat('★', 5 - (int) round($promedio)) }}</span>
+                        <strong>{{ number_format($promedio, 1) }}</strong>
+                        <span class="text-muted">&middot; {{ $resenas->count() }} {{ $resenas->count() === 1 ? 'reseña' : 'reseñas' }}</span>
+                    </p>
+                    @foreach ($resenas as $resena)
+                        <div class="border-top pt-2 mt-2">
+                            <span class="text-warning">{{ str_repeat('★', $resena->puntuacion) }}</span><span class="text-muted">{{ str_repeat('★', 5 - $resena->puntuacion) }}</span>
+                            <span class="small text-muted">{{ \Illuminate\Support\Str::before(trim($resena->cliente->nombre), ' ') }} &middot; {{ $resena->fecha->format('d/m/Y') }}</span>
+                            @if ($resena->comentario)
+                                <p class="mb-0">{{ $resena->comentario }}</p>
+                            @endif
+                        </div>
+                    @endforeach
+                @endif
+            </div>
+        </div>        @if ($propiedad->ubicacion?->latitud !== null && $propiedad->ubicacion?->longitud !== null)
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
                     <h2 class="h5">Ubicación</h2>
