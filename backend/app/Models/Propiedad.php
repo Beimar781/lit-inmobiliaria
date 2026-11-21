@@ -135,4 +135,22 @@ class Propiedad extends Model
     {
         return $this->hasMany(Contrato::class, 'idpropiedad', 'idpropiedad');
     }
+
+    public function resenas(): HasMany
+    {
+        return $this->hasMany(Resena::class, 'idpropiedad', 'idpropiedad');
+    }
+
+    /** Promedio de las reseñas con 1 decimal; null si la propiedad no tiene reseñas. */
+    public function puntuacionPromedio(): ?float
+    {
+        $promedio = $this->resenas()->avg('puntuacion');
+
+        return $promedio === null ? null : round((float) $promedio, 1);
+    }
+
+    public function totalResenas(): int
+    {
+        return $this->resenas()->count();
+    }
 }

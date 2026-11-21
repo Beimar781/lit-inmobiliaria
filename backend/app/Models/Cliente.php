@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /** Prospecto del CRM: persona que mostró interés en una propiedad (CU12) y a la que se da seguimiento (CU13). */
 class Cliente extends Model
@@ -70,6 +71,18 @@ class Cliente extends Model
     public function contratos(): HasMany
     {
         return $this->hasMany(Contrato::class, 'idcliente', 'idcliente');
+    }
+
+    /** Contactos registrados con este prospecto (CU18). */
+    public function seguimientos(): HasMany
+    {
+        return $this->hasMany(Seguimiento::class, 'idcliente', 'idcliente');
+    }
+
+    /** Datos de arrendamiento (CU24); un cliente tiene como máximo un inquilino. */
+    public function inquilino(): HasOne
+    {
+        return $this->hasOne(Inquilino::class, 'idcliente', 'idcliente');
     }
 
     public function getEstadoEtiquetaAttribute(): string

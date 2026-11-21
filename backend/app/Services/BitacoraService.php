@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Event;
  */
 class BitacoraService
 {
-    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM', 'Agenda', 'Reservas', 'Contratos', 'Pagos', 'Clientes'];
+    public const MODULOS = ['Autenticación', 'Usuarios', 'Propiedades', 'CRM', 'Agenda', 'Reservas', 'Contratos', 'Pagos', 'Clientes', 'Reportes'];
 
     public const ETIQUETAS = [
         'INICIO_SESION' => 'Inicio de sesión',
@@ -57,6 +57,22 @@ class BitacoraService
         'PAGO_TARJETA_CANCELADO' => 'Pago con tarjeta cancelado',
         'PAGO_TARJETA_FALLIDO' => 'Pago con tarjeta no iniciado',
         'PAGO_TARJETA_DISCREPANCIA' => 'Pago con tarjeta con datos que no coinciden',
+        'SEGUIMIENTO_REGISTRADO' => 'Seguimiento de cliente registrado',
+        'INQUILINO_REGISTRADO' => 'Inquilino registrado',
+        'INQUILINO_MODIFICADO' => 'Inquilino modificado',
+        'RESENA_REGISTRADA' => 'Reseña de propiedad registrada',
+        'CATEGORIA_CREADA' => 'Categoría de propiedad creada',
+        'CATEGORIA_MODIFICADA' => 'Categoría de propiedad modificada',
+        'CATEGORIA_ELIMINADA' => 'Categoría de propiedad eliminada',
+        'PROPIETARIO_CREADO' => 'Propietario registrado',
+        'PROPIETARIO_MODIFICADO' => 'Propietario modificado',
+        'PROPIETARIO_ELIMINADO' => 'Propietario eliminado',
+        'IMAGENES_CARGADAS' => 'Imágenes de propiedad cargadas',
+        'PORTADA_CAMBIADA' => 'Portada de propiedad cambiada',
+        'IMAGEN_ELIMINADA' => 'Imagen de propiedad eliminada',
+        'UBICACION_MODIFICADA' => 'Ubicación de propiedad modificada',
+        'REPORTE_GENERADO' => 'Reporte generado',
+        'REPORTE_EXPORTADO' => 'Reporte exportado',
     ];
 
     /**
