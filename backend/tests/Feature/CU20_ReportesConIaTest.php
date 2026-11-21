@@ -355,6 +355,63 @@ class CU20_ReportesConIaTest extends SistemaTestCase
         $this->post(route('reportes.interpretar'), ['solicitud' => 'x'])->assertRedirect(route('login'));
     }
 
+    // ----------------------------------------------------------------- voz (entrada y salida en el navegador)
+
+    public function test_la_voz_dictada_se_conserva_hasta_la_confirmacion_y_la_pantalla_ofrece_escuchar_y_confirmar(): void
+    {
+        $this->iaFalsa(['tipo' => 'propiedades', 'filtros' => ['estado' => 'DISPONIBLE'], 'agrupacion' => 'categoria']);
+        $this->actingAs($this->admin());
+
+        $destino = $this->post(route('reportes.interpretar'), ['solicitud' => 'propiedades disponibles por categoría', 'voz' => '1'])->headers->get('Location');
+        $this->assertStringContainsString('voz=1', $destino);
+
+        $this->get($destino)->assertOk()
+            ->assertSee('Escuchar y confirmar por voz')
+            ->assertSee('data-voz="1"', false)
+            ->assertSee('Entendí lo siguiente. Tipo: Propiedades. Estado: Disponible. Agrupado por categoría.', false)
+            ->assertSee('<input type="hidden" name="voz" value="1">', false);
+
+        // Sin voz no se pide nada por voz ni se marca el modo voz
+        $sinVoz = $this->post(route('reportes.interpretar'), ['solicitud' => 'propiedades disponibles por categoría'])->headers->get('Location');
+        $this->assertStringNotContainsString('voz=1', $sinVoz);
+    }
+
+    public function test_el_resultado_trae_el_texto_para_leerlo_en_voz_alta_y_los_botones_de_voz(): void
+    {
+        $this->propiedadesPorCategoria();
+        $this->iaFalsa(null, 'Hay 3 propiedades disponibles, 2 casas y 1 departamento.');
+        $this->actingAs($this->admin());
+
+        $respuesta = $this->get(route('reportes.generar', ['tipo' => 'propiedades', 'estado' => 'DISPONIBLE', 'agrupacion' => 'categoria',
+            'origen' => 'ia', 'con_resumen' => '1', 'voz' => '1']))->assertOk();
+
+        $respuesta->assertSee('Leer resultado')->assertSee('Comando de voz')->assertSee('id="enlace-pdf"', false)->assertSee('id="enlace-xlsx"', false)
+            ->assertSee('data-voz="1"', false)
+            ->assertSee('Reporte de propiedades por categoría. Estado: Disponible. Agrupado por categoría. Hay 3 filas. Suma de precios (USD): 220000. Hay 3 propiedades disponibles, 2 casas y 1 departamento.', false);
+    }
+
+    public function test_sin_resumen_de_ia_la_voz_lee_los_grupos_y_un_reporte_vacio_dice_que_no_hay_resultados(): void
+    {
+        $this->propiedadesPorCategoria();
+        $this->actingAs($this->admin());
+
+        $this->get(route('reportes.generar', ['tipo' => 'propiedades', 'estado' => 'DISPONIBLE', 'agrupacion' => 'categoria']))->assertOk()
+            ->assertSee('Casa: 2, por 150000 dólares. Departamento: 1, por 70000 dólares.', false);
+        $this->get(route('reportes.generar', ['tipo' => 'pagos']))->assertOk()
+            ->assertSee('El reporte no tiene resultados.')->assertDontSee('Leer resultado');
+    }
+
+    public function test_el_modo_voz_manual_tambien_esta_disponible_para_el_asistente_y_el_agente_sin_ia(): void
+    {
+        config(['services.ia.key' => null]);
+        $this->contratoDePrueba();
+
+        $this->actingAs($this->asistente())->get(route('reportes.generar', ['tipo' => 'contratos']))->assertOk()
+            ->assertSee('Leer resultado')->assertSee('Comando de voz')
+            ->assertSee('Hay 1 fila. Suma de montos (USD): 1500.', false)
+            ->assertDontSee('id="btn-microfono"', false); // el dictado a la IA solo aparece si la IA está configurada
+    }
+
     private function contratoDePrueba(): Contrato
     {
         return Contrato::create([

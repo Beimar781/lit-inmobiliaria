@@ -58,7 +58,9 @@ class ReporteController extends Controller
             return redirect()->route('reportes.index')->withErrors(['solicitud' => $e->getMessage()])->withInput(['solicitud' => $solicitud]);
         }
 
-        return redirect()->route('reportes.index', $criterios->aParametros() + ['origen' => 'ia', 'solicitud' => mb_substr($solicitud, 0, 200)]);
+        $extra = $request->input('voz') === '1' ? ['voz' => '1'] : [];
+
+        return redirect()->route('reportes.index', $criterios->aParametros() + ['origen' => 'ia', 'solicitud' => mb_substr($solicitud, 0, 200)] + $extra);
     }
 
     public function generar(ReporteRequest $request): View|Response
@@ -218,6 +220,9 @@ class ReporteController extends Controller
             'solicitud' => $request instanceof ReporteRequest ? $request->solicitud() : '',
             'resumen' => $resumen,
             'avisoResumen' => $avisoResumen,
+            'voz' => $request instanceof ReporteRequest && $request->voz(),
+            'textoVoz' => $resultado?->textoParaVoz($criterios ? $criterios->descripcion($this->nombreAgente($criterios)) : [], $resumen),
+            'textoConfirmacion' => $criterios ? 'Entendí lo siguiente. ' . implode('. ', $criterios->descripcion($this->nombreAgente($criterios))) . '.' : '',
         ]);
     }
 }

@@ -10,23 +10,29 @@
 @if ($iaDisponible)
     <form method="POST" action="{{ route('reportes.interpretar') }}" class="card card-body shadow-sm mb-3">
         @csrf
+        <input type="hidden" name="voz" id="campo-voz" value="">
         <label for="solicitud" class="form-label fw-semibold">Describe el reporte que necesitas</label>
         <div class="input-group">
             <input type="text" name="solicitud" id="solicitud" maxlength="300" value="{{ old('solicitud') }}"
                    class="form-control @error('solicitud') is-invalid @enderror"
                    placeholder="Ej.: visitas canceladas del último mes por agente">
+            <button type="button" class="btn btn-outline-dark d-none" id="btn-microfono" title="Dictar la solicitud por voz">&#127908; Hablar</button>
             <button type="submit" class="btn btn-dark">Interpretar con IA</button>
             @error('solicitud')
                 <div class="invalid-feedback">{{ $message }}</div>
             @enderror
         </div>
         <div class="form-text">La IA solo recibe tu frase para entender qué reporte quieres; no consulta la base de datos. Tú confirmas los criterios antes de generar.</div>
+        <div class="form-text text-primary" id="estado-voz" aria-live="polite"></div>
+        <div class="form-text text-muted d-none" id="aviso-sin-voz">Tu navegador no permite dictado por voz. Usa Google Chrome o Microsoft Edge para hablar con el sistema.</div>
     </form>
 @endif
 
 @if ($origenIa && $criterios)
-    <div class="alert alert-info">
-        <strong>Esto fue lo que entendí.</strong> Revisa los criterios (puedes cambiarlos) y confirma para generar el reporte.
+    <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2" id="aviso-confirmar"
+         data-texto="{{ $textoConfirmacion }}" data-voz="{{ $voz ? '1' : '0' }}">
+        <span><strong>Esto fue lo que entendí.</strong> Revisa los criterios (puedes cambiarlos) y confirma para generar el reporte.</span>
+        <button type="button" class="btn btn-sm btn-dark d-none" id="btn-confirmar-voz">&#128266; Escuchar y confirmar por voz</button>
     </div>
 @endif
 <form method="GET" action="{{ route('reportes.generar') }}" class="card card-body shadow-sm mb-4" id="form-reporte">
@@ -34,6 +40,9 @@
         <input type="hidden" name="origen" value="ia">
         <input type="hidden" name="con_resumen" value="1">
         <input type="hidden" name="solicitud" value="{{ $solicitud }}">
+        @if ($voz)
+            <input type="hidden" name="voz" value="1">
+        @endif
     @endif
     <div class="row g-3">
         <div class="col-md-3">
@@ -93,7 +102,7 @@
             </select>
         </div>
         <div class="col-md-3 align-self-end">
-            <button type="submit" class="btn btn-primary">{{ $origenIa ? 'Confirmar y generar' : 'Generar reporte' }}</button>
+            <button type="submit" class="btn btn-primary" id="btn-generar">{{ $origenIa ? 'Confirmar y generar' : 'Generar reporte' }}</button>
             <a href="{{ route('reportes.index') }}" class="btn btn-outline-secondary">Limpiar</a>
         </div>
     </div>
@@ -104,7 +113,7 @@
 @endif
 
 @if ($resultado)
-    <div class="card shadow-sm">
+    <div class="card shadow-sm" id="bloque-resultado" data-texto="{{ $textoVoz }}" data-voz="{{ $voz ? '1' : '0' }}">
         <div class="card-body">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                 <div>
@@ -112,12 +121,15 @@
                     <p class="small text-muted mb-0">{{ implode(' · ', $filtros) }}</p>
                 </div>
                 @unless ($resultado->estaVacio())
-                    <div class="d-flex gap-2">
-                        <a href="{{ route('reportes.exportar', ['formato' => 'pdf'] + $parametros) }}" class="btn btn-outline-danger btn-sm">Exportar PDF</a>
-                        <a href="{{ route('reportes.exportar', ['formato' => 'xlsx'] + $parametros) }}" class="btn btn-outline-success btn-sm">Exportar Excel</a>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-outline-dark btn-sm d-none" id="btn-leer">&#128266; Leer resultado</button>
+                        <button type="button" class="btn btn-outline-dark btn-sm d-none" id="btn-comando" title="Di: PDF, Excel, leer o detener">&#127908; Comando de voz</button>
+                        <a href="{{ route('reportes.exportar', ['formato' => 'pdf'] + $parametros) }}" class="btn btn-outline-danger btn-sm" id="enlace-pdf">Exportar PDF</a>
+                        <a href="{{ route('reportes.exportar', ['formato' => 'xlsx'] + $parametros) }}" class="btn btn-outline-success btn-sm" id="enlace-xlsx">Exportar Excel</a>
                     </div>
                 @endunless
             </div>
+            <div class="small text-primary mb-2" id="estado-comando" aria-live="polite"></div>
 
             @if ($resumen)
                 <div class="alert alert-light border">
@@ -196,6 +208,161 @@
 
             tipo.addEventListener('change', actualizar);
             actualizar();
+        })();
+    </script>
+@endpush
+@push('scripts')
+    <script>
+        (function () {
+            var Reconocimiento = window.SpeechRecognition || window.webkitSpeechRecognition;
+            var sintesis = 'speechSynthesis' in window;
+
+            function porId(id) { return document.getElementById(id); }
+            function mostrar(boton) { if (boton) { boton.classList.remove('d-none'); } }
+            function decir(estado, texto) { if (estado) { estado.textContent = texto; } }
+
+            // ---------- Salida de voz: lee un texto en español con la mejor voz que tenga el navegador ----------
+            function elegirVoz() {
+                var voces = window.speechSynthesis.getVoices().filter(function (v) { return /^es/i.test(v.lang); });
+                var orden = ['es-BO', 'es-MX', 'es-US', 'es-419', 'es-AR', 'es-ES'];
+                for (var i = 0; i < orden.length; i++) {
+                    var v = voces.filter(function (x) { return x.lang.replace('_', '-') === orden[i]; })[0];
+                    if (v) { return v; }
+                }
+                return voces[0] || null;
+            }
+
+            function hablar(texto, alTerminar, alFallar) {
+                if (!sintesis || !texto) { if (alFallar) { alFallar(); } return; }
+                window.speechSynthesis.cancel();
+                var frase = new SpeechSynthesisUtterance(texto);
+                frase.lang = 'es-BO';
+                var voz = elegirVoz();
+                if (voz) { frase.voice = voz; frase.lang = voz.lang; }
+                frase.rate = 1;
+                frase.onend = function () { if (alTerminar) { alTerminar(); } };
+                frase.onerror = function () { if (alFallar) { alFallar(); } };
+                window.speechSynthesis.speak(frase);
+            }
+
+            // ---------- Entrada de voz: escucha una frase y la entrega como texto ----------
+            var MENSAJES = {
+                'not-allowed': 'El navegador no tiene permiso para usar el micrófono. Permítelo en el candado de la barra de direcciones.',
+                'service-not-allowed': 'El navegador no tiene permiso para usar el micrófono.',
+                'no-speech': 'No escuché nada. Inténtalo de nuevo.',
+                'audio-capture': 'No encontré un micrófono.',
+                'network': 'El reconocimiento de voz necesita conexión a internet.'
+            };
+
+            var escuchando = null;
+            function escuchar(estado, alParcial, alFinal) {
+                if (!Reconocimiento) { return; }
+                if (escuchando) { try { escuchando.abort(); } catch (e) {} }
+                var r = new Reconocimiento();
+                escuchando = r;
+                r.lang = 'es-BO';
+                r.interimResults = true;
+                r.continuous = false;
+                r.maxAlternatives = 1;
+                var entregado = false;
+                decir(estado, 'Escuchando… habla ahora.');
+                r.onresult = function (e) {
+                    var texto = '';
+                    var terminado = false;
+                    for (var i = e.resultIndex; i < e.results.length; i++) {
+                        texto += e.results[i][0].transcript;
+                        if (e.results[i].isFinal) { terminado = true; }
+                    }
+                    texto = texto.trim();
+                    if (terminado && texto) { entregado = true; alFinal(texto); }
+                    else if (alParcial) { alParcial(texto); }
+                };
+                r.onerror = function (e) { decir(estado, MENSAJES[e.error] || ('No pude escuchar (' + e.error + ').')); entregado = true; };
+                r.onend = function () { if (!entregado) { decir(estado, 'No escuché nada. Inténtalo de nuevo.'); } escuchando = null; };
+                try { r.start(); } catch (e) { decir(estado, 'No pude iniciar el micrófono.'); }
+            }
+
+            function dice(texto, palabras) {
+                var t = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                return palabras.some(function (p) { return t.indexOf(p) !== -1; });
+            }
+
+            // ---------- 1) Dictar la solicitud a la IA ----------
+            var boton = porId('btn-microfono');
+            if (boton) {
+                if (Reconocimiento) {
+                    mostrar(boton);
+                    boton.addEventListener('click', function () {
+                        var campo = porId('solicitud');
+                        var estado = porId('estado-voz');
+                        escuchar(estado, function (parcial) { campo.value = parcial; }, function (texto) {
+                            campo.value = texto;
+                            porId('campo-voz').value = '1';
+                            decir(estado, 'Escuché: «' + texto + '». Interpretando…');
+                            campo.form.submit();
+                        });
+                    });
+                } else {
+                    var aviso = porId('aviso-sin-voz');
+                    if (aviso) { aviso.classList.remove('d-none'); }
+                }
+            }
+
+            // ---------- 2) Confirmar los criterios por voz ----------
+            var aviso = porId('aviso-confirmar');
+            var botonConfirmar = porId('btn-confirmar-voz');
+            if (aviso && botonConfirmar && sintesis && Reconocimiento) {
+                mostrar(botonConfirmar);
+
+                function preguntar() {
+                    var pregunta = aviso.getAttribute('data-texto') + ' ¿Quieres generar el reporte? Di confirmar o cancelar.';
+                    hablar(pregunta, function () {
+                        escuchar(porId('estado-voz') || aviso, null, function (respuesta) {
+                            if (dice(respuesta, ['confirm', 'genera', 'si', 'dale', 'adelante', 'ok', 'acepto'])) {
+                                porId('btn-generar').click();
+                            } else if (dice(respuesta, ['cancel', 'no', 'salir'])) {
+                                window.location.href = {{ Illuminate\Support\Js::from(route('reportes.index')) }};
+                            } else {
+                                hablar('No te entendí. Usa el botón o inténtalo de nuevo.');
+                            }
+                        });
+                    });
+                }
+
+                botonConfirmar.addEventListener('click', preguntar);
+                // En modo voz se intenta leer solo; si el navegador lo bloquea (necesita un clic), queda el botón.
+                if (aviso.getAttribute('data-voz') === '1') { hablar(aviso.getAttribute('data-texto'), null, function () {}); }
+            }
+
+            // ---------- 3) Leer el resultado y comandos de voz ----------
+            var bloque = porId('bloque-resultado');
+            if (bloque) {
+                var textoResultado = bloque.getAttribute('data-texto');
+                var botonLeer = porId('btn-leer');
+                var botonComando = porId('btn-comando');
+                var estadoComando = porId('estado-comando');
+
+                if (botonLeer && sintesis) {
+                    mostrar(botonLeer);
+                    botonLeer.addEventListener('click', function () { hablar(textoResultado); });
+                    if (bloque.getAttribute('data-voz') === '1') { hablar(textoResultado, null, function () {}); }
+                }
+
+                if (botonComando && Reconocimiento) {
+                    mostrar(botonComando);
+                    botonComando.addEventListener('click', function () {
+                        window.speechSynthesis && window.speechSynthesis.cancel();
+                        escuchar(estadoComando, null, function (orden) {
+                            decir(estadoComando, 'Escuché: «' + orden + '».');
+                            if (dice(orden, ['pdf'])) { window.location.href = porId('enlace-pdf').href; }
+                            else if (dice(orden, ['excel', 'xls'])) { window.location.href = porId('enlace-xlsx').href; }
+                            else if (dice(orden, ['detener', 'calla', 'silencio', 'para'])) { window.speechSynthesis.cancel(); }
+                            else if (dice(orden, ['leer', 'lee', 'repet', 'resumen', 'resultado', 'escuch'])) { hablar(textoResultado); }
+                            else { decir(estadoComando, 'No entendí «' + orden + '». Di: PDF, Excel, leer o detener.'); }
+                        });
+                    });
+                }
+            }
         })();
     </script>
 @endpush

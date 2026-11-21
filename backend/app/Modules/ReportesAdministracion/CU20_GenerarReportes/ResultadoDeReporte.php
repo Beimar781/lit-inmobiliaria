@@ -35,4 +35,44 @@ final class ResultadoDeReporte
 
         return (string) ($valor ?? '');
     }
+
+    /**
+     * Texto para leer el resultado en voz alta: título, cantidad, suma, el resumen de la IA (si hay) y los primeros grupos.
+     * Los números van sin separador de miles y con coma decimal, que es como los lee bien la voz en español.
+     */
+    public function textoParaVoz(array $filtros = [], ?string $resumen = null): string
+    {
+        $frases = [$this->titulo . '.'];
+
+        // La primera línea de los filtros es el tipo, que ya está en el título.
+        if ($resto = array_slice($filtros, 1)) {
+            $frases[] = implode('. ', $resto) . '.';
+        }
+
+        $cantidad = $this->totales['cantidad'];
+        if ($cantidad === 0) {
+            return implode(' ', array_filter($frases)) . ' El reporte no tiene resultados.';
+        }
+
+        $frases[] = $cantidad === 1 ? 'Hay 1 fila.' : "Hay {$cantidad} filas.";
+
+        if ($this->totales['suma'] !== null) {
+            $frases[] = $this->totales['etiquetaSuma'] . ': ' . $this->numeroHablado($this->totales['suma']) . '.';
+        }
+
+        if ($resumen) {
+            $frases[] = $resumen;
+        } elseif ($this->agrupado) {
+            foreach (array_slice($this->filas, 0, 8) as $fila) {
+                $frases[] = "{$fila[0]}: {$fila[1]}" . (isset($fila[2]) ? ', por ' . $this->numeroHablado($fila[2]) . ' dólares' : '') . '.';
+            }
+        }
+
+        return trim(implode(' ', array_filter($frases)));
+    }
+
+    private function numeroHablado(float $valor): string
+    {
+        return fmod($valor, 1.0) == 0.0 ? (string) (int) $valor : number_format($valor, 2, ',', '');
+    }
 }

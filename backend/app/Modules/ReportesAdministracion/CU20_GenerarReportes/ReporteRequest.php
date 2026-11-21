@@ -33,6 +33,12 @@ class ReporteRequest extends FormRequest
         return $this->query('origen') === 'ia';
     }
 
+    /** ¿Se está trabajando por voz? (el navegador lee en voz alta y escucha comandos) */
+    public function voz(): bool
+    {
+        return $this->query('voz') === '1';
+    }
+
     /** ¿El actor pidió el resumen redactado por IA al confirmar? */
     public function conResumen(): bool
     {

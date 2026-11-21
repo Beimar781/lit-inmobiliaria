@@ -36,7 +36,7 @@ return [
     // Reportes con lenguaje natural (CU20) con Google Gemini. La llave va SOLO en el .env (nunca en el repositorio): ver .env.example
     'ia' => [
         'key' => env('GEMINI_API_KEY'),
-        'modelo' => env('IA_MODELO', 'gemini-2.5-flash'),
+        'modelo' => env('IA_MODELO', 'gemini-flash-lite-latest'),
         'timeout' => 15,
     ],
 
