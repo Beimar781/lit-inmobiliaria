@@ -9,6 +9,8 @@ Tecnologías: **Laravel (PHP) + PostgreSQL + Blade (Bootstrap)**. Desarrollo por
 
 **Ciclo III:** CU14 Agendar visita a inmueble · CU15 Reagendar visita · CU16 Cancelar visita · CU17 Ver calendario de visitas · CU26 Gestionar reservas de propiedad · CU27 Gestionar contratos · CU28 Registrar pago (efectivo y tarjeta) · CU29 Consultar historial de pagos · CU30 Generar comprobante de pago. Además, la cuenta de acceso del cliente y su portal «Mis contratos y pagos» (extensión de CU28 a CU30).
 
+**Ciclo IV:** CU18 Registrar seguimiento de cliente · CU19 Cargar imágenes de propiedad · CU20 Generar reportes (filtros manuales o solicitud en lenguaje natural con IA, exportación a PDF y Excel, lectura y comandos por voz) · CU21 Gestionar geolocalización y mapa de la cartera · CU22 Gestionar propietarios · CU23 Gestionar categorías · CU24 Gestionar inquilinos · CU25 Registrar reseña de propiedad · CU31 Consultar historial de propiedad. Tablas nuevas: `seguimiento`, `inquilino` y `resena`.
+
 **Sistema desplegado (Railway):** https://lit-inmobiliaria-production.up.railway.app — el catálogo es público; para el resto del sistema inicia sesión con los usuarios de la sección 4. Es un ambiente compartido: los cambios que se hagan ahí (usuarios, propiedades, fotos) se guardan en su propia base y no modifican los datos de este repositorio.
 
 El repositorio tiene dos carpetas principales: **`backend/`** (el proyecto Laravel: lógica, base de datos, rutas) y **`frontend/`** (las pantallas: vistas Blade). Ver la sección 6.
@@ -207,7 +209,7 @@ Contraseña de todos: `Lit2026*`
 | Asistente Administrativo | rjustiniano@inmobiliaria.com | Cobra y devuelve el efectivo de las **reservas**, **registra pagos** de los contratos (efectivo o tarjeta), consulta el **historial de pagos** y emite los **comprobantes** |
 | Cliente | croca@gmail.com | Entra al portal «Mis contratos y pagos». Esta cuenta de prueba no está asociada a ningún cliente del CRM, así que su portal sale vacío. Las cuentas reales de clientes se crean solas (ver la sección 5) |
 
-El panel de inicio muestra una tarjeta por módulo (Usuarios, Propiedades, Prospectos CRM, Catálogo, Calendario de visitas, Reservas, Contratos, Registrar pago, Historial de pagos, Bitácora), solo las que el rol puede usar; se configuran en `backend/config/paquetes.php`, donde cada tarjeta indica a cuál de los 6 paquetes del documento pertenece. El Cliente ve únicamente «Mis contratos y pagos». El número del caso de uso aparece, en gris suave, junto al título de cada pantalla (por ejemplo «Agendar visita (CU14)»).
+El panel de inicio muestra una tarjeta por módulo (Usuarios, Propiedades, Prospectos CRM, Catálogo, Calendario de visitas, Reservas, Contratos, Registrar pago, Historial de pagos, Reportes, Propietarios, Categorías, Bitácora), solo las que el rol puede usar; se configuran en `backend/config/paquetes.php`, donde cada tarjeta indica a cuál de los 6 paquetes del documento pertenece. El Cliente ve únicamente «Mis contratos y pagos». El número del caso de uso aparece, en gris suave, junto al título de cada pantalla (por ejemplo «Agendar visita (CU14)»).
 
 El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con o sin sesión. Los correos se guardan y se buscan siempre en **minúsculas**. Si el equipo creó más usuarios, los ves en el menú *Usuarios* con el administrador.
 
@@ -224,7 +226,7 @@ El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con
 - **Estados de una propiedad (CU8):** Disponible, Reservado y Vendido (si es venta) o Alquilado (si es alquiler o anticrético). La baja se hace solo con el CU7. Para volver a dejar *Disponible* una propiedad vendida o alquilada hay que escribir el motivo. El Agente solo cambia el estado de las propiedades que él registró.
 - **Catálogo público (CU9–CU11):** solo muestra propiedades en estado *Disponible*. Se busca por título, zona, dirección o código (por ejemplo `LIT-0007`) y se filtra por tipo, categoría, precio, zona, superficie, habitaciones y baños.
 - **Clientes interesados (CU12):** el formulario "Me interesa" de la ficha no pide iniciar sesión (máximo 6 envíos por minuto). Pide el nombre y al menos el correo o el teléfono. Si la persona ya existe (mismo correo o teléfono) no se duplica: se le suma el interés. El prospecto queda asignado al agente de la propiedad; si no tiene agente activo, queda *sin asignar* para que el administrador lo reasigne.
-- **Seguimiento de prospectos (CU13):** Nuevo → Contactado → En negociación → Cerrado o Descartado. Las notas y el historial de contactos llegan con el CU18.
+- **Seguimiento de prospectos (CU13):** Nuevo → Contactado → En negociación → Cerrado o Descartado. Cada contacto con el prospecto se registra con el CU18 (historial de contactos); no es lo mismo que el estado de seguimiento.
 - **Imagen de portada:** cada propiedad tiene una imagen principal que se muestra en el listado.
 - **Historial de propiedades:** cada registro, cambio y baja de una propiedad queda guardado en la tabla `historial`.
 - **Bitácora (Administrador):** registra quién hizo qué, cuándo y desde qué IP (inicios de sesión, intentos fallidos, cambios en usuarios y propiedades). Menú Panel → Bitácora.
@@ -239,6 +241,16 @@ El **catálogo público** (CU9, CU10 y CU11) lo puede ver cualquier persona, con
 - **Comprobante (CU30):** cada pago pagado tiene un comprobante `CP-AAAA-000001`, único, que se puede imprimir o guardar como PDF; al volver a emitirlo conserva su número.
 - **Cuenta del cliente:** después del primer pago de un cliente que tiene correo, se le crea una cuenta con rol Cliente y recibe un correo («Activa tu cuenta») con un enlace para establecer su contraseña. Con ella ve **solo sus** contratos, pagos y comprobantes y puede pagar con tarjeta. Si el cliente no tiene correo, el pago se registra igual y se avisa que se registre el correo.
 
+**Reglas del Ciclo IV (CRM, propiedades, reportes y administración):**
+
+- **Seguimiento (CU18):** el Agente (en sus prospectos) o el Administrador registra cada contacto: medio (llamada, WhatsApp, correo, reunión u otro), nota, fecha y hora (no futura), propiedad tratada y próximo contacto (opcionales, este último posterior a hoy). Los seguimientos **no se editan ni se eliminan**. El detalle del prospecto muestra el último contacto y el próximo.
+- **Imágenes (CU19):** hasta **8 por propiedad**, JPG, PNG o WebP de hasta **4 MB**; si la tanda supera 8 no se guarda ninguna. Una sola portada; no se puede eliminar la última imagen. Cada cambio queda en el historial y la bitácora.
+- **Geolocalización (CU21):** el punto debe estar dentro del 4.º anillo (misma regla de CU5 y CU6). Si el mapa no carga, se escriben las coordenadas a mano. «Mapa de la cartera» muestra las propiedades vigentes con ubicación y filtra por zona (la zona es el texto de `ubicacion.zona`; no existe una tabla de zonas).
+- **Propietarios (CU22):** Agente y Administrador los gestionan; **eliminar es solo del Administrador** y nunca si el propietario tiene propiedades. **Categorías (CU23):** solo el Administrador; no se elimina una categoría en uso.
+- **Inquilinos (CU24):** un solo inquilino por cliente; registrar de nuevo lo actualiza. Se puede pasar a *Inactivo* sin borrar nada.
+- **Reseñas (CU25):** solo el Cliente con contrato *Vigente* o *Finalizado* sobre la propiedad (el rescindido no habilita), una reseña de 1 a 5 por propiedad. Se ve en la ficha pública con el promedio y solo el primer nombre del cliente.
+- **Historial (CU31):** el Administrador ve el de cualquier propiedad (también las dadas de baja); el Agente, solo el de las suyas.
+- **Reportes (CU20):** de solo lectura. El Administrador ve todos los tipos; el Agente propiedades, clientes y visitas **suyos**; el Asistente contratos y pagos. Se exportan a **PDF** (hasta 300 filas) y **Excel** (hasta 5000); más de 5000 filas piden afinar los filtros. Ver la sección 11.
 ## 6. Cómo está organizado el código (para la defensa)
 
 El repositorio se divide en **backend** (lógica y datos) y **frontend** (pantallas). Cada **paquete** del documento es una carpeta con el mismo nombre en las dos partes, y cada **caso de uso** es una subcarpeta:
@@ -258,6 +270,7 @@ lit-inmobiliaria/
 │   │   │   ├── CU6_ModificarPropiedad/
 │   │   │   ├── CU7_EliminarPropiedad/
 │   │   │   ├── CU8_CambiarEstado/
+│   │   │   ├── CU19_CargarImagenes/ · CU21_GestionarGeolocalizacion/
 │   │   │   └── Compartido/          ← lo que usan CU5 a CU8 (formulario, listado, mapa, imágenes)
 │   │   ├── BusquedaConsulta/        ← P3: Búsqueda y consulta de inmuebles (catálogo público)
 │   │   │   ├── CU9_BuscarPropiedades/
@@ -266,15 +279,18 @@ lit-inmobiliaria/
 │   │   │   └── Compartido/          ← la búsqueda que comparten el catálogo y el inventario
 │   │   ├── CrmGestionClientes/      ← P4: CRM y gestión de clientes
 │   │   │   ├── CU12_RegistrarClienteInteresado/
-│   │   │   └── CU13_GestionarProspectos/
+│   │   │   ├── CU13_GestionarProspectos/
+│   │   │   ├── CU18_RegistrarSeguimiento/ · CU24_GestionarInquilinos/ · CU25_RegistrarResena/
+│   │   │   └── Compartido/          ← regla de acceso a prospectos (CU13, CU18 y CU24)
 │   │   ├── AgendaVisitasPagos/      ← P5: Agenda, Visitas y Pagos (ciclo 3)
 │   │   │   ├── CU14_AgendarVisita/ · CU15_ReagendarVisita/ · CU16_CancelarVisita/ · CU17_VerCalendarioVisitas/
 │   │   │   ├── CU26_GestionarReservas/ · CU27_GestionarContratos/
 │   │   │   ├── CU28_RegistrarPago/ · CU29_ConsultarHistorialPagos/ · CU30_GenerarComprobante/
 │   │   │   ├── PortalCliente/       ← «Mis contratos y pagos» (rol Cliente)
 │   │   │   └── Compartido/          ← agenda, dinero de reservas, comprobantes, pago con tarjeta, cuenta del cliente
-│   │   └── ReportesAdministracion/  ← P6: Reportes y administración (hoy: bitácora del administrador)
-│   │       └── Bitacora/
+│   │   └── ReportesAdministracion/  ← P6: Reportes y administración
+│   │       ├── CU20_GenerarReportes/ · CU22_GestionarPropietarios/ · CU23_GestionarCategorias/ · CU31_ConsultarHistorialPropiedad/
+│   │       └── Bitacora/            ← bitácora del administrador (no es un caso de uso)
 │   ├── app/Models/                  ← una clase por tabla del diagrama de clases
 │   ├── app/Services/                ← HistorialService, BitacoraService, InstantaneaDatos (datos compartidos) y StripeService (pagos con tarjeta)
 │   ├── config/paquetes.php          ← los 6 paquetes y las tarjetas del panel de cada rol
@@ -286,7 +302,7 @@ lit-inmobiliaria/
     ├── AutentificacionSeguridad/ · GestionPropiedades/ · BusquedaConsulta/ · CrmGestionClientes/ · AgendaVisitasPagos/ · ReportesAdministracion/   ← pantalla de cada CU, misma ruta que en backend
     ├── layouts/                     ← diseño general (menú, estructura de la página)
     ├── components/                  ← campos reutilizables
-    └── errors/                      ← pantallas de error (403, 404, 419, 429)
+    └── errors/                      ← pantallas de error (403, 404, 413, 419, 429)
 ```
 
 Dentro de cada CU del backend hay siempre:
@@ -399,3 +415,24 @@ Después de cambiar el `.env`: `php artisan config:clear`.
 **Pagar en bolivianos en la página de Stripe (Adaptive Pricing):** el sistema no desactiva la conversión automática de Stripe. Si está activa en tu cuenta (Dashboard de Stripe → Settings → Adaptive Pricing, en modo de prueba o en producción), el cliente verá un selector para pagar en dólares o en su moneda local. Para probarlo, al crear la sesión usa un correo con ubicación (por ejemplo `prueba+location_BO@ejemplo.com` en el campo de correo de Stripe). Si el cliente paga en bolivianos, el pago se sigue registrando por el monto en dólares y se guardan además lo que pagó en bolivianos y el tipo de cambio que aplicó Stripe, que se ven en el comprobante, el historial y el portal. Si Adaptive Pricing no está activo, la página de Stripe solo ofrece dólares y todo funciona igual.
 
 Las pruebas automáticas (`php artisan test`) **nunca** llaman a Stripe: usan un servicio simulado, así que no necesitan llaves.
+
+## 11. Reportes con IA, voz y variables del Ciclo IV
+
+**Reportes (CU20).** Menú Panel → Reportes. Se pueden pedir **a mano** (tipo, fechas, estado, agente, zona y agrupación) o **describiéndolo** («propiedades disponibles por categoría»). La IA (Google Gemini) **solo recibe la frase** y devuelve criterios; el sistema los valida con el rol del usuario y los muestra para **confirmar** antes de consultar la base. La IA **nunca consulta la base de datos ni recibe datos personales**: para redactar el resumen solo recibe totales y conteos (los agentes se envían como «Agente 1», «Agente 2»…). Sin llave de IA o con el servicio caído, el módulo sigue funcionando con los filtros manuales.
+
+**Voz.** Con Google Chrome o Microsoft Edge: botón **Hablar** (dicta la solicitud), confirmación por voz («confirmar» / «cancelar»), **Leer resultado** y comandos tras el resultado («PDF», «Excel», «leer», «detener»). Usa el reconocimiento de voz del navegador (Chrome y Edge envían el audio a sus servidores), pide permiso del micrófono y necesita internet y HTTPS o `localhost`. Firefox no soporta el dictado.
+
+**Variables del `backend/.env`** (vacías en `backend/.env.example`; la llave real va **solo** en tu `.env` o en las variables de Railway):
+
+| Variable | Para qué sirve |
+|---|---|
+| `GEMINI_API_KEY` | Llave de Google Gemini. Sin ella no aparece el dictado ni «Interpretar con IA» |
+| `IA_MODELO` | Opcional. Por defecto `gemini-flash-lite-latest` |
+
+Las pruebas automáticas **nunca** llaman a Gemini (usan respuestas simuladas).
+
+**Exportación y memoria.** El Excel escribe por bloques y aguanta 5000 filas con poca memoria. El PDF (dompdf) gasta unos 0,33 MB por fila y el servidor limita PHP a 256 MB, por eso el PDF admite **hasta 300 filas**; si el reporte es más grande se pide usar Excel o afinar los filtros. Librerías: `dompdf/dompdf` y `openspout/openspout`.
+
+**Si la IA no conecta en tu computadora con Windows** (`cURL error 60`): tu PHP no tiene certificados raíz. Descarga `cacert.pem` de <https://curl.se/ca/cacert.pem>, guárdalo (por ejemplo en `C:\php\extras\`) y en `C:\php\php.ini` pon `curl.cainfo="C:\php\extras\cacert.pem"` y `openssl.cafile="C:\php\extras\cacert.pem"`; reabre el terminal. En Railway no hace falta.
+
+**Base de datos del ciclo.** Las migraciones `2026_11_21_000028` a `000030` (`seguimiento`, `inquilino`, `resena`) son aditivas e idempotentes: no tocan los datos existentes y `php artisan migrate` puede correrse varias veces.

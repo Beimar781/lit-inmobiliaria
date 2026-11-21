@@ -160,6 +160,29 @@ class CU20_GenerarReportesTest extends SistemaTestCase
         $this->assertEqualsWithDelta(1250.25, $ultimas[1][1], 0.001);
     }
 
+    public function test_el_pdf_tiene_un_tope_de_filas_para_no_agotar_la_memoria_pero_el_excel_no(): void
+    {
+        $propiedad = $this->propiedad();
+        $cliente = $this->cliente20();
+        $limite = \App\Modules\ReportesAdministracion\CU20_GenerarReportes\ConstructorDeReportes::MAXIMO_FILAS_PDF;
+        $ahora = now()->toDateString();
+        \Illuminate\Support\Facades\DB::table('contrato')->insert(array_map(fn ($i) => [
+            'idpropiedad' => $propiedad->idpropiedad, 'idcliente' => $cliente->idcliente, 'tipocontrato' => 'Venta',
+            'monto' => 100 + $i, 'fechainicio' => $ahora, 'estado' => 'VIGENTE',
+        ], range(1, $limite + 1)));
+        $this->actingAs($this->admin());
+
+        $this->reporte(['tipo' => 'contratos'])->assertOk()->assertSee("El PDF admite hasta {$limite} filas")->assertSee('Exportar Excel');
+        $this->get(route('reportes.exportar', ['formato' => 'pdf', 'tipo' => 'contratos']))
+            ->assertRedirect(route('reportes.generar', ['tipo' => 'contratos']))
+            ->assertSessionHas('error', "El PDF admite hasta {$limite} filas y este reporte tiene " . ($limite + 1) . '. Descárgalo en Excel o afina los filtros.');
+        $this->assertSame(0, Bitacora::where('accion', 'REPORTE_EXPORTADO')->count());
+
+        $this->get(route('reportes.exportar', ['formato' => 'xlsx', 'tipo' => 'contratos']))->assertOk();
+        // Agrupado son pocas filas: el PDF sí se puede
+        $this->get(route('reportes.exportar', ['formato' => 'pdf', 'tipo' => 'contratos', 'agrupacion' => 'estado']))->assertOk();
+    }
+
     public function test_el_asistente_ve_contratos_y_pagos_y_no_propiedades_clientes_ni_visitas(): void
     {
         $contrato = $this->contrato(800, '2026-11-05');

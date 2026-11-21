@@ -130,6 +130,9 @@
                 @endunless
             </div>
             <div class="small text-primary mb-2" id="estado-comando" aria-live="polite"></div>
+            @if ($excedePdf)
+                <div class="small text-warning-emphasis mb-2">El PDF admite hasta {{ $limitePdf }} filas; este reporte tiene más. Usa Excel o afina los filtros.</div>
+            @endif
 
             @if ($resumen)
                 <div class="alert alert-light border">

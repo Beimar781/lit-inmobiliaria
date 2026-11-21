@@ -135,6 +135,10 @@ class ReporteController extends Controller
             return redirect($volver)->with('error', 'Sin resultados para el reporte');
         }
 
+        if ($formato === 'pdf' && count($resultado->filas) > ConstructorDeReportes::MAXIMO_FILAS_PDF) {
+            return redirect($volver)->with('error', 'El PDF admite hasta ' . ConstructorDeReportes::MAXIMO_FILAS_PDF . ' filas y este reporte tiene ' . count($resultado->filas) . '. Descárgalo en Excel o afina los filtros.');
+        }
+
         $usuario = auth()->user();
         $filtros = $criterios->descripcion($this->nombreAgente($criterios));
         $fechaHora = now()->format('d/m/Y H:i');
@@ -215,6 +219,8 @@ class ReporteController extends Controller
             'esAdmin' => $esAdmin,
             'filtros' => $criterios ? $criterios->descripcion($this->nombreAgente($criterios)) : [],
             'parametros' => $criterios?->aParametros() ?? [],
+            'limitePdf' => ConstructorDeReportes::MAXIMO_FILAS_PDF,
+            'excedePdf' => $resultado !== null && count($resultado->filas) > ConstructorDeReportes::MAXIMO_FILAS_PDF,
             'iaDisponible' => app(ServicioDeIa::class)->disponible(),
             'origenIa' => $request instanceof ReporteRequest && $request->origenIa(),
             'solicitud' => $request instanceof ReporteRequest ? $request->solicitud() : '',

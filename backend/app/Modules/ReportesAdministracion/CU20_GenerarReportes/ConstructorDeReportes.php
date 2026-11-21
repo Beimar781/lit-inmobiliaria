@@ -21,6 +21,9 @@ class ConstructorDeReportes
 {
     public const MAXIMO_FILAS = 5000;
 
+    /** El PDF (dompdf) gasta ~0,33 MB por fila y el servidor da 256 MB: con más de 300 filas se quedaría sin memoria. El Excel no tiene este límite. */
+    public const MAXIMO_FILAS_PDF = 300;
+
     /** Qué tipos de reporte puede pedir cada rol. */
     public static function tiposPermitidos(Usuario $actor): array
     {
