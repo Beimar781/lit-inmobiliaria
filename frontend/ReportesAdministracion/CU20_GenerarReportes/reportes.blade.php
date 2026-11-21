@@ -22,21 +22,33 @@
                 <div class="invalid-feedback">{{ $message }}</div>
             @enderror
         </div>
-        <div class="form-text">La IA solo recibe tu frase para entender qué reporte quieres; no consulta la base de datos. Tú confirmas los criterios antes de generar.</div>
+        <div class="form-text">La IA solo recibe tu frase para entender qué reporte quieres; no consulta la base de datos. Si la entiende, el reporte se genera directo; si no, te muestra lo que interpretó para que lo corrijas.</div>
         <div class="form-text text-primary" id="estado-voz" aria-live="polite"></div>
         <div class="form-text text-muted d-none" id="aviso-sin-voz">Tu navegador no permite dictado por voz. Usa Google Chrome o Microsoft Edge para hablar con el sistema.</div>
     </form>
 @endif
 
-@if ($origenIa && $criterios)
+@if ($confirmar)
+    {{-- Solo aparece cuando la IA NO pudo generar el reporte directo: se muestra lo que sí entendió para que el usuario lo corrija. --}}
     <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2" id="aviso-confirmar"
-         data-texto="{{ $textoConfirmacion }}" data-voz="{{ $voz ? '1' : '0' }}">
-        <span><strong>Esto fue lo que entendí.</strong> Revisa los criterios (puedes cambiarlos) y confirma para generar el reporte.</span>
+         data-texto="{{ trim($errors->first('solicitud') . ' ' . $textoConfirmacion) }}" data-voz="{{ $voz ? '1' : '0' }}"
+         data-confirmable="{{ $confirmable ? '1' : '0' }}">
+        <div>
+            <strong>Esto fue lo que entendí.</strong>
+            @if ($entendido)
+                <ul class="mb-1">
+                    @foreach ($entendido as $linea)
+                        <li>{{ $linea }}</li>
+                    @endforeach
+                </ul>
+            @endif
+            <span>Revisa los criterios (puedes cambiarlos) y confirma para generar el reporte.</span>
+        </div>
         <button type="button" class="btn btn-sm btn-dark d-none" id="btn-confirmar-voz">&#128266; Escuchar y confirmar por voz</button>
     </div>
 @endif
 <form method="GET" action="{{ route('reportes.generar') }}" class="card card-body shadow-sm mb-4" id="form-reporte">
-    @if ($origenIa)
+    @if ($confirmar)
         <input type="hidden" name="origen" value="ia">
         <input type="hidden" name="con_resumen" value="1">
         <input type="hidden" name="solicitud" value="{{ $solicitud }}">
@@ -102,7 +114,7 @@
             </select>
         </div>
         <div class="col-md-3 align-self-end">
-            <button type="submit" class="btn btn-primary" id="btn-generar">{{ $origenIa ? 'Confirmar y generar' : 'Generar reporte' }}</button>
+            <button type="submit" class="btn btn-primary" id="btn-generar">{{ $confirmar ? 'Confirmar y generar' : 'Generar reporte' }}</button>
             <a href="{{ route('reportes.index') }}" class="btn btn-outline-secondary">Limpiar</a>
         </div>
     </div>
@@ -118,7 +130,11 @@
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                 <div>
                     <h2 class="h5 mb-1">{{ $resultado->titulo }}</h2>
-                    <p class="small text-muted mb-0">{{ implode(' · ', $filtros) }}</p>
+                    @if ($origenIa)
+                        <p class="small text-muted mb-0">Criterios usados: {{ implode(' · ', $filtros) }} &middot; <a href="{{ route('reportes.index', $parametros) }}">Ajustar criterios</a></p>
+                    @else
+                        <p class="small text-muted mb-0">{{ implode(' · ', $filtros) }}</p>
+                    @endif
                 </div>
                 @unless ($resultado->estaVacio())
                     <div class="d-flex flex-wrap gap-2">
@@ -318,6 +334,11 @@
                 mostrar(botonConfirmar);
 
                 function preguntar() {
+                    if (aviso.getAttribute('data-confirmable') !== '1') {
+                        // No hay criterios que confirmar: solo se lee lo que pasó y se corrige en el formulario.
+                        hablar(aviso.getAttribute('data-texto') + ' Corrige los criterios en el formulario.');
+                        return;
+                    }
                     var pregunta = aviso.getAttribute('data-texto') + ' ¿Quieres generar el reporte? Di confirmar o cancelar.';
                     hablar(pregunta, function () {
                         escuchar(porId('estado-voz') || aviso, null, function (respuesta) {

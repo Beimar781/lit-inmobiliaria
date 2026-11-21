@@ -21,6 +21,8 @@ class CU20_ReportesConIaTest extends SistemaTestCase
 {
     private const SIN_RECONOCER = 'No reconocí un reporte en tu solicitud. Reformúlala o usa los filtros manuales.';
     private const SIN_SERVICIO = 'El servicio de inteligencia artificial no respondió. Continúa con los filtros manuales.';
+    private const SIN_PERMISO = 'Este reporte no está permitido para tu rol.';
+    private const RANGO = 'El rango de fechas no es válido.';
 
     protected function setUp(): void
     {
@@ -64,35 +66,28 @@ class CU20_ReportesConIaTest extends SistemaTestCase
         }
     }
 
-    public function test_paso_1_el_administrador_escribe_propiedades_disponibles_por_categoria_ve_los_criterios_y_al_confirmar_el_reporte_con_resumen(): void
+    public function test_paso_1_el_administrador_escribe_propiedades_disponibles_por_categoria_y_el_reporte_sale_directo_con_totales_resumen_y_criterios_usados(): void
     {
         $this->propiedadesPorCategoria();
         $this->iaFalsa(['tipo' => 'propiedades', 'periodo' => null, 'filtros' => ['estado' => 'DISPONIBLE'], 'agrupacion' => 'categoria'],
             'Hay 3 propiedades disponibles, 2 casas y 1 departamento.');
         $this->actingAs($this->admin());
 
-        $respuesta = $this->interpretar('propiedades disponibles por categoría');
-        $destino = $respuesta->headers->get('Location');
-        $this->assertStringContainsString('tipo=propiedades', $destino);
-        $this->assertStringContainsString('estado=DISPONIBLE', $destino);
-        $this->assertStringContainsString('agrupacion=categoria', $destino);
-        $this->assertStringContainsString('origen=ia', $destino);
+        // La IA entendió y los criterios son válidos: va directo al reporte, sin pantalla de confirmación
+        $destino = $this->interpretar('propiedades disponibles por categoría')->headers->get('Location');
+        $this->assertStringStartsWith(route('reportes.generar'), $destino);
+        foreach (['tipo=propiedades', 'estado=DISPONIBLE', 'agrupacion=categoria', 'origen=ia', 'con_resumen=1'] as $parte) {
+            $this->assertStringContainsString($parte, $destino);
+        }
         Http::assertSentCount(1);
 
-        // Criterios interpretados, como el formulario manual ya lleno, para confirmar
-        $this->get($destino)->assertOk()
-            ->assertSee('Esto fue lo que entendí')->assertSee('Confirmar y generar')
-            ->assertSee('<option value="propiedades" selected>', false)
-            ->assertSee('<option value="DISPONIBLE" data-tipo="propiedades" selected>', false)
-            ->assertSeeHtml('value="categoria"')
-            ->assertDontSee('220,000.00'); // todavía no se consultó nada
-        $this->assertMatchesRegularExpression('/<option value="categoria"[^>]*selected>/', $this->get($destino)->getContent());
-
-        $confirmar = $this->get(route('reportes.generar', ['tipo' => 'propiedades', 'estado' => 'DISPONIBLE', 'agrupacion' => 'categoria',
-            'origen' => 'ia', 'con_resumen' => '1', 'solicitud' => 'propiedades disponibles por categoría']))->assertOk();
-        $confirmar->assertSee('220,000.00')->assertSee('Resumen')->assertSee('redactado por IA')
-            ->assertSee('Hay 3 propiedades disponibles, 2 casas y 1 departamento.')->assertSee('Exportar PDF');
-        $this->assertMatchesRegularExpression('/<td[^>]*>Casa<\/td>\s*<td[^>]*>2<\/td>/', $confirmar->getContent());
+        $respuesta = $this->get($destino)->assertOk();
+        $respuesta->assertSee('220,000.00')->assertSee('Total de filas')
+            ->assertSee('Resumen')->assertSee('redactado por IA')->assertSee('Hay 3 propiedades disponibles, 2 casas y 1 departamento.')
+            ->assertSee('Exportar PDF')->assertSee('Exportar Excel')
+            ->assertSee('Criterios usados: Tipo: Propiedades · Estado: Disponible · Agrupado por categoría')->assertSee('Ajustar criterios')
+            ->assertDontSee('Esto fue lo que entendí')->assertDontSee('Confirmar y generar');
+        $this->assertMatchesRegularExpression('/<td[^>]*>Casa<\/td>\s*<td[^>]*>2<\/td>/', $respuesta->getContent());
         Http::assertSentCount(2);
 
         $bitacora = Bitacora::where('accion', 'REPORTE_GENERADO')->firstOrFail();
@@ -100,22 +95,25 @@ class CU20_ReportesConIaTest extends SistemaTestCase
         $this->assertSame('propiedades disponibles por categoría', $bitacora->detalle['solicitud']);
     }
 
-    public function test_paso_8_una_solicitud_que_no_corresponde_a_ningun_reporte_pide_reformular_y_no_consulta_la_base(): void
+    public function test_paso_8_una_solicitud_que_no_corresponde_a_ningun_reporte_no_genera_nada_y_muestra_el_panel_de_lo_que_entendi(): void
     {
         $this->propiedadesPorCategoria();
         $this->iaFalsa(['tipo' => null]);
         $this->actingAs($this->admin());
 
         DB::enableQueryLog();
-        $this->interpretar('cuál es la capital de Bolivia')
-            ->assertRedirect(route('reportes.index'))->assertSessionHasErrors(['solicitud' => self::SIN_RECONOCER]);
+        $destino = $this->interpretar('cuál es la capital de Bolivia')->headers->get('Location');
         $consultadas = collect(DB::getQueryLog())->pluck('query')->filter(fn ($q) => preg_match('/from ["`]?(propiedad|contrato|pago|visita|cliente)["`]?/i', $q));
         DB::disableQueryLog();
 
+        $this->assertStringNotContainsString('/reportes/generar', $destino);
         $this->assertCount(0, $consultadas, 'No debe consultar los datos del reporte.');
         $this->assertSame(0, Bitacora::where('accion', 'REPORTE_GENERADO')->count());
-        $this->followingRedirects()->post(route('reportes.interpretar'), ['solicitud' => 'cuál es la capital de Bolivia'])
-            ->assertSee(self::SIN_RECONOCER)->assertSee('cuál es la capital de Bolivia');
+
+        $this->get($destino)->assertOk()
+            ->assertSee(self::SIN_RECONOCER)->assertSee('cuál es la capital de Bolivia')
+            ->assertSee('Esto fue lo que entendí')->assertSee('Confirmar y generar')
+            ->assertDontSee('Total de filas')->assertDontSee('Exportar PDF');
     }
 
     public function test_paso_9_si_el_servicio_de_ia_no_responde_se_avisa_y_se_puede_continuar_con_los_filtros_manuales(): void
@@ -138,25 +136,98 @@ class CU20_ReportesConIaTest extends SistemaTestCase
         $this->get(route('reportes.generar', ['tipo' => 'contratos']))->assertOk()->assertSee('1,500.00')->assertSee('Exportar PDF');
     }
 
-    public function test_los_criterios_para_un_rol_no_permitido_o_inventados_se_descartan(): void
+    public function test_los_criterios_invalidos_o_fuera_de_rol_no_generan_nada_y_cada_caso_da_su_mensaje(): void
     {
         $this->actingAs($this->agente());
 
         foreach ([
-            ['tipo' => 'pagos'],                                                    // el Agente no ve pagos
-            ['tipo' => 'planetas'],                                                 // tipo inventado
-            ['tipo' => 'propiedades', 'filtros' => ['estado' => 'FLOTANTE']],       // estado inventado
-            ['tipo' => 'propiedades', 'agrupacion' => 'agente'],                    // el Agente no agrupa por agente
-            ['tipo' => 'visitas', 'agrupacion' => 'categoria'],                     // categoría solo es de propiedades
-            ['tipo' => 'propiedades', 'filtros' => ['desde' => '2026-12-31', 'hasta' => '2026-01-01']], // rango invertido
-            ['tipo' => 'propiedades', 'filtros' => ['desde' => 'ayer']],            // fecha mal formada
-            'esto no es un objeto json',
-            ['tipo' => ['propiedades']],
-        ] as $criterios) {
+            [['tipo' => 'pagos'], self::SIN_PERMISO],                                                         // el Agente no ve pagos
+            [['tipo' => 'planetas'], self::SIN_RECONOCER],                                                    // tipo inventado
+            [['tipo' => 'propiedades', 'filtros' => ['estado' => 'FLOTANTE']], self::SIN_RECONOCER],         // estado inventado
+            [['tipo' => 'propiedades', 'agrupacion' => 'agente'], self::SIN_PERMISO],                         // el Agente no agrupa por agente
+            [['tipo' => 'visitas', 'agrupacion' => 'categoria'], self::SIN_RECONOCER],                        // categoría solo es de propiedades
+            [['tipo' => 'propiedades', 'filtros' => ['desde' => '2026-12-31', 'hasta' => '2026-01-01']], self::RANGO], // rango invertido
+            [['tipo' => 'propiedades', 'filtros' => ['desde' => 'ayer']], self::RANGO],                       // fecha mal formada
+            ['esto no es un objeto json', self::SIN_SERVICIO],
+            [['tipo' => ['propiedades']], self::SIN_RECONOCER],
+        ] as [$criterios, $mensaje]) {
             $this->iaFalsa($criterios);
-            $this->interpretar('lo que sea')->assertSessionHasErrors(['solicitud' => is_string($criterios) ? self::SIN_SERVICIO : self::SIN_RECONOCER]);
+            $destino = $this->interpretar('lo que sea')->assertSessionHasErrors(['solicitud' => $mensaje])->headers->get('Location');
+            $this->assertStringNotContainsString('/reportes/generar', $destino);
         }
         $this->assertSame(0, Bitacora::where('accion', 'REPORTE_GENERADO')->count());
+    }
+
+    public function test_un_rol_no_permitido_no_genera_y_el_panel_muestra_los_criterios_con_el_aviso_de_permiso(): void
+    {
+        $this->iaFalsa(['tipo' => 'pagos', 'filtros' => ['estado' => 'PENDIENTE']]);
+        $this->actingAs($this->agente());
+
+        $destino = $this->interpretar('pagos pendientes')->headers->get('Location');
+
+        $this->get($destino)->assertOk()
+            ->assertSee('Este reporte no está permitido para tu rol.')
+            ->assertSee('Esto fue lo que entendí')->assertSee('Tipo: Pagos')->assertSee('Estado: Pendiente')
+            ->assertSee('Confirmar y generar')->assertDontSee('Total de filas');
+        $this->assertSame(0, Bitacora::where('accion', 'REPORTE_GENERADO')->count());
+    }
+
+    public function test_un_rango_de_fechas_invalido_de_la_ia_no_genera_y_el_panel_deja_corregirlo(): void
+    {
+        $this->contratoDePrueba();
+        $this->iaFalsa(['tipo' => 'contratos', 'filtros' => ['desde' => '2026-12-31', 'hasta' => '2026-01-01']]);
+        $this->actingAs($this->admin());
+
+        $destino = $this->interpretar('contratos de fin de año')->headers->get('Location');
+
+        $this->get($destino)->assertOk()
+            ->assertSee('El rango de fechas no es válido.')
+            ->assertSee('Esto fue lo que entendí')->assertSee('Tipo: Contratos')->assertSee('Fechas: 31/12/2026 al 01/01/2026')
+            ->assertSee('value="2026-12-31"', false)->assertSee('value="2026-01-01"', false)  // cargados en el formulario para corregirlos
+            ->assertSee('Confirmar y generar')->assertDontSee('Total de filas');
+        $this->assertSame(0, Bitacora::where('accion', 'REPORTE_GENERADO')->count());
+    }
+
+    public function test_un_valor_inventado_por_la_ia_no_genera_pero_el_panel_conserva_lo_que_si_era_valido(): void
+    {
+        $this->iaFalsa(['tipo' => 'propiedades', 'filtros' => ['estado' => 'FLOTANTE'], 'agrupacion' => 'categoria']);
+        $this->actingAs($this->admin());
+
+        $destino = $this->interpretar('propiedades flotantes por categoría')->headers->get('Location');
+
+        $this->assertStringContainsString('tipo=propiedades', $destino);
+        $this->assertStringContainsString('agrupacion=categoria', $destino);
+        $this->assertStringNotContainsString('estado=', $destino);
+        $this->get($destino)->assertOk()->assertSee(self::SIN_RECONOCER)->assertSee('Tipo: Propiedades')->assertSee('Agrupado por categoría')
+            ->assertDontSee('FLOTANTE')->assertDontSee('Total de filas');
+    }
+
+    public function test_el_enlace_ajustar_criterios_lleva_los_criterios_al_formulario_manual(): void
+    {
+        $this->propiedadesPorCategoria();
+        $this->iaFalsa(['tipo' => 'propiedades', 'filtros' => ['estado' => 'DISPONIBLE'], 'agrupacion' => 'categoria']);
+        $this->actingAs($this->admin());
+        $destino = $this->interpretar('propiedades disponibles por categoría')->headers->get('Location');
+
+        $ajustar = route('reportes.index', ['tipo' => 'propiedades', 'estado' => 'DISPONIBLE', 'agrupacion' => 'categoria']);
+        $this->get($destino)->assertSee('Ajustar criterios')->assertSee('href="' . e($ajustar) . '"', false);
+
+        $formulario = $this->get($ajustar)->assertOk()->assertSee('Generar reporte')
+            ->assertSee('<option value="propiedades" selected>', false)->assertSee('<option value="DISPONIBLE" data-tipo="propiedades" selected>', false)
+            ->assertDontSee('Esto fue lo que entendí')->assertDontSee('Confirmar y generar');
+        $this->assertMatchesRegularExpression('/<option value="categoria"[^>]*selected>/', $formulario->getContent());
+    }
+
+    public function test_si_el_servicio_de_ia_no_responde_no_aparece_el_panel_de_confirmacion(): void
+    {
+        $this->reiniciarHttp();
+        Http::fake(fn () => throw new ConnectionException('timeout'));
+        $this->actingAs($this->admin());
+
+        $destino = $this->interpretar('contratos')->headers->get('Location');
+
+        $this->assertSame(route('reportes.index'), $destino);
+        $this->get($destino)->assertOk()->assertSee(self::SIN_SERVICIO)->assertDontSee('Esto fue lo que entendí')->assertDontSee('Confirmar y generar');
     }
 
     public function test_la_ia_recibe_solo_la_frase_y_las_listas_permitidas_y_la_llave_va_en_la_cabecera(): void
@@ -293,7 +364,7 @@ class CU20_ReportesConIaTest extends SistemaTestCase
         $this->actingAs($this->admin());
 
         for ($i = 0; $i < 10; $i++) {
-            $this->interpretar('algo')->assertRedirect(route('reportes.index'));
+            $this->interpretar('algo')->assertRedirectContains(route('reportes.index'));
         }
         $this->interpretar('algo')->assertStatus(429);
         Http::assertSentCount(10);
@@ -357,23 +428,40 @@ class CU20_ReportesConIaTest extends SistemaTestCase
 
     // ----------------------------------------------------------------- voz (entrada y salida en el navegador)
 
-    public function test_la_voz_dictada_se_conserva_hasta_la_confirmacion_y_la_pantalla_ofrece_escuchar_y_confirmar(): void
+    public function test_con_voz_la_frase_se_interpreta_igual_y_genera_directo_sin_boton_de_confirmar_por_voz(): void
     {
-        $this->iaFalsa(['tipo' => 'propiedades', 'filtros' => ['estado' => 'DISPONIBLE'], 'agrupacion' => 'categoria']);
+        $this->propiedadesPorCategoria();
+        $this->iaFalsa(['tipo' => 'propiedades', 'filtros' => ['estado' => 'DISPONIBLE'], 'agrupacion' => 'categoria'], 'Hay 3 propiedades disponibles.');
         $this->actingAs($this->admin());
 
         $destino = $this->post(route('reportes.interpretar'), ['solicitud' => 'propiedades disponibles por categoría', 'voz' => '1'])->headers->get('Location');
+        $this->assertStringStartsWith(route('reportes.generar'), $destino);
         $this->assertStringContainsString('voz=1', $destino);
 
         $this->get($destino)->assertOk()
-            ->assertSee('Escuchar y confirmar por voz')
-            ->assertSee('data-voz="1"', false)
-            ->assertSee('Entendí lo siguiente. Tipo: Propiedades. Estado: Disponible. Agrupado por categoría.', false)
-            ->assertSee('<input type="hidden" name="voz" value="1">', false);
+            ->assertSee('Leer resultado')->assertSee('data-voz="1"', false)->assertSee('Criterios usados')
+            ->assertDontSee('Escuchar y confirmar por voz')->assertDontSee('Confirmar y generar');
 
-        // Sin voz no se pide nada por voz ni se marca el modo voz
-        $sinVoz = $this->post(route('reportes.interpretar'), ['solicitud' => 'propiedades disponibles por categoría'])->headers->get('Location');
-        $this->assertStringNotContainsString('voz=1', $sinVoz);
+        // Sin voz no se marca el modo voz
+        $this->assertStringNotContainsString('voz=1', $this->interpretar('propiedades disponibles por categoría')->headers->get('Location'));
+    }
+
+    public function test_el_boton_escuchar_y_confirmar_por_voz_solo_esta_en_el_panel_de_cuando_la_ia_no_entendio(): void
+    {
+        $this->iaFalsa(['tipo' => 'propiedades', 'filtros' => ['estado' => 'FLOTANTE']]);
+        $this->actingAs($this->admin());
+
+        $destino = $this->post(route('reportes.interpretar'), ['solicitud' => 'algo raro', 'voz' => '1'])->headers->get('Location');
+        $this->assertStringContainsString('voz=1', $destino);
+
+        $this->get($destino)->assertOk()
+            ->assertSee('Escuchar y confirmar por voz')->assertSee('data-voz="1"', false)->assertSee('data-confirmable="1"', false)
+            ->assertSee('<input type="hidden" name="voz" value="1">', false)->assertSee('Confirmar y generar');
+
+        // Sin ningún criterio aprovechable el panel solo lee el aviso (no hay nada que confirmar por voz)
+        $this->iaFalsa(['tipo' => null]);
+        $this->get($this->post(route('reportes.interpretar'), ['solicitud' => 'capital', 'voz' => '1'])->headers->get('Location'))
+            ->assertSee('data-confirmable="0"', false);
     }
 
     public function test_el_resultado_trae_el_texto_para_leerlo_en_voz_alta_y_los_botones_de_voz(): void

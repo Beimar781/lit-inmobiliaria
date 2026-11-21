@@ -40,45 +40,86 @@ class InterpretadorDeSolicitud
             . "Usa null en lo que no se pida.";
     }
 
-    /** @throws InterpretacionFallida */
+    /**
+     * Valida la propuesta de la IA con las mismas reglas que el reporte manual (listas, rol y rango de fechas).
+     * Si todo es válido devuelve los criterios; si no, lanza InterpretacionFallida con el motivo y lo que sí se entendió.
+     *
+     * @throws InterpretacionFallida
+     */
     public function interpretar(string $solicitud, Usuario $actor): CriteriosDeReporte
     {
         $tipos = ConstructorDeReportes::tiposPermitidos($actor);
         $propuesta = $this->ia->interpretar($solicitud, $tipos);
 
         if ($propuesta === null) {
-            throw new InterpretacionFallida(InterpretacionFallida::SERVICIO);
+            throw new InterpretacionFallida(InterpretacionFallida::SERVICIO, mostrarPanel: false);
         }
 
-        $tipo = $this->valor($propuesta['tipo'] ?? null);
-        if ($tipo === null || ! in_array($tipo, $tipos, true)) {
+        $datos = $this->aDatos($propuesta, $actor);
+
+        if (! array_key_exists((string) $datos['tipo'], CriteriosDeReporte::TIPOS)) {
             throw new InterpretacionFallida(InterpretacionFallida::NO_RECONOCIDO);
         }
-
-        $filtros = is_array($propuesta['filtros'] ?? null) ? $propuesta['filtros'] : [];
-        [$desde, $hasta] = $this->fechas($this->valor($propuesta['periodo'] ?? null), $filtros);
 
         try {
-            $criterios = CriteriosDeReporte::desdeArreglo([
-                'tipo' => $tipo,
-                'desde' => $desde,
-                'hasta' => $hasta,
-                'estado' => $this->estado($this->valor($filtros['estado'] ?? null)),
-                'zona' => $this->zona($this->valor($filtros['zona'] ?? null)),
-                'idagente' => $actor->tieneRol(Rol::ADMINISTRADOR) ? $this->agente($this->valor($filtros['agente'] ?? null)) : null,
-                'agrupacion' => $this->valor($propuesta['agrupacion'] ?? null) ?? 'ninguna',
-            ]);
+            $criterios = CriteriosDeReporte::desdeArreglo($datos);
         } catch (CriteriosNoValidos) {
-            throw new InterpretacionFallida(InterpretacionFallida::NO_RECONOCIDO);
+            // Algún valor inventado (estado, agrupación...): se muestra lo que sí es válido para que lo corrija.
+            $rescatados = $this->rescatar($datos);
+
+            throw new InterpretacionFallida(InterpretacionFallida::NO_RECONOCIDO, $rescatados?->descripcion() ?? [], $this->paraFormulario($rescatados, $tipos));
         }
 
-        if (! $criterios->rangoValido() || ! ConstructorDeReportes::permite($actor, $criterios)) {
-            throw new InterpretacionFallida(InterpretacionFallida::NO_RECONOCIDO);
+        if (! ConstructorDeReportes::permite($actor, $criterios)) {
+            throw new InterpretacionFallida(InterpretacionFallida::SIN_PERMISO, $criterios->descripcion());
+        }
+
+        if (! $criterios->rangoValido()) {
+            throw new InterpretacionFallida(InterpretacionFallida::RANGO, $criterios->descripcion(), $criterios->aParametros());
         }
 
         return $criterios;
     }
 
+    /** Pasa la propuesta de la IA a los datos que entiende CriteriosDeReporte (el período lo resuelve el sistema, no la IA). */
+    private function aDatos(array $propuesta, Usuario $actor): array
+    {
+        $filtros = is_array($propuesta['filtros'] ?? null) ? $propuesta['filtros'] : [];
+        [$desde, $hasta] = $this->fechas($this->valor($propuesta['periodo'] ?? null), $filtros);
+
+        return [
+            'tipo' => $this->valor($propuesta['tipo'] ?? null),
+            'desde' => $desde,
+            'hasta' => $hasta,
+            'estado' => $this->estado($this->valor($filtros['estado'] ?? null)),
+            'zona' => $this->zona($this->valor($filtros['zona'] ?? null)),
+            'idagente' => $actor->tieneRol(Rol::ADMINISTRADOR) ? $this->agente($this->valor($filtros['agente'] ?? null)) : null,
+            'agrupacion' => $this->valor($propuesta['agrupacion'] ?? null) ?? 'ninguna',
+        ];
+    }
+
+    /** Quita de a uno los valores no válidos (estado y luego agrupación) hasta poder armar unos criterios. */
+    private function rescatar(array $datos): ?CriteriosDeReporte
+    {
+        foreach ([[], ['estado'], ['estado', 'agrupacion']] as $quitar) {
+            $intento = $datos;
+            foreach ($quitar as $campo) {
+                $intento[$campo] = $campo === 'agrupacion' ? 'ninguna' : null;
+            }
+            try {
+                return CriteriosDeReporte::desdeArreglo($intento);
+            } catch (CriteriosNoValidos) {
+            }
+        }
+
+        return null;
+    }
+
+    /** Solo se precarga en el formulario lo que este rol puede pedir. */
+    private function paraFormulario(?CriteriosDeReporte $criterios, array $tiposPermitidos): array
+    {
+        return $criterios !== null && in_array($criterios->tipo, $tiposPermitidos, true) ? $criterios->aParametros() : [];
+    }
     /** Texto limpio; "null", "ninguno" y vacío cuentan como "no se pidió". */
     private function valor(mixed $v): ?string
     {
