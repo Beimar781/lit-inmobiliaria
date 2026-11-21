@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Http\Middleware\VerificarCuentaActiva;
 use App\Models\Usuario;
 use App\Services\BitacoraService;
+use App\Modules\ReportesAdministracion\CU20_GenerarReportes\ServicioDeIa;
+use App\Modules\ReportesAdministracion\CU20_GenerarReportes\ServicioGemini;
 use App\Support\BrevoTransport;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -17,7 +19,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // CU20: el proveedor de IA se puede cambiar aquí sin tocar el resto.
+        $this->app->bind(ServicioDeIa::class, ServicioGemini::class);
     }
 
     public function boot(): void

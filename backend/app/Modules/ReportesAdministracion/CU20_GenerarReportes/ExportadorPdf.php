@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\File;
 /** Exporta un reporte a PDF (tabla, totales, filtros aplicados, quién lo generó y cuándo). */
 class ExportadorPdf
 {
-    public function generar(ResultadoDeReporte $resultado, array $filtros, string $generadoPor, string $fechaHora): string
+    public function generar(ResultadoDeReporte $resultado, array $filtros, string $generadoPor, string $fechaHora, ?string $resumen = null): string
     {
         $cache = storage_path('framework/cache/dompdf');
         File::ensureDirectoryExists($cache);
@@ -25,6 +25,7 @@ class ExportadorPdf
             'filtros' => $filtros,
             'generadoPor' => $generadoPor,
             'fechaHora' => $fechaHora,
+            'resumen' => $resumen,
         ])->render();
 
         $pdf = new Dompdf($opciones);

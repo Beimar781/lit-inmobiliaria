@@ -33,6 +33,13 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
     ],
 
+    // Reportes con lenguaje natural (CU20) con Google Gemini. La llave va SOLO en el .env (nunca en el repositorio): ver .env.example
+    'ia' => [
+        'key' => env('GEMINI_API_KEY'),
+        'modelo' => env('IA_MODELO', 'gemini-2.5-flash'),
+        'timeout' => 15,
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

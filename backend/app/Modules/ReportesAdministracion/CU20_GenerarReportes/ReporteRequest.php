@@ -27,6 +27,26 @@ class ReporteRequest extends FormRequest
         return is_string($tipo) ? trim($tipo) !== '' : $tipo !== null;
     }
 
+    /** ¿Los criterios vienen de la interpretación con IA? */
+    public function origenIa(): bool
+    {
+        return $this->query('origen') === 'ia';
+    }
+
+    /** ¿El actor pidió el resumen redactado por IA al confirmar? */
+    public function conResumen(): bool
+    {
+        return $this->query('con_resumen') === '1';
+    }
+
+    /** La frase que dio origen al reporte (máximo 200 caracteres para la bitácora). */
+    public function solicitud(): string
+    {
+        $texto = $this->query('solicitud');
+
+        return is_string($texto) ? mb_substr(trim($texto), 0, 200) : '';
+    }
+
     /** @throws CriteriosNoValidos si el tipo, el estado o la agrupación no están en la lista */
     public function criterios(): CriteriosDeReporte
     {

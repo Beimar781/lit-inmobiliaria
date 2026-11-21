@@ -43,6 +43,7 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
 // CU20 - Generar reportes (Administrador, Agente y Asistente; qué tipos ve cada rol se comprueba en el constructor de reportes)
 Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE . ',' . Rol::ASISTENTE])->group(function () {
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
+    Route::post('/reportes/interpretar', [ReporteController::class, 'interpretar'])->middleware('throttle:10,1')->name('reportes.interpretar');
     Route::get('/reportes/generar', [ReporteController::class, 'generar'])->name('reportes.generar');
     Route::get('/reportes/exportar/{formato}', [ReporteController::class, 'exportar'])->name('reportes.exportar');
 });

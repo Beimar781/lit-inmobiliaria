@@ -11,6 +11,7 @@
         th { background: #e9ecef; text-align: left; border: 1px solid #bbb; padding: 4px; }
         td { border: 1px solid #ccc; padding: 3px 4px; }
         .num { text-align: right; }
+        .resumen { border: 1px solid #bbb; background: #f8f9fa; padding: 6px 8px; margin-bottom: 10px; }
         tfoot td { background: #f1f3f5; font-weight: bold; }
     </style>
 </head>
@@ -20,6 +21,10 @@
         @foreach ($filtros as $linea) {{ $linea }}<br> @endforeach
         Generado por: {{ $generadoPor }} &middot; Fecha y hora: {{ $fechaHora }}
     </div>
+
+    @if (!empty($resumen))
+        <div class="resumen"><strong>Resumen (redactado por IA):</strong> {{ $resumen }}</div>
+    @endif
 
     <table>
         <thead>

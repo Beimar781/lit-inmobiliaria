@@ -7,7 +7,34 @@
     <h1 class="h3 mb-0">Reportes <span class="cu-etiqueta">(CU20)</span></h1>
 </div>
 
+@if ($iaDisponible)
+    <form method="POST" action="{{ route('reportes.interpretar') }}" class="card card-body shadow-sm mb-3">
+        @csrf
+        <label for="solicitud" class="form-label fw-semibold">Describe el reporte que necesitas</label>
+        <div class="input-group">
+            <input type="text" name="solicitud" id="solicitud" maxlength="300" value="{{ old('solicitud') }}"
+                   class="form-control @error('solicitud') is-invalid @enderror"
+                   placeholder="Ej.: visitas canceladas del último mes por agente">
+            <button type="submit" class="btn btn-dark">Interpretar con IA</button>
+            @error('solicitud')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+        </div>
+        <div class="form-text">La IA solo recibe tu frase para entender qué reporte quieres; no consulta la base de datos. Tú confirmas los criterios antes de generar.</div>
+    </form>
+@endif
+
+@if ($origenIa && $criterios)
+    <div class="alert alert-info">
+        <strong>Esto fue lo que entendí.</strong> Revisa los criterios (puedes cambiarlos) y confirma para generar el reporte.
+    </div>
+@endif
 <form method="GET" action="{{ route('reportes.generar') }}" class="card card-body shadow-sm mb-4" id="form-reporte">
+    @if ($origenIa)
+        <input type="hidden" name="origen" value="ia">
+        <input type="hidden" name="con_resumen" value="1">
+        <input type="hidden" name="solicitud" value="{{ $solicitud }}">
+    @endif
     <div class="row g-3">
         <div class="col-md-3">
             <label for="tipo" class="form-label">Tipo de reporte</label>
@@ -66,7 +93,7 @@
             </select>
         </div>
         <div class="col-md-3 align-self-end">
-            <button type="submit" class="btn btn-primary">Generar reporte</button>
+            <button type="submit" class="btn btn-primary">{{ $origenIa ? 'Confirmar y generar' : 'Generar reporte' }}</button>
             <a href="{{ route('reportes.index') }}" class="btn btn-outline-secondary">Limpiar</a>
         </div>
     </div>
@@ -91,6 +118,15 @@
                     </div>
                 @endunless
             </div>
+
+            @if ($resumen)
+                <div class="alert alert-light border">
+                    <div class="small text-muted mb-1">Resumen &middot; redactado por IA</div>
+                    {{ $resumen }}
+                </div>
+            @elseif ($avisoResumen)
+                <div class="alert alert-warning">{{ $avisoResumen }}</div>
+            @endif
 
             @if ($resultado->estaVacio())
                 <p class="text-muted mb-0">Sin resultados para el reporte</p>
