@@ -198,6 +198,8 @@
         </div>
     </div>
 @endif
+{{-- Detiene en cualquier momento la lectura en voz alta y el micrófono; solo se ve mientras el sistema habla o escucha. --}}
+<button type="button" class="btn btn-danger shadow position-fixed d-none" id="btn-detener-voz" style="bottom: 1.25rem; right: 1.25rem; z-index: 1050" aria-label="Detener la voz">&#9209; Detener voz</button>
 @endsection
 
 @push('scripts')
@@ -251,19 +253,61 @@
                 return voces[0] || null;
             }
 
+            // El botón «Detener voz» aparece mientras el sistema habla o escucha y corta lo que esté pasando.
+            var detener = porId('btn-detener-voz');
+            var turno = 0;          // cada lectura tiene un turno; al detener se invalida y no sigue con lo que venía después
+            var hablando = false;
+            var escuchando = null;
+            var vigilante = null;
+
+            function actualizarDetener() {
+                var activo = hablando || escuchando !== null;
+                if (detener) { detener.classList.toggle('d-none', !activo); }
+                // Respaldo: algunos navegadores no avisan siempre cuando termina de hablar.
+                if (activo && vigilante === null) {
+                    vigilante = window.setInterval(function () {
+                        if (hablando && sintesis && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) { hablando = false; }
+                        if (!hablando && escuchando === null) { window.clearInterval(vigilante); vigilante = null; }
+                        if (detener) { detener.classList.toggle('d-none', !(hablando || escuchando !== null)); }
+                    }, 700);
+                }
+            }
+
+            function detenerTodo() {
+                turno++;
+                hablando = false;
+                if (sintesis) { window.speechSynthesis.cancel(); }
+                if (escuchando) { escuchando.detenido = true; try { escuchando.abort(); } catch (e) {} escuchando = null; }
+                decir(porId('estado-voz'), '');
+                decir(porId('estado-comando'), 'Voz detenida.');
+                actualizarDetener();
+            }
+
+            if (detener) { detener.addEventListener('click', detenerTodo); }
+
             function hablar(texto, alTerminar, alFallar) {
                 if (!sintesis || !texto) { if (alFallar) { alFallar(); } return; }
                 window.speechSynthesis.cancel();
+                var mio = ++turno;
                 var frase = new SpeechSynthesisUtterance(texto);
                 frase.lang = 'es-BO';
                 var voz = elegirVoz();
                 if (voz) { frase.voice = voz; frase.lang = voz.lang; }
                 frase.rate = 1;
-                frase.onend = function () { if (alTerminar) { alTerminar(); } };
-                frase.onerror = function () { if (alFallar) { alFallar(); } };
+                frase.onend = function () {
+                    if (mio !== turno) { return; }
+                    hablando = false; actualizarDetener();
+                    if (alTerminar) { alTerminar(); }
+                };
+                frase.onerror = function () {
+                    if (mio !== turno) { return; }
+                    hablando = false; actualizarDetener();
+                    if (alFallar) { alFallar(); }
+                };
+                hablando = true;
+                actualizarDetener();
                 window.speechSynthesis.speak(frase);
             }
-
             // ---------- Entrada de voz: escucha una frase y la entrega como texto ----------
             var MENSAJES = {
                 'not-allowed': 'El navegador no tiene permiso para usar el micrófono. Permítelo en el candado de la barra de direcciones.',
@@ -273,12 +317,12 @@
                 'network': 'El reconocimiento de voz necesita conexión a internet.'
             };
 
-            var escuchando = null;
             function escuchar(estado, alParcial, alFinal) {
                 if (!Reconocimiento) { return; }
                 if (escuchando) { try { escuchando.abort(); } catch (e) {} }
                 var r = new Reconocimiento();
                 escuchando = r;
+                actualizarDetener();
                 r.lang = 'es-BO';
                 r.interimResults = true;
                 r.continuous = false;
@@ -293,11 +337,17 @@
                         if (e.results[i].isFinal) { terminado = true; }
                     }
                     texto = texto.trim();
+                    if (r.detenido) { return; }
                     if (terminado && texto) { entregado = true; alFinal(texto); }
                     else if (alParcial) { alParcial(texto); }
                 };
-                r.onerror = function (e) { decir(estado, MENSAJES[e.error] || ('No pude escuchar (' + e.error + ').')); entregado = true; };
-                r.onend = function () { if (!entregado) { decir(estado, 'No escuché nada. Inténtalo de nuevo.'); } escuchando = null; };
+                r.onerror = function (e) { if (r.detenido) { return; } decir(estado, MENSAJES[e.error] || ('No pude escuchar (' + e.error + ').')); entregado = true; };
+                r.onend = function () {
+                    if (r.detenido) { return; }
+                    if (!entregado) { decir(estado, 'No escuché nada. Inténtalo de nuevo.'); }
+                    if (escuchando === r) { escuchando = null; }
+                    actualizarDetener();
+                };
                 try { r.start(); } catch (e) { decir(estado, 'No pude iniciar el micrófono.'); }
             }
 
@@ -375,12 +425,12 @@
                 if (botonComando && Reconocimiento) {
                     mostrar(botonComando);
                     botonComando.addEventListener('click', function () {
-                        window.speechSynthesis && window.speechSynthesis.cancel();
+                        detenerTodo();
                         escuchar(estadoComando, null, function (orden) {
                             decir(estadoComando, 'Escuché: «' + orden + '».');
                             if (dice(orden, ['pdf'])) { window.location.href = porId('enlace-pdf').href; }
                             else if (dice(orden, ['excel', 'xls'])) { window.location.href = porId('enlace-xlsx').href; }
-                            else if (dice(orden, ['detener', 'calla', 'silencio', 'para'])) { window.speechSynthesis.cancel(); }
+                            else if (dice(orden, ['detener', 'calla', 'silencio', 'para'])) { detenerTodo(); }
                             else if (dice(orden, ['leer', 'lee', 'repet', 'resumen', 'resultado', 'escuch'])) { hablar(textoResultado); }
                             else { decir(estadoComando, 'No entendí «' + orden + '». Di: PDF, Excel, leer o detener.'); }
                         });

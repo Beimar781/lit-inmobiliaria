@@ -500,6 +500,24 @@ class CU20_ReportesConIaTest extends SistemaTestCase
             ->assertDontSee('id="btn-microfono"', false); // el dictado a la IA solo aparece si la IA está configurada
     }
 
+    public function test_la_pantalla_de_reportes_trae_el_boton_para_detener_la_voz_en_cualquier_rol_y_con_o_sin_ia(): void
+    {
+        $this->contratoDePrueba();
+
+        // Con IA (Administrador): formulario y resultado
+        $this->actingAs($this->admin());
+        $this->get(route('reportes.index'))->assertOk()->assertSee('id="btn-detener-voz"', false)->assertSee('Detener voz');
+        $this->get(route('reportes.generar', ['tipo' => 'contratos']))->assertOk()->assertSee('id="btn-detener-voz"', false);
+
+        // Sin IA (Asistente): la lectura del resultado y los comandos también se pueden detener
+        config(['services.ia.key' => null]);
+        $this->actingAs($this->asistente())->get(route('reportes.generar', ['tipo' => 'contratos']))->assertOk()
+            ->assertSee('Leer resultado')->assertSee('id="btn-detener-voz"', false);
+
+        // El botón empieza oculto y solo se muestra mientras el sistema habla o escucha
+        $this->get(route('reportes.index'))->assertSee('id="btn-detener-voz"', false)->assertSee('position-fixed d-none', false);
+    }
+
     private function contratoDePrueba(): Contrato
     {
         return Contrato::create([
