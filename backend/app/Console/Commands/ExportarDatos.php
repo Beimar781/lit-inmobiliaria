@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\InstantaneaDatos;
+use App\Support\DatosDemo\MarcasDemo;
 use Illuminate\Console\Command;
 
 /**
@@ -17,6 +18,13 @@ class ExportarDatos extends Command
 
     public function handle(): int
     {
+        // Los datos ficticios de prueba de los reportes nunca deben entrar al archivo que clona todo el equipo.
+        if (MarcasDemo::existen()) {
+            $this->error('Hay datos demo en la base: bórralos antes de exportar con  php artisan demo:poblar-reportes --quitar');
+
+            return self::FAILURE;
+        }
+
         $resultado = (new InstantaneaDatos())->exportar();
 
         $this->table(
