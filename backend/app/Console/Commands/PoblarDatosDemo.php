@@ -8,6 +8,7 @@ use App\Support\DatosDemo\InsertadorDemo;
 use App\Support\DatosDemo\MarcasDemo;
 use App\Support\DatosDemo\PlanDeDatosDemo;
 use App\Support\DatosDemo\QuitadorDemo;
+use App\Support\DatosDemo\SelectorDeSectores;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -29,6 +30,7 @@ class PoblarDatosDemo extends Command
         {--quitar : Borra todos los datos demo (y solo los demo)}
         {--sql= : En vez de tocar la base, escribe un script SQL en esta ruta}
         {--hoy= : Fecha de referencia AAAA-MM-DD (por defecto, hoy en Bolivia)}
+        {--sectores= : Los 8 sectores de las propiedades demo, separados por coma (por defecto, los 8 con menos propiedades reales)}
         {--force : Permite correr el comando cuando APP_ENV es production}';
 
     protected $description = 'Crea (o borra) datos ficticios de los últimos 4 meses para probar los reportes';
@@ -66,10 +68,15 @@ class PoblarDatosDemo extends Command
             $this->quitar();
         }
 
-        $insertador = app(InsertadorDemo::class);
-        $conteo = $insertador->insertar((new PlanDeDatosDemo($hoy))->construir());
+        $sectores = $this->sectores();
+        if ($sectores === null) {
+            return self::FAILURE;
+        }
 
-        $this->info('Datos demo creados (fecha de referencia ' . $hoy->format('d/m/Y') . '):');
+        $insertador = app(InsertadorDemo::class);
+        $conteo = $insertador->insertar((new PlanDeDatosDemo($hoy, 2026, $sectores))->construir());
+
+        $this->info('Datos demo creados (fecha de referencia ' . $hoy->format('d/m/Y') . ', sectores: ' . implode(', ', $sectores) . '):');
         $this->mostrar($conteo, 'Creadas');
         if ($insertador->visitasOmitidas() > 0) {
             $this->line("Visitas omitidas por cruce de horario con visitas reales: {$insertador->visitasOmitidas()}");
@@ -96,9 +103,17 @@ class PoblarDatosDemo extends Command
     private function escribirSql(string $ruta, CarbonImmutable $hoy): int
     {
         $generador = new GeneradorSqlDemo();
-        $sql = $this->option('quitar')
-            ? $generador->quitar()
-            : $generador->poblar((new PlanDeDatosDemo($hoy))->construir(), $hoy);
+
+        if ($this->option('quitar')) {
+            $sql = $generador->quitar();
+        } else {
+            $sectores = $this->sectores();
+            if ($sectores === null) {
+                return self::FAILURE;
+            }
+            $sql = $generador->poblar((new PlanDeDatosDemo($hoy, 2026, $sectores))->construir(), $hoy);
+            $this->line('Sectores de las propiedades demo: ' . implode(', ', $sectores));
+        }
 
         File::ensureDirectoryExists(dirname($ruta));
         File::put($ruta, $sql);
@@ -106,6 +121,32 @@ class PoblarDatosDemo extends Command
         $this->info('Script SQL escrito en ' . $ruta . ' (no se tocó la base de datos).');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Los 8 sectores de las propiedades demo: los indicados con --sectores o, si no, los 8 con menos propiedades reales en esta base
+     * (nunca Equipetrol ni Zona Norte). Devuelve null (y avisa) si lo indicado no sirve.
+     *
+     * @return string[]|null
+     */
+    private function sectores(): ?array
+    {
+        $texto = $this->option('sectores');
+
+        if (! is_string($texto) || trim($texto) === '') {
+            return (new SelectorDeSectores())->elegir();
+        }
+
+        $sectores = array_values(array_filter(array_map('trim', explode(',', $texto)), fn ($s) => $s !== ''));
+        $error = SelectorDeSectores::errorDe($sectores);
+
+        if ($error !== null) {
+            $this->error($error);
+
+            return null;
+        }
+
+        return $sectores;
     }
 
     private function fechaDeReferencia(): ?CarbonImmutable

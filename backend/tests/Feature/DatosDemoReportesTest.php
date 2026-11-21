@@ -98,7 +98,7 @@ class DatosDemoReportesTest extends SistemaTestCase
 
         $nuevos = fn (string $t) => DB::table($t)->count() - $antes[$t];
         $this->assertSame(3, DB::table('propietario')->where('nombre', 'like', 'DEMO - %')->count());
-        $this->assertBetween(12, 15, $this->demoProps()->count());
+        $this->assertSame(8, $this->demoProps()->count());
         $this->assertBetween(30, 40, $this->demoClientes()->count());
         $this->assertBetween(60, 90, $nuevos('seguimiento'));
         $this->assertBetween(6, 8, $nuevos('inquilino'));
@@ -121,8 +121,78 @@ class DatosDemoReportesTest extends SistemaTestCase
         // Repartidas entre varios agentes, categorías y estados
         $this->assertGreaterThanOrEqual(3, $this->demoProps()->pluck('idusuario')->unique()->count());
         $this->assertGreaterThanOrEqual(4, $this->demoProps()->pluck('idcategoria')->unique()->count());
-        $this->assertEqualsCanonicalizing(['DISPONIBLE', 'RESERVADO', 'VENDIDO', 'ALQUILADO'], $this->demoProps()->pluck('estadopropiedad')->unique()->values()->all());
+        $this->assertSame(['ALQUILADO' => 2, 'DISPONIBLE' => 3, 'RESERVADO' => 1, 'VENDIDO' => 2], $this->demoProps()->countBy('estadopropiedad')->sortKeys()->all());
         $this->assertGreaterThanOrEqual(3, $this->demoClientes()->pluck('idusuario')->unique()->count());
+    }
+
+    public function test_las_8_propiedades_van_en_8_sectores_distintos_y_nunca_en_equipetrol_ni_zona_norte(): void
+    {
+        $this->poblar();
+
+        $zonas = $this->demoProps()->map(fn ($p) => DB::table('ubicacion')->where('idubicacion', $p->idubicacion)->value('zona'));
+        $this->assertCount(8, $zonas->unique(), 'Una propiedad demo por sector.');
+        $this->assertSame($zonas->all(), $this->demoProps()->pluck('sector')->all(), 'El sector de la propiedad coincide con la zona de su ubicación.');
+        foreach ($zonas as $zona) {
+            $this->assertNotContains($zona, ['Equipetrol', 'Equipetrol Norte', 'Zona Norte']);
+            $this->assertContains($zona, \App\Models\Propiedad::SECTORES);
+        }
+        // El título menciona su propio sector y nadie repite título
+        foreach ($this->demoProps() as $p) {
+            $this->assertStringContainsString((string) $p->sector, $p->titulo);
+        }
+        $this->assertCount(8, $this->demoProps()->pluck('titulo')->unique());
+
+        // Cada propiedad con sus propias coordenadas, dentro del 4.º anillo
+        $puntos = $this->demoProps()->map(fn ($p) => DB::table('ubicacion')->where('idubicacion', $p->idubicacion)->first())
+            ->map(fn ($u) => $u->latitud . '|' . $u->longitud);
+        $this->assertCount(8, $puntos->unique());
+
+        // Un solo contrato vigente por propiedad (puede haber varias reservas y contratos anteriores)
+        foreach ($this->demoProps() as $p) {
+            $this->assertLessThanOrEqual(1, DB::table('contrato')->where('idpropiedad', $p->idpropiedad)->where('estado', 'VIGENTE')->count(), "Dos contratos vigentes en {$p->titulo}.");
+            $this->assertLessThanOrEqual(1, DB::table('reserva')->where('idpropiedad', $p->idpropiedad)->where('estado', 'VIGENTE')->count(), "Dos reservas vigentes en {$p->titulo}.");
+        }
+        $this->assertGreaterThan(8, DB::table('contrato')->whereIn('idpropiedad', $this->demoProps()->pluck('idpropiedad'))->count(), 'Hay propiedades con más de un contrato.');
+    }
+
+    public function test_se_eligen_los_8_sectores_con_menos_propiedades_reales(): void
+    {
+        // Propiedades reales: Centro con 3, Urbarí con 2, Sirari con 1 y varias en Equipetrol y Zona Norte (donde está la mayoría)
+        foreach ([['Centro', 3], ['Urbarí', 2], ['Sirari', 1], ['Equipetrol', 4], ['Zona Norte', 3]] as [$sector, $cantidad]) {
+            for ($i = 0; $i < $cantidad; $i++) {
+                $this->propiedad(['sector' => $sector, 'titulo' => "Real {$sector} {$i}"]);
+            }
+        }
+
+        $this->poblar();
+
+        // Candidatos: 10 sectores (sin Equipetrol, Equipetrol Norte ni Zona Norte). Quedan fuera los dos con más reales: Centro (3) y Urbarí (2).
+        $elegidos = $this->demoProps()->pluck('sector')->sort()->values()->all();
+        $this->assertSame(['Barrio Lindo', 'Hamacas', 'Las Palmas', 'Sirari', 'Villa 1.º de Mayo', 'Zona Este', 'Zona Oeste', 'Zona Sur'], $elegidos);
+
+        // Con --fresh se vuelve a decidir sin contar las demo: mismo resultado
+        $this->poblar(['--fresh' => true]);
+        $this->assertSame($elegidos, $this->demoProps()->pluck('sector')->sort()->values()->all());
+    }
+
+    public function test_los_sectores_se_pueden_indicar_a_mano_y_se_validan(): void
+    {
+        $lista = 'Centro,Zona Sur,Zona Este,Zona Oeste,Urbarí,Sirari,Las Palmas,Hamacas';
+
+        $this->artisan('demo:poblar-reportes', ['--hoy' => '2026-11-21', '--sectores' => $lista])->assertSuccessful();
+        $this->assertSame(collect(explode(',', $lista))->sort()->values()->all(), $this->demoProps()->pluck('sector')->sort()->values()->all());
+        $this->artisan('demo:poblar-reportes', ['--quitar' => true])->assertSuccessful();
+
+        foreach ([
+            ['Centro,Zona Sur', 'exactamente 8'],
+            ['Centro,Centro,Zona Sur,Zona Este,Zona Oeste,Urbarí,Sirari,Las Palmas', 'exactamente 8'],
+            ['Equipetrol,Zona Sur,Zona Este,Zona Oeste,Urbarí,Sirari,Las Palmas,Hamacas', 'No se crean propiedades demo en Equipetrol'],
+            ['Zona Norte,Zona Sur,Zona Este,Zona Oeste,Urbarí,Sirari,Las Palmas,Hamacas', 'No se crean propiedades demo en Zona Norte'],
+            ['Narnia,Zona Sur,Zona Este,Zona Oeste,Urbarí,Sirari,Las Palmas,Hamacas', 'Sector desconocido: Narnia'],
+        ] as [$sectores, $mensaje]) {
+            $this->artisan('demo:poblar-reportes', ['--hoy' => '2026-11-21', '--sectores' => $sectores])->expectsOutputToContain($mensaje)->assertFailed();
+            $this->assertFalse(MarcasDemo::existen(), 'Con sectores no válidos no se crea nada.');
+        }
     }
 
     public function test_el_plan_es_reproducible_con_semilla_fija(): void
@@ -145,7 +215,7 @@ class DatosDemoReportesTest extends SistemaTestCase
 
         $this->poblar(['--fresh' => true]);
         $this->assertSame($despues, $this->conteos(), 'Con --fresh queda lo mismo que antes, sin duplicados.');
-        $this->assertSame(14, $this->demoProps()->count());
+        $this->assertSame(8, $this->demoProps()->count());
     }
 
     // ---------------------------------------------------------------------------------------------- quitar

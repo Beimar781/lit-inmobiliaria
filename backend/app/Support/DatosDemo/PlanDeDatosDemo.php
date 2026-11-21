@@ -10,7 +10,11 @@ use Carbon\CarbonImmutable;
  * Es determinista (semilla fija): siempre da lo mismo. Devuelve una lista de operaciones que dos escritores consumen:
  * uno inserta en la base y otro genera el script SQL para otra base (Railway), así los dos quedan iguales.
  *
- * Los escenarios (reserva -> contrato -> pagos -> reseña) respetan las reglas reales del sistema: la propiedad cambia de estado
+ * Son 8 propiedades, una por sector (los sectores los elige SelectorDeSectores: los de menos propiedades reales, nunca
+ * Equipetrol ni Zona Norte). Cada propiedad vive varios episodios, uno detrás de otro (por ejemplo, un contrato que se
+ * rescinde y luego una reserva que vence) y siempre hay a lo sumo un contrato vigente por propiedad.
+ *
+ * Los episodios (reserva -> contrato -> pagos -> reseña) respetan las reglas reales del sistema: la propiedad cambia de estado
  * como lo haría CU26/CU27, la devolución de una reserva retiene el 20 %, los pagos PAGADO no superan el contrato, el alquiler
  * se paga por meses y los comprobantes siguen la numeración real. Todas las fechas de creación están en el pasado.
  *
@@ -20,13 +24,16 @@ final class PlanDeDatosDemo
 {
     public const TIPO_CAMBIO = 6.96;
     public const DIAS_VENTANA = 123; // del 21/07 al 21/11
+    public const PROPIEDADES = 8;
 
     private Azar $azar;
     private CarbonImmutable $hoy;
+    /** @var string[] sectores elegidos, uno por propiedad */
+    private array $sectores;
 
     /** @var array<int, array> */
     private array $ops = [];
-    /** @var array<int, array> propiedades por número (1 a 14) */
+    /** @var array<int, array> propiedades por número (1 a 8) */
     private array $props = [];
     /** @var array<int, array> clientes por posición */
     private array $clientes = [];
@@ -35,10 +42,12 @@ final class PlanDeDatosDemo
     /** @var array<string, bool> fechas de pago usadas por propiedad */
     private array $fechasPago = [];
 
-    public function __construct(CarbonImmutable $hoy, int $semilla = 2026)
+    /** @param string[] $sectores 8 sectores (si no se indican, los 8 primeros candidatos) */
+    public function __construct(CarbonImmutable $hoy, int $semilla = 2026, array $sectores = [])
     {
         $this->hoy = $hoy->startOfDay();
         $this->azar = new Azar($semilla);
+        $this->sectores = $sectores !== [] ? array_values($sectores) : array_slice(SelectorDeSectores::candidatos(), 0, self::PROPIEDADES);
     }
 
     /** @return array<int, array{tabla: string, fila: array, clave: ?array, visita: ?array}> */
@@ -116,30 +125,17 @@ final class PlanDeDatosDemo
     private function propiedades(): void
     {
         $propietarios = ['DEMO - Familia Rojas Cuéllar', 'DEMO - Inversiones Oriente S.R.L.', 'DEMO - Marcelo Ibáñez Parada'];
-        // Puntos de referencia dentro del 4.º anillo (zona => [latitud, longitud]); a cada propiedad se le suma un pequeño desvío.
-        $anclas = [
-            'Equipetrol' => [-17.7630, -63.1980], 'Equipetrol Norte' => [-17.7550, -63.1900], 'Zona Norte' => [-17.7523, -63.1735],
-            'Urbarí' => [-17.7976, -63.1973], 'Sirari' => [-17.7680, -63.1860], 'Las Palmas' => [-17.8009, -63.1962],
-            'Centro' => [-17.7850, -63.1790], 'Hamacas' => [-17.8100, -63.1900], 'Zona Sur' => [-17.8150, -63.1750],
-            'Zona Este' => [-17.7830, -63.1500], 'Barrio Lindo' => [-17.7790, -63.1650],
-        ];
 
-        // n => [título, categoría, tipo, zona, calle, precio, superficie, construida, hab., baños, antigüedad, agente, días desde el registro, propietario, estado final]
+        // n => [título (con %s = sector), categoría, tipo, calle, precio, superficie, construida, hab., baños, antigüedad, agente, días desde el registro, propietario, estado final]
         $catalogo = [
-            1 => ['Casa de 4 dormitorios con jardín en Equipetrol Norte', 'Casa', 'Venta', 'Equipetrol Norte', 'Calle Los Cedros #412', 135000, 420, 280, 4, 3, 6, 1, 118, 0, 'VENDIDO'],
-            2 => ['Departamento de 3 dormitorios con vista en Equipetrol', 'Departamento', 'Venta', 'Equipetrol', 'Av. San Martín #1180', 98000, 160, 160, 3, 2, 4, 2, 112, 1, 'VENDIDO'],
-            3 => ['Terreno de 600 m² en Zona Norte', 'Terreno', 'Venta', 'Zona Norte', 'Calle 7 Norte #95', 48000, 600, null, null, null, null, 3, 116, 2, 'VENDIDO'],
-            4 => ['Casa en condominio cerrado de Las Palmas', 'Casa', 'Venta', 'Las Palmas', 'Condominio Las Palmas, lote 14', 172000, 380, 260, 4, 3, 3, 1, 95, 0, 'RESERVADO'],
-            5 => ['Local comercial esquinero sobre el segundo anillo', 'Local Comercial', 'Venta', 'Centro', 'Calle Murillo esq. Libertad #230', 89000, 120, 110, null, 2, 8, 4, 88, 1, 'RESERVADO'],
-            6 => ['Casa de 3 dormitorios cerca del Urbarí', 'Casa', 'Venta', 'Urbarí', 'Calle Los Tajibos #66', 118000, 300, 190, 3, 2, 10, 2, 84, 2, 'DISPONIBLE'],
-            7 => ['Oficina de 90 m² en torre empresarial', 'Oficina', 'Venta', 'Sirari', 'Av. Beni, Torre Sirari piso 6', 64000, 90, 90, null, 2, 5, 5, 79, 0, 'DISPONIBLE'],
-            8 => ['Departamento de 2 dormitorios en Hamacas', 'Departamento', 'Venta', 'Hamacas', 'Calle Las Hamacas #520', 76000, 110, 110, 2, 2, 7, 3, 100, 1, 'DISPONIBLE'],
-            9 => ['Terreno de 450 m² en Zona Sur', 'Terreno', 'Venta', 'Zona Sur', 'Calle Cañada Strongest #31', 39000, 450, null, null, null, null, 1, 105, 2, 'DISPONIBLE'],
-            10 => ['Departamento amoblado en alquiler, Barrio Lindo', 'Departamento', 'Alquiler', 'Barrio Lindo', 'Calle Barrio Lindo #208', 550, 85, 85, 2, 1, 2, 4, 114, 0, 'DISPONIBLE'],
-            11 => ['Departamento de 2 dormitorios en alquiler, Equipetrol', 'Departamento', 'Alquiler', 'Equipetrol', 'Calle Los Jazmines #74', 600, 95, 95, 2, 2, 3, 2, 108, 1, 'ALQUILADO'],
-            12 => ['Oficina en alquiler en el centro', 'Oficina', 'Alquiler', 'Centro', 'Calle Bolívar #355, 2.º piso', 450, 70, 70, null, 1, 12, 3, 70, 2, 'ALQUILADO'],
-            13 => ['Local comercial en alquiler en Las Palmas', 'Local Comercial', 'Alquiler', 'Las Palmas', 'Av. Las Palmas #901', 500, 60, 60, null, 1, 6, 1, 121, 0, 'DISPONIBLE'],
-            14 => ['Casa en anticrético en Zona Este', 'Casa', 'Anticrético', 'Zona Este', 'Calle Santos Dumont #144', 30000, 250, 170, 3, 2, 9, 5, 68, 1, 'ALQUILADO'],
+            1 => ['Casa de 4 dormitorios con jardín en %s', 'Casa', 'Venta', 'Calle Los Cedros #412', 135000, 420, 280, 4, 3, 6, 1, 118, 0, 'DISPONIBLE'],
+            2 => ['Departamento de 3 dormitorios con vista en %s', 'Departamento', 'Venta', 'Av. San Martín #1180', 98000, 160, 160, 3, 2, 4, 2, 112, 1, 'DISPONIBLE'],
+            3 => ['Local comercial en alquiler en %s', 'Local Comercial', 'Alquiler', 'Av. Las Palmas #901', 500, 60, 60, null, 1, 6, 3, 121, 0, 'DISPONIBLE'],
+            4 => ['Casa en condominio cerrado en %s', 'Casa', 'Venta', 'Condominio Los Álamos, lote 14', 172000, 380, 260, 4, 3, 3, 4, 118, 2, 'RESERVADO'],
+            5 => ['Terreno de 600 m² en %s', 'Terreno', 'Venta', 'Calle 7 #95', 48000, 600, null, null, null, null, 1, 121, 2, 'VENDIDO'],
+            6 => ['Departamento de 2 dormitorios en %s', 'Departamento', 'Venta', 'Calle Las Hamacas #520', 89000, 110, 110, 2, 2, 7, 2, 112, 1, 'VENDIDO'],
+            7 => ['Casa en anticrético en %s', 'Casa', 'Anticrético', 'Calle Santos Dumont #144', 30000, 250, 170, 3, 2, 9, 5, 68, 1, 'ALQUILADO'],
+            8 => ['Departamento amoblado en alquiler en %s', 'Departamento', 'Alquiler', 'Calle Barrio Lindo #208', 600, 85, 85, 2, 1, 2, 3, 114, 0, 'ALQUILADO'],
         ];
 
         $detalle = [
@@ -150,8 +146,10 @@ final class PlanDeDatosDemo
             'Local Comercial' => 'Local con frente amplio, buena visibilidad y alto tránsito peatonal. Baño y depósito incluidos.',
         ];
 
-        foreach ($catalogo as $n => [$titulo, $categoria, $tipo, $zona, $calle, $precio, $sup, $const, $hab, $banos, $ant, $slot, $dias, $dueno, $estado]) {
-            [$lat, $lng] = $this->punto($anclas[$zona]);
+        foreach ($catalogo as $n => [$plantilla, $categoria, $tipo, $calle, $precio, $sup, $const, $hab, $banos, $ant, $slot, $dias, $dueno, $estado]) {
+            $zona = $this->sectores[$n - 1];
+            $titulo = sprintf($plantilla, $zona);
+            [$lat, $lng] = $this->punto(SelectorDeSectores::ANCLAS[$zona]);
             $direccion = $calle . ' (referencial)';
             $registro = $this->dia($dias);
 
@@ -189,7 +187,7 @@ final class PlanDeDatosDemo
         }
 
         // Algunas propiedades bajaron de precio (se ve en el historial del CU31): [propiedad, precio anterior, días atrás].
-        foreach ([[1, 140000, 105], [4, 178000, 60], [6, 125000, 70], [8, 79000, 90], [14, 32000, 55]] as [$n, $anterior, $dias]) {
+        foreach ([[1, 140000, 105], [4, 178000, 110], [2, 102000, 100], [6, 93000, 100], [7, 32000, 62]] as [$n, $anterior, $dias]) {
             $p = $this->props[$n];
             $this->agregar('historial', [
                 'tipo' => 'MODIFICACION',
@@ -200,7 +198,7 @@ final class PlanDeDatosDemo
         }
     }
 
-    /** Punto cerca de la referencia, siempre dentro del 4.º anillo. @return array{0: string, 1: string} */
+    /** Punto cerca de la referencia del sector, siempre dentro del 4.º anillo. @return array{0: string, 1: string} */
     private function punto(array $ancla): array
     {
         for ($intento = 0; $intento < 10; $intento++) {
@@ -225,12 +223,15 @@ final class PlanDeDatosDemo
             'Parada', 'Antelo', 'Roca', 'Justiniano', 'Soliz', 'Barba', 'Gutiérrez', 'Cortez', 'Egüez', 'Banzer', 'Moreno', 'Hurtado', 'Villarroel',
             'Zeballos', 'Ribera', 'Arteaga', 'Saucedo', 'Terrazas', 'Guzmán', 'Paz', 'Velasco', 'Añez', 'Durán', 'Claure'];
 
-        // Los 14 primeros clientes protagonizan los escenarios de negocio: [tipo, estado de seguimiento, primer evento (días atrás), propiedad].
+        // Los 14 primeros clientes protagonizan los episodios de negocio: [tipo, estado de seguimiento, primer evento (días atrás), propiedad].
         $roles = [
-            ['Comprador', 'CERRADO', 92, 1], ['Comprador', 'CERRADO', 52, 2], ['Comprador', 'CERRADO', 104, 3], ['Comprador', 'EN_NEGOCIACION', 6, 4],
-            ['Comprador', 'EN_NEGOCIACION', 3, 5], ['Comprador', 'DESCARTADO', 40, 6], ['Comprador', 'DESCARTADO', 30, 7], ['Comprador', 'DESCARTADO', 75, 8],
-            ['Comprador', 'DESCARTADO', 92, 9], ['Inquilino', 'DESCARTADO', 104, 10], ['Inquilino', 'CERRADO', 99, 11], ['Inquilino', 'CERRADO', 65, 12],
-            ['Inquilino', 'CERRADO', 112, 13], ['Inversionista', 'CERRADO', 56, 14],
+            ['Comprador', 'DESCARTADO', 92, 1], ['Comprador', 'CONTACTADO', 40, 1],        // casa 1: contrato rescindido y reserva vencida
+            ['Comprador', 'DESCARTADO', 75, 2], ['Comprador', 'CONTACTADO', 30, 2],        // departamento 2: contrato rescindido y reserva cancelada
+            ['Inquilino', 'CERRADO', 112, 3], ['Inquilino', 'DESCARTADO', 45, 3],          // local 3: alquiler finalizado y otro rescindido
+            ['Comprador', 'DESCARTADO', 95, 4], ['Comprador', 'CONTACTADO', 60, 4], ['Comprador', 'EN_NEGOCIACION', 6, 4], // casa 4
+            ['Comprador', 'CERRADO', 104, 5], ['Comprador', 'CERRADO', 52, 6],            // terreno 5 y departamento 6, vendidos
+            ['Inversionista', 'CERRADO', 56, 7],                                           // anticrético 7
+            ['Inquilino', 'DESCARTADO', 104, 8], ['Inquilino', 'CERRADO', 75, 8],          // departamento 8: alquiler rescindido y vigente
         ];
 
         $total = 36;
@@ -284,45 +285,53 @@ final class PlanDeDatosDemo
     {
         $meses = fn (int $dia, int $n) => $this->hoy->subDays($dia)->addMonthsNoOverflow($n)->format('Y-m-d');
 
-        // n => [cliente, reserva, contrato, pagos [día, monto, moneda, estado]]
-        $escenarios = [
-            1 => [0, ['dia' => 92, 'monto' => 2700, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 77],
-                ['dia' => 85, 'tipo' => 'Venta', 'monto' => 130000, 'estado' => 'FINALIZADO', 'fin' => 62],
-                [[80, 57300, 'USD', 'PAGADO'], [62, 70000, 'USD', 'PAGADO']]],
-            2 => [1, ['dia' => 52, 'monto' => 1960, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 37],
-                ['dia' => 45, 'tipo' => 'Venta', 'monto' => 95000, 'estado' => 'VIGENTE'],
-                [[38, 125280, 'BOB', 'PAGADO'], [30, 5000, 'USD', 'ANULADO'], [20, 9000, 'USD', 'PAGADO'], [3, 10000, 'USD', 'PENDIENTE']]],
-            3 => [2, ['dia' => 104, 'monto' => 6681.60, 'moneda' => 'BOB', 'estado' => 'CONCRETADA', 'plazo' => 89],
+        // Episodios en orden de tiempo por propiedad: [propiedad, cliente, reserva, contrato, pagos [día, monto, moneda, estado]].
+        $episodios = [
+            // Propiedad 1 (casa, DISPONIBLE): un contrato de venta rescindido y, más tarde, una reserva que vence.
+            [1, 0, ['dia' => 92, 'monto' => 2700, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 77],
+                ['dia' => 88, 'tipo' => 'Venta', 'monto' => 130000, 'estado' => 'RESCINDIDO', 'fin' => 76],
+                [[80, 3000, 'USD', 'PENDIENTE']]],
+            [1, 1, ['dia' => 40, 'monto' => 2400, 'moneda' => 'USD', 'estado' => 'VENCIDA', 'plazo' => 25, 'devolucion' => 24], null, []],
+            // Propiedad 2 (departamento, DISPONIBLE): contrato rescindido y reserva cancelada con la devolución pendiente.
+            [2, 2, ['dia' => 75, 'monto' => 1960, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 60],
+                ['dia' => 70, 'tipo' => 'Venta', 'monto' => 95000, 'estado' => 'RESCINDIDO', 'fin' => 58],
+                [[62, 5000, 'USD', 'ANULADO']]],
+            [2, 3, ['dia' => 30, 'monto' => 1300, 'moneda' => 'USD', 'estado' => 'CANCELADA', 'plazo' => 15, 'cancelada' => 22], null, []],
+            // Propiedad 3 (local en alquiler, DISPONIBLE): un alquiler que termina y otro que se rescinde.
+            [3, 4, null, ['dia' => 112, 'tipo' => 'Alquiler', 'monto' => 1000, 'estado' => 'FINALIZADO', 'meses' => 2, 'fin' => 51, 'liberada' => 50],
+                [[112, 500, 'USD', 'PAGADO'], [81, 500, 'USD', 'PAGADO']]],
+            [3, 5, null, ['dia' => 45, 'tipo' => 'Alquiler', 'monto' => 3000, 'estado' => 'RESCINDIDO', 'meses' => 6, 'fin' => 20],
+                [[45, 500, 'USD', 'PAGADO'], [18, 500, 'USD', 'ANULADO']]],
+            // Propiedad 4 (casa, RESERVADO): contrato rescindido, reserva cancelada y reserva vigente en bolivianos.
+            [4, 6, ['dia' => 95, 'monto' => 3000, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 80],
+                ['dia' => 91, 'tipo' => 'Venta', 'monto' => 165000, 'estado' => 'RESCINDIDO', 'fin' => 80],
+                [[85, 15000, 'USD', 'PENDIENTE']]],
+            [4, 7, ['dia' => 60, 'monto' => 2400, 'moneda' => 'USD', 'estado' => 'CANCELADA', 'plazo' => 45, 'cancelada' => 52, 'devolucion' => 51], null, []],
+            [4, 8, ['dia' => 6, 'monto' => 12000, 'moneda' => 'BOB', 'estado' => 'VIGENTE', 'plazo' => -9], null, []],
+            // Propiedad 5 (terreno, VENDIDO): venta ya finalizada y pagada por completo.
+            [5, 9, ['dia' => 104, 'monto' => 6681.60, 'moneda' => 'BOB', 'estado' => 'CONCRETADA', 'plazo' => 89],
                 ['dia' => 100, 'tipo' => 'Venta', 'monto' => 47000, 'estado' => 'FINALIZADO', 'fin' => 70],
                 [[97, 20000, 'USD', 'PAGADO'], [70, 26040, 'USD', 'PAGADO']]],
-            4 => [3, ['dia' => 6, 'monto' => 12000, 'moneda' => 'BOB', 'estado' => 'VIGENTE', 'plazo' => -9], null, []],
-            5 => [4, ['dia' => 3, 'monto' => 1800, 'moneda' => 'USD', 'estado' => 'VIGENTE', 'plazo' => -12], null, []],
-            6 => [5, ['dia' => 40, 'monto' => 2400, 'moneda' => 'USD', 'estado' => 'VENCIDA', 'plazo' => 25, 'devolucion' => 24], null, []],
-            7 => [6, ['dia' => 30, 'monto' => 1300, 'moneda' => 'USD', 'estado' => 'CANCELADA', 'plazo' => 15, 'cancelada' => 22], null, []],
-            8 => [7, ['dia' => 75, 'monto' => 1520, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 60],
-                ['dia' => 70, 'tipo' => 'Venta', 'monto' => 74000, 'estado' => 'RESCINDIDO', 'fin' => 58],
-                [[62, 5000, 'USD', 'ANULADO']]],
-            9 => [8, ['dia' => 92, 'monto' => 800, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 77],
-                ['dia' => 88, 'tipo' => 'Venta', 'monto' => 38000, 'estado' => 'RESCINDIDO', 'fin' => 76],
-                [[80, 3000, 'USD', 'PENDIENTE']]],
-            10 => [9, null, ['dia' => 104, 'tipo' => 'Alquiler', 'monto' => 3300, 'estado' => 'RESCINDIDO', 'meses' => 6, 'fin' => 82],
-                [[104, 550, 'USD', 'PAGADO'], [80, 550, 'USD', 'ANULADO']]],
-            11 => [10, ['dia' => 99, 'monto' => 300, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 84],
-                ['dia' => 95, 'tipo' => 'Alquiler', 'monto' => 7200, 'estado' => 'VIGENTE', 'meses' => 12],
-                [[90, 300, 'USD', 'PAGADO'], [64, 600, 'USD', 'PAGADO'], [34, 600, 'USD', 'PAGADO'], [4, 600, 'USD', 'PENDIENTE']]],
-            12 => [11, null, ['dia' => 65, 'tipo' => 'Alquiler', 'monto' => 2700, 'estado' => 'VIGENTE', 'meses' => 6],
-                [[65, 450, 'USD', 'PAGADO'], [35, 3132, 'BOB', 'PAGADO'], [34, 450, 'USD', 'ANULADO'], [5, 450, 'USD', 'PAGADO']]],
-            13 => [12, null, ['dia' => 112, 'tipo' => 'Alquiler', 'monto' => 1500, 'estado' => 'FINALIZADO', 'meses' => 3, 'fin' => 21, 'liberada' => 20],
-                [[112, 500, 'USD', 'PAGADO'], [81, 500, 'USD', 'PAGADO'], [50, 500, 'USD', 'PAGADO']]],
-            14 => [13, ['dia' => 56, 'monto' => 600, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 41],
+            // Propiedad 6 (departamento, VENDIDO): venta vigente con pagos en dólares y bolivianos.
+            [6, 10, ['dia' => 52, 'monto' => 1800, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 37],
+                ['dia' => 45, 'tipo' => 'Venta', 'monto' => 86000, 'estado' => 'VIGENTE'],
+                [[38, 125280, 'BOB', 'PAGADO'], [30, 5000, 'USD', 'ANULADO'], [20, 9000, 'USD', 'PAGADO'], [3, 10000, 'USD', 'PENDIENTE']]],
+            // Propiedad 7 (casa en anticrético, ALQUILADO).
+            [7, 11, ['dia' => 56, 'monto' => 600, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 41],
                 ['dia' => 50, 'tipo' => 'Anticrético', 'monto' => 28000, 'estado' => 'VIGENTE', 'meses' => 24],
                 [[44, 16000, 'USD', 'PAGADO'], [15, 41760, 'BOB', 'PAGADO']]],
+            // Propiedad 8 (departamento en alquiler, ALQUILADO): un alquiler rescindido y otro vigente con cuotas mensuales.
+            [8, 12, null, ['dia' => 104, 'tipo' => 'Alquiler', 'monto' => 3300, 'estado' => 'RESCINDIDO', 'meses' => 6, 'fin' => 82],
+                [[104, 550, 'USD', 'PAGADO'], [80, 550, 'USD', 'ANULADO']]],
+            [8, 13, ['dia' => 75, 'monto' => 300, 'moneda' => 'USD', 'estado' => 'CONCRETADA', 'plazo' => 60],
+                ['dia' => 70, 'tipo' => 'Alquiler', 'monto' => 7200, 'estado' => 'VIGENTE', 'meses' => 12],
+                [[68, 300, 'USD', 'PAGADO'], [39, 600, 'USD', 'PAGADO'], [9, 600, 'USD', 'PAGADO'], [2, 600, 'USD', 'PENDIENTE']]],
         ];
 
         $movimientos = [];
         $pagos = [];
 
-        foreach ($escenarios as $n => [$i, $reserva, $contrato, $listaPagos]) {
+        foreach ($episodios as [$n, $i, $reserva, $contrato, $listaPagos]) {
             $p = $this->props[$n];
             $c = $this->clientes[$i];
             $clave = ['cliente' => $c['email'], 'propiedad' => $p['titulo']];
@@ -524,10 +533,10 @@ final class PlanDeDatosDemo
     private function inquilinos(): void
     {
         $ocupaciones = ['Ingeniero civil', 'Docente universitaria', 'Comerciante', 'Médico', 'Contadora', 'Arquitecto', 'Empleada bancaria', 'Abogado'];
-        // Los 4 inquilinos con contrato (posiciones 9 a 12) y 4 más (14 a 17).
+        // Los 4 inquilinos con contrato (posiciones 4, 5, 12 y 13) y 4 más (14 a 17).
         $quienes = [
-            9 => ['DEPOSITO', 'Depósito de dos meses de alquiler', 'INACTIVO'], 10 => ['GARANTE', 'Garante: hermano con propiedad en Equipetrol', 'ACTIVO'],
-            11 => ['DEPOSITO', 'Depósito de un mes de alquiler', 'ACTIVO'], 12 => ['OTRA', 'Boleta de garantía bancaria', 'INACTIVO'],
+            4 => ['DEPOSITO', 'Depósito de dos meses de alquiler', 'INACTIVO'], 5 => ['GARANTE', 'Garante: hermano con propiedad en Equipetrol', 'INACTIVO'],
+            12 => ['OTRA', 'Boleta de garantía bancaria', 'INACTIVO'], 13 => ['DEPOSITO', 'Depósito de un mes de alquiler', 'ACTIVO'],
             14 => ['GARANTE', 'Garante: empleador con carta de respaldo', 'ACTIVO'], 15 => ['NINGUNA', null, 'ACTIVO'],
             16 => ['DEPOSITO', 'Depósito de dos meses de alquiler', 'ACTIVO'], 17 => ['OTRA', 'Póliza de caución de alquiler', 'INACTIVO'],
         ];
@@ -543,14 +552,13 @@ final class PlanDeDatosDemo
 
     private function resenas(): void
     {
-        // [propiedad, cliente, puntuación, días atrás, comentario]: solo en propiedades con contrato de ese cliente.
+        // [propiedad, cliente, puntuación, días atrás, comentario]: solo en propiedades con contrato vigente o finalizado de ese cliente.
         $lista = [
-            [1, 0, 5, 55, 'Excelente atención del agente y la casa tal como la describieron. Todo el trámite fue claro.'],
-            [3, 2, 4, 60, 'Buen terreno y papeles en orden. El proceso tardó un poco más de lo esperado.'],
-            [13, 12, 4, 15, null],
-            [2, 1, 3, 12, 'El departamento es bonito, aunque las expensas son más altas de lo que pensaba.'],
-            [11, 10, 5, 9, 'Muy buena ubicación y el propietario atento. Recomiendo la propiedad.'],
-            [14, 13, 4, 8, null],
+            [5, 9, 4, 60, 'Buen terreno y papeles en orden. El proceso tardó un poco más de lo esperado.'],
+            [6, 10, 3, 12, 'El departamento es bonito, aunque las expensas son más altas de lo que pensaba.'],
+            [3, 4, 4, 15, null],
+            [8, 13, 5, 9, 'Muy buena ubicación y el propietario atento. Recomiendo la propiedad.'],
+            [7, 11, 4, 8, null],
         ];
 
         foreach ($lista as [$n, $i, $puntos, $dia, $comentario]) {
@@ -565,14 +573,19 @@ final class PlanDeDatosDemo
 
     private function visitas(): void
     {
-        // Ventanas (días atrás, de más antiguo a más reciente) en que cada propiedad se podía visitar.
+        // Ventanas (días atrás, de más antiguo a más reciente) en que cada propiedad se podía visitar: cuando está disponible.
         $ventanas = [
-            1 => [[117, 93]], 2 => [[111, 53]], 3 => [[115, 105]], 4 => [[94, 8]], 5 => [[87, 5]], 6 => [[83, 42], [23, 3]], 7 => [[78, 32], [21, 3]],
-            8 => [[99, 77], [57, 3]], 9 => [[104, 94], [75, 3]], 10 => [[113, 106], [81, 3]], 11 => [[107, 101]], 12 => [[69, 67]],
-            13 => [[120, 114], [19, 3]], 14 => [[67, 58]],
+            1 => [[117, 93], [75, 41], [23, 3]],
+            2 => [[111, 76], [57, 31], [21, 3]],
+            3 => [[120, 113], [49, 46], [19, 3]],
+            4 => [[117, 96], [79, 61], [51, 7]],
+            5 => [[120, 105]],
+            6 => [[111, 53]],
+            7 => [[67, 57]],
+            8 => [[113, 105], [81, 76]],
         ];
         // [visitas pasadas, visitas futuras]: las futuras solo en propiedades que hoy están disponibles.
-        $cantidades = [1 => [3, 0], 2 => [5, 0], 3 => [2, 0], 4 => [4, 0], 5 => [4, 0], 6 => [3, 2], 7 => [3, 1], 8 => [2, 2], 9 => [2, 1], 10 => [2, 1], 11 => [2, 0], 12 => [1, 0], 13 => [3, 0], 14 => [2, 0]];
+        $cantidades = [1 => [6, 2], 2 => [6, 2], 3 => [5, 1], 4 => [7, 0], 5 => [3, 0], 6 => [6, 0], 7 => [3, 0], 8 => [4, 0]];
         $motivosCancelacion = ['El cliente tuvo un imprevisto.', 'El cliente ya eligió otra propiedad.', 'Lluvia fuerte ese día.', 'El cliente no pudo asistir.'];
         $motivosReagenda = ['El cliente pidió cambiar el horario.', 'El agente tuvo otra cita ese día.', 'Se reprogramó por pedido del propietario.'];
 
@@ -582,7 +595,7 @@ final class PlanDeDatosDemo
             for ($k = 0; $k < $pasadas + $futuras; $k++) {
                 $futura = $k >= $pasadas;
 
-                for ($intento = 0; $intento < 40; $intento++) {
+                for ($intento = 0; $intento < 60; $intento++) {
                     if ($futura) {
                         $dia = -$this->azar->entero(1, 25);
                     } else {
@@ -593,14 +606,14 @@ final class PlanDeDatosDemo
                     $llave = $slot . '|' . $dia . '|' . $hora;
                     $i = $this->azar->entero(0, count($this->clientes) - 1);
 
-                    // Sin cruces de horario del mismo agente y con el cliente ya registrado.
+                    // Sin cruces de horario del mismo agente y con el cliente ya registrado (un agente no está en dos visitas a la vez).
                     if (isset($this->ocupadas[$llave]) || $this->clientes[$i]['registro'] < $dia) {
                         continue;
                     }
                     $this->ocupadas[$llave] = true;
 
                     $estado = $futura
-                        ? $this->azar->ponderado(['PROGRAMADA' => 70, 'REAGENDADA' => 30])
+                        ? $this->azar->ponderado(['PROGRAMADA' => 60, 'REAGENDADA' => 40])
                         : $this->azar->ponderado(['REALIZADA' => 60, 'CANCELADA' => 40]);
 
                     $fecha = $this->fecha($dia);
