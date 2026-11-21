@@ -15,6 +15,23 @@
     <span class="badge text-bg-{{ $colores[$cliente->estadoseguimiento] ?? 'secondary' }} fs-6">{{ $cliente->estado_etiqueta }}</span>
 </div>
 
+<div class="card shadow-sm mb-4">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h2 class="h5 mb-1">Seguimiento de contactos</h2>
+            @if ($ultimoContacto)
+                <p class="mb-0 small">Último contacto: <strong>{{ $ultimoContacto->fechacontacto->format('d/m/Y H:i') }}</strong> por {{ \App\Models\Seguimiento::MEDIOS[$ultimoContacto->medio] ?? $ultimoContacto->medio }} &mdash; {{ \Illuminate\Support\Str::limit($ultimoContacto->nota, 90) }}</p>
+            @else
+                <p class="mb-0 small text-muted">Sin seguimientos registrados</p>
+            @endif
+            @if ($proximoContacto)
+                <span class="badge text-bg-warning mt-1">Próximo contacto: {{ \Illuminate\Support\Carbon::parse($proximoContacto)->format('d/m/Y') }}</span>
+            @endif
+        </div>
+        <a href="{{ route('prospectos.seguimientos', $cliente) }}" class="btn btn-primary">Seguimiento</a>
+    </div>
+</div>
+
 <div class="row g-4">
     <div class="col-lg-5">
         <div class="card shadow-sm mb-4">

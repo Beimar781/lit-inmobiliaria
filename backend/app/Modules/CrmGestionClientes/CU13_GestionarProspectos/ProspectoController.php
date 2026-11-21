@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use App\Models\Rol;
 use App\Models\Usuario;
+use App\Modules\CrmGestionClientes\Compartido\AccesoAProspecto;
 use App\Services\BitacoraService;
 use App\Support\ParametrosConsulta;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +17,7 @@ use Illuminate\View\View;
 /**
  * CU13: Gestionar prospectos CRM (Agente y Administrador)
  * El Agente ve y gestiona solo sus prospectos; el Administrador ve todos (incluidos los sin asignar) y puede reasignarlos.
- * Las notas e historial de contactos se registran con el CU18 (ciclo posterior).
+ * Las notas e historial de contactos se registran con el CU18.
  * Flujo principal:
  *  1. El usuario accede al listado de prospectos                          -> index()
  *  2. Busca por nombre, correo o teléfono y/o filtra por estado de seguimiento
@@ -70,6 +71,8 @@ class ProspectoController extends Controller
 
         return view('crmgestionclientes::CU13_GestionarProspectos.detalle', [
             'cliente' => $cliente->load(['agente', 'intereses.propiedad']),
+            'ultimoContacto' => $cliente->seguimientos()->orderByDesc('fechacontacto')->orderByDesc('idseguimiento')->first(),
+            'proximoContacto' => $cliente->seguimientos()->whereDate('proximocontacto', '>=', today())->min('proximocontacto'),
             'estados' => Cliente::ESTADOS,
             'estadosCliente' => Cliente::ESTADOS_CLIENTE,
             'agentes' => $request->user()->tieneRol(Rol::ADMINISTRADOR) ? $this->agentes() : [],
@@ -151,16 +154,10 @@ class ProspectoController extends Controller
         return redirect()->route('prospectos.show', $cliente)->with('status', 'Prospecto asignado a ' . $cliente->agente->nombre . '.');
     }
 
-    /** El Agente solo accede a sus prospectos; el Administrador, a todos. */
+    /** El Agente solo accede a sus prospectos; el Administrador, a todos (regla compartida con CU18 y CU24). */
     private function autorizar(Request $request, Cliente $cliente): void
     {
-        $usuario = $request->user();
-
-        abort_unless(
-            $usuario->tieneRol(Rol::ADMINISTRADOR) || $cliente->idusuario === $usuario->idusuario,
-            403,
-            'Este prospecto no está asignado a ti.'
-        );
+        AccesoAProspecto::autorizar($cliente);
     }
 
     /** Agentes activos a los que se puede asignar un prospecto: [idusuario => nombre]. */

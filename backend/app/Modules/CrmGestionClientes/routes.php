@@ -5,6 +5,7 @@ use App\Models\Rol;
 use App\Modules\CrmGestionClientes\CU12_RegistrarClienteInteresado\RegistrarClienteController;
 use App\Modules\CrmGestionClientes\CU12_RegistrarClienteInteresado\RegistrarInteresController;
 use App\Modules\CrmGestionClientes\CU13_GestionarProspectos\ProspectoController;
+use App\Modules\CrmGestionClientes\CU18_RegistrarSeguimiento\SeguimientoController;
 use Illuminate\Support\Facades\Route;
 
 // Paquete P4 - CRM y Gestión de Clientes
@@ -28,6 +29,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/crm/prospectos', [ProspectoController::class, 'index'])->name('prospectos.index');
         Route::get('/crm/prospectos/{cliente}', [ProspectoController::class, 'show'])->whereNumber('cliente')->name('prospectos.show');
         Route::patch('/crm/prospectos/{cliente}/seguimiento', [ProspectoController::class, 'actualizarSeguimiento'])->whereNumber('cliente')->name('prospectos.seguimiento');
+
+        // CU18: historial de contactos y registro de seguimiento (no se editan ni se eliminan)
+        Route::get('/crm/prospectos/{cliente}/seguimientos', [SeguimientoController::class, 'mostrar'])->whereNumber('cliente')->name('prospectos.seguimientos');
+        Route::post('/crm/prospectos/{cliente}/seguimientos', [SeguimientoController::class, 'guardar'])->whereNumber('cliente')->name('prospectos.seguimientos.guardar');
     });
 
     // CU13: solo el Administrador reasigna prospectos a otro agente
