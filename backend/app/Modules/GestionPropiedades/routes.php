@@ -3,6 +3,7 @@
 use App\Http\Middleware\RolMiddleware;
 use App\Models\Rol;
 use App\Modules\GestionPropiedades\Compartido\PropiedadController;
+use App\Modules\GestionPropiedades\CU19_CargarImagenes\ImagenesController;
 use App\Modules\GestionPropiedades\CU5_RegistrarPropiedad\RegistrarPropiedadController;
 use App\Modules\GestionPropiedades\CU6_ModificarPropiedad\ModificarPropiedadController;
 use App\Modules\GestionPropiedades\CU7_EliminarPropiedad\EliminarPropiedadController;
@@ -27,6 +28,12 @@ Route::middleware('auth')->group(function () {
         // CU8: Cambiar estado (el Agente solo en las propiedades que él registró: se comprueba en el controlador)
         Route::get('/propiedades/{propiedad}/estado', [CambiarEstadoController::class, 'mostrar'])->name('propiedades.estado');
         Route::put('/propiedades/{propiedad}/estado', [CambiarEstadoController::class, 'actualizar'])->name('propiedades.estado.actualizar');
+
+        // CU19: Cargar imágenes (galería; el Agente solo en las propiedades que él registró: se comprueba en el controlador)
+        Route::get('/propiedades/{propiedad}/imagenes', [ImagenesController::class, 'galeria'])->name('propiedades.imagenes');
+        Route::post('/propiedades/{propiedad}/imagenes', [ImagenesController::class, 'subir'])->name('propiedades.imagenes.subir');
+        Route::patch('/propiedades/{propiedad}/imagenes/{imagen}/portada', [ImagenesController::class, 'portada'])->name('propiedades.imagenes.portada');
+        Route::delete('/propiedades/{propiedad}/imagenes/{imagen}', [ImagenesController::class, 'eliminar'])->name('propiedades.imagenes.eliminar');
     });
 
     // Solo Administrador: CU7 Eliminar (dar de baja) propiedad

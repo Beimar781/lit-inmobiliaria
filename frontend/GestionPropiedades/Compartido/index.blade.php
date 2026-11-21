@@ -78,6 +78,7 @@
                         <a href="{{ route('propiedades.estado', $p) }}" class="btn btn-sm btn-outline-secondary">Cambiar estado</a>
                     @endif
                     @if (auth()->user()->tieneRol('Administrador') || $p->idusuario === auth()->id())
+                        <a href="{{ route('propiedades.imagenes', $p) }}" class="btn btn-sm btn-outline-secondary">Imágenes</a>
                         <a href="{{ route('propiedades.historial', $p) }}" class="btn btn-sm btn-outline-dark">Historial</a>
                     @endif
                     {{-- CU14: agendar una visita en nombre de un cliente (solo propiedades disponibles) --}}
