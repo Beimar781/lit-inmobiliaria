@@ -224,7 +224,7 @@ class CU30_GenerarComprobanteTest extends SistemaTestCase
             'monto' => '1000', 'moneda' => 'USD', 'fechaplazo' => '2026-12-30',
         ])->assertSessionHasNoErrors();
         $this->actingAs($ana)->post(route('contratos.store'), [
-            'idpropiedad' => $propiedad->idpropiedad, 'idcliente' => $cliente->idcliente, 'monto' => '85000', 'fechainicio' => '2026-12-20',
+            'idpropiedad' => $propiedad->idpropiedad, 'idcliente' => $cliente->idcliente, 'monto' => '85000', 'fechainicio' => '2026-12-10', // el pago no puede ser anterior al inicio del contrato (F-008)
         ])->assertSessionHasNoErrors();
         $contrato = Contrato::firstOrFail();
         $this->assertSame('CP-2026-000001', $contrato->pagos()->firstOrFail()->comprobante);
