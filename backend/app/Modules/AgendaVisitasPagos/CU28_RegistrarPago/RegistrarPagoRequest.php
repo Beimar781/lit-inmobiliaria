@@ -2,6 +2,7 @@
 
 namespace App\Modules\AgendaVisitasPagos\CU28_RegistrarPago;
 
+use App\Models\Contrato;
 use App\Models\Pago;
 use App\Modules\AgendaVisitasPagos\Compartido\AgendaDeVisitas;
 use Illuminate\Foundation\Http\FormRequest;
@@ -32,6 +33,13 @@ class RegistrarPagoRequest extends FormRequest
                 function (string $atributo, mixed $fecha, \Closure $falla) {
                     if ($fecha > AgendaDeVisitas::ahora()->toDateString()) {
                         $falla('La fecha de pago no puede ser futura.');
+                    }
+                },
+                function (string $atributo, mixed $fecha, \Closure $falla) {
+                    $inicio = Contrato::whereKey($this->input('idcontrato'))->value('fechainicio');
+
+                    if ($inicio && $fecha < substr((string) $inicio, 0, 10)) {
+                        $falla('La fecha del pago no puede ser anterior al inicio del contrato.');
                     }
                 },
             ],

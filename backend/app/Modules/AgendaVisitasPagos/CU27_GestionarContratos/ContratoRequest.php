@@ -32,8 +32,13 @@ class ContratoRequest extends FormRequest
             'idpropiedad' => ['required', 'exists:propiedad,idpropiedad'],
             'idcliente' => ['required', 'exists:cliente,idcliente'],
             'monto' => ['required', 'numeric', 'gt:0', 'max:9999999999.99', 'decimal:0,2'],
-            'fechainicio' => ['required', 'date_format:Y-m-d'],
-            'fechafin' => ['nullable', 'date_format:Y-m-d', 'after:fechainicio'],
+            // Límites razonables para atrapar errores de tipeo (año 2206, 1926...): hasta 10 años atrás y 1 año adelante.
+            'fechainicio' => [
+                'required', 'date_format:Y-m-d',
+                'after_or_equal:' . now()->subYears(10)->toDateString(),
+                'before_or_equal:' . now()->addYear()->toDateString(),
+            ],
+            'fechafin' => ['nullable', 'date_format:Y-m-d', 'after:fechainicio', 'before_or_equal:' . now()->addYears(40)->toDateString()],
         ];
     }
 
@@ -51,6 +56,9 @@ class ContratoRequest extends FormRequest
             'monto.decimal' => 'El monto puede tener como máximo 2 decimales.',
             'fechainicio.required' => 'Indica la fecha de inicio del contrato.',
             'fechainicio.date_format' => 'La fecha de inicio no es válida.',
+            'fechainicio.after_or_equal' => 'La fecha de inicio no puede ser de hace más de 10 años.',
+            'fechainicio.before_or_equal' => 'La fecha de inicio no puede ser de más de un año en el futuro.',
+            'fechafin.before_or_equal' => 'La fecha de fin es demasiado lejana.',
             'fechafin.date_format' => 'La fecha de fin no es válida.',
             'fechafin.after' => 'La fecha de fin debe ser posterior a la de inicio.',
         ];
