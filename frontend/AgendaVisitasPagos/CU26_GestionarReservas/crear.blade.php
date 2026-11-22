@@ -19,6 +19,7 @@
             <div class="card-body">
                 <form method="POST" action="{{ route('reservas.store') }}" novalidate>
                     @csrf
+                    {!! \App\Http\Middleware\EnvioUnico::campo() !!}
 
                     @if ($visitas->isNotEmpty())
                         {{-- Opcional: una visita realizada llena la propiedad y el cliente --}}

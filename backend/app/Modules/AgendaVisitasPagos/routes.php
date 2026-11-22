@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\AgendaVisitasPagos\CU14_AgendarVisita\AgendarVisitaController;
+use App\Http\Middleware\EnvioUnico;
 use App\Http\Middleware\RolMiddleware;
 use App\Models\Rol;
 use App\Modules\AgendaVisitasPagos\CU15_ReagendarVisita\ReagendarVisitaController;
@@ -52,7 +53,7 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
     // CU27: Gestionar contratos (el Agente solo con los de sus propiedades)
     Route::get('/contratos', [ContratoController::class, 'index'])->name('contratos.index');
     Route::get('/contratos/crear', [ContratoController::class, 'crear'])->name('contratos.create');
-    Route::post('/contratos', [ContratoController::class, 'guardar'])->middleware('throttle:contratos-registrar')->name('contratos.store');
+    Route::post('/contratos', [ContratoController::class, 'guardar'])->middleware(['throttle:contratos-registrar', EnvioUnico::class])->name('contratos.store');
     Route::get('/contratos/{contrato}', [ContratoController::class, 'show'])->whereNumber('contrato')->name('contratos.show');
     Route::patch('/contratos/{contrato}/estado', [ContratoController::class, 'cambiarEstado'])->whereNumber('contrato')->name('contratos.estado');
 });
@@ -63,7 +64,7 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
 Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE . ',' . Rol::ASISTENTE])->group(function () {
     Route::get('/reservas', [ReservaController::class, 'index'])->name('reservas.index');
     Route::get('/reservas/crear', [ReservaController::class, 'crear'])->name('reservas.create');
-    Route::post('/reservas', [ReservaController::class, 'guardar'])->middleware('throttle:reservas-registrar')->name('reservas.store');
+    Route::post('/reservas', [ReservaController::class, 'guardar'])->middleware(['throttle:reservas-registrar', EnvioUnico::class])->name('reservas.store');
     Route::patch('/reservas/{reserva}/cancelar', [ReservaController::class, 'cancelar'])->whereNumber('reserva')->name('reservas.cancelar');
     Route::post('/reservas/{reserva}/devolucion', [ReservaController::class, 'devolver'])->whereNumber('reserva')->name('reservas.devolver');
     Route::get('/reservas/recibos/{movimiento}', [ReservaController::class, 'recibo'])->whereNumber('movimiento')->name('reservas.recibo');
@@ -76,7 +77,7 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
     Route::get('/pagos/{pago}', [HistorialPagosController::class, 'show'])->whereNumber('pago')->name('pagos.show');
 
     Route::get('/pagos/crear', [PagoController::class, 'crear'])->name('pagos.create');
-    Route::post('/pagos', [PagoController::class, 'guardar'])->middleware('throttle:pagos-registrar')->name('pagos.store');
+    Route::post('/pagos', [PagoController::class, 'guardar'])->middleware(['throttle:pagos-registrar', EnvioUnico::class])->name('pagos.store');
     Route::get('/pagos/{pago}/comprobante', [ComprobanteController::class, 'mostrar'])->name('pagos.comprobante');
     // Pago con tarjeta: a dónde vuelve el cliente desde la página de Stripe
     Route::get('/pagos/{pago}/tarjeta/exito', [PagoTarjetaController::class, 'exito'])->whereNumber('pago')->name('pagos.tarjeta.exito');

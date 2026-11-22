@@ -86,6 +86,25 @@
     })();
 </script>
 
+{{-- Doble envío: al enviar un formulario POST se desactivan sus botones para que un segundo clic no repita la operación (pagos, reservas, contratos...). --}}
+<script>
+    (function () {
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form || form.tagName !== 'FORM' || (form.method || '').toLowerCase() !== 'post') { return; }
+            // Se espera a que terminen los demás manejadores (por ejemplo, un confirm() que cancele el envío).
+            setTimeout(function () {
+                if (e.defaultPrevented) { return; }
+                form.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]').forEach(function (b) { b.disabled = true; });
+            }, 0);
+        });
+        // Al volver con «atrás» la página puede reaparecer con los botones desactivados.
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) { document.querySelectorAll('form button[disabled], form input[type="submit"][disabled]').forEach(function (b) { b.disabled = false; }); }
+        });
+    })();
+</script>
+
 @stack('scripts')
 </body>
 </html>

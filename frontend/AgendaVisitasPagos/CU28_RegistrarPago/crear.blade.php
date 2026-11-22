@@ -90,6 +90,7 @@
                     <div class="card-body">
                         <form method="POST" action="{{ route('pagos.store') }}" novalidate>
                             @csrf
+                            {!! \App\Http\Middleware\EnvioUnico::campo() !!}
                             <input type="hidden" name="idcontrato" value="{{ $contrato->idcontrato }}">
                             @error('idcontrato')
                                 <div class="alert alert-danger">{{ $message }}</div>

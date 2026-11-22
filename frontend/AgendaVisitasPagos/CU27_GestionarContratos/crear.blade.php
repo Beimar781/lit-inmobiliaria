@@ -12,6 +12,7 @@
             <div class="card-body">
                 <form method="POST" action="{{ route('contratos.store') }}" novalidate>
                     @csrf
+                    {!! \App\Http\Middleware\EnvioUnico::campo() !!}
 
                     <div class="mb-3">
                         <label for="idpropiedad" class="form-label">Propiedad</label>
