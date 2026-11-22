@@ -2,6 +2,7 @@
 
 namespace App\Modules\ReportesAdministracion\CU20_GenerarReportes;
 
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -39,6 +40,8 @@ class ServicioGemini implements ServicioDeIa
 
         try {
             $respuesta = Http::timeout((int) config('services.ia.timeout', 15))
+                // Con la cuota gratuita Gemini responde 429/503 a ratos: se reintenta UNA vez tras una pausa corta (otros errores, no).
+                ->retry(2, 400, fn ($excepcion) => in_array($excepcion instanceof RequestException ? $excepcion->response?->status() : null, [429, 503], true), throw: false)
                 ->withHeaders(['x-goog-api-key' => config('services.ia.key')]) // en la cabecera, no en la URL
                 ->acceptJson()
                 ->post(self::URL . config('services.ia.modelo') . ':generateContent', [

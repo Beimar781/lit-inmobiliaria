@@ -10,7 +10,10 @@ use App\Modules\ReportesAdministracion\CU20_GenerarReportes\ServicioGemini;
 use App\Support\BrevoTransport;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -40,6 +43,13 @@ class AppServiceProvider extends ServiceProvider
 
         // Correo real en producción (MAIL_MAILER=brevo): envío por la API web de Brevo.
         Mail::extend('brevo', fn (array $config) => new BrevoTransport(config('services.brevo.key')));
+
+        // Límites por usuario (o por IP) de los reportes: generar y exportar consumen CPU, memoria y, con IA, cuota del proveedor.
+        RateLimiter::for('reportes-generar', fn (Request $request) => Limit::perMinute(30)->by($request->user()?->idusuario ?: $request->ip()));
+        foreach (['pagos-registrar', 'reservas-registrar', 'contratos-registrar'] as $nombre) {
+            RateLimiter::for($nombre, fn (Request $request) => Limit::perMinute(30)->by($request->user()?->idusuario ?: $request->ip()));
+        }
+        RateLimiter::for('reportes-exportar', fn (Request $request) => Limit::perMinute(15)->by($request->user()?->idusuario ?: $request->ip()));
 
         $this->correoDeRecuperacion();
 

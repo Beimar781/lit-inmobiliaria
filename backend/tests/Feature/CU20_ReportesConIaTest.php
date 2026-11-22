@@ -518,6 +518,75 @@ class CU20_ReportesConIaTest extends SistemaTestCase
         $this->get(route('reportes.index'))->assertSee('id="btn-detener-voz"', false)->assertSee('position-fixed d-none', false);
     }
 
+    // ------------------------------------------------- F-005: límites de uso y reintento
+
+    public function test_el_resumen_de_ia_tiene_limite_por_usuario_aunque_se_repita_el_enlace_a_mano(): void
+    {
+        $this->contratoDePrueba();
+        $this->iaFalsa(null, 'Resumen de prueba.');
+        $this->actingAs($this->admin());
+        $parametros = ['tipo' => 'contratos', 'con_resumen' => '1', 'origen' => 'ia'];
+
+        for ($i = 1; $i <= 10; $i++) {
+            $this->get(route('reportes.generar', $parametros))->assertOk()->assertSee('Resumen de prueba.');
+        }
+        Http::assertSentCount(10);
+
+        // El 11.º en el mismo minuto no llama a la IA: el reporte sale igual, con aviso
+        $this->get(route('reportes.generar', $parametros))->assertOk()
+            ->assertSee('Pediste muchos resúmenes seguidos')->assertSee('1,500.00')->assertDontSee('Resumen de prueba.');
+        Http::assertSentCount(10);
+    }
+
+    public function test_generar_y_exportar_tienen_limite_por_minuto_y_pagos_reservas_y_contratos_tambien(): void
+    {
+        $this->contratoDePrueba();
+        $this->actingAs($this->admin());
+
+        for ($i = 0; $i < 30; $i++) {
+            $this->get(route('reportes.generar', ['tipo' => 'contratos']))->assertOk();
+        }
+        $this->get(route('reportes.generar', ['tipo' => 'contratos']))->assertStatus(429);
+
+        for ($i = 0; $i < 15; $i++) {
+            $this->get(route('reportes.exportar', ['formato' => 'xlsx', 'tipo' => 'contratos']))->assertOk();
+        }
+        $this->get(route('reportes.exportar', ['formato' => 'xlsx', 'tipo' => 'contratos']))->assertStatus(429);
+
+        foreach (['pagos.store', 'reservas.store', 'contratos.store'] as $ruta) {
+            for ($i = 0; $i < 30; $i++) {
+                $this->assertNotSame(429, $this->post(route($ruta), [])->getStatusCode(), "{$ruta} no debe limitar antes del intento 31");
+            }
+            $this->post(route($ruta), [])->assertStatus(429);
+        }
+    }
+
+    public function test_ante_un_429_o_503_de_la_ia_se_reintenta_una_vez_y_con_otros_errores_no(): void
+    {
+        $this->actingAs($this->admin());
+        $bueno = ['candidates' => [['content' => ['parts' => [['text' => json_encode(['tipo' => 'propiedades'])]]]]]];
+
+        foreach ([429, 503] as $codigo) {
+            $this->reiniciarHttp();
+            Http::fake([
+                'generativelanguage.googleapis.com/*' => Http::sequence()->push(['error' => 'cuota'], $codigo)->push($bueno, 200),
+            ]);
+            $this->assertStringStartsWith(route('reportes.generar'), $this->interpretar('propiedades')->headers->get('Location'), "tras un {$codigo} reintenta y funciona");
+            Http::assertSentCount(2);
+        }
+
+        // Dos fallos seguidos: se rinde (mensaje de servicio caído) sin quedarse reintentando
+        $this->reiniciarHttp();
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['error' => 'cuota'], 429)]);
+        $this->interpretar('propiedades')->assertSessionHasErrors(['solicitud' => self::SIN_SERVICIO]);
+        Http::assertSentCount(2);
+
+        // Un 500 no se reintenta
+        $this->reiniciarHttp();
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response('error', 500)]);
+        $this->interpretar('propiedades');
+        Http::assertSentCount(1);
+    }
     // ------------------------------------------------- F-002: fechas relativas e interpretación del año
 
     public function test_la_ia_recibe_la_fecha_de_hoy_en_bolivia_y_la_lista_de_periodos_pero_ningun_dato(): void

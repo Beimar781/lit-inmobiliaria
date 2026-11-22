@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -27,6 +28,9 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class ReporteController extends Controller
 {
+    /** Resúmenes de IA que un usuario puede pedir por minuto (cada uno es una llamada al proveedor). */
+    private const RESUMENES_POR_MINUTO = 10;
+
     public function index(ReporteRequest $request): View
     {
         $criterios = $request->hayTipo() ? $this->criteriosPermitidos($request) : null;
@@ -109,10 +113,18 @@ class ReporteController extends Controller
         $resumen = null;
         $avisoResumen = null;
         if ($request->conResumen() && ! $resultado->estaVacio()) {
-            $resumen = app(ServicioDeIa::class)->resumir(DatosParaResumen::desde($criterios, $resultado));
-            if ($resumen === null) {
-                $avisoResumen = 'No se pudo generar el resumen automático.';
+            // Cada resumen es una llamada a la IA (lenta y con cuota): se limita por usuario aunque se repita el enlace a mano.
+            $clave = 'ia-resumen:' . auth()->id();
+            if (RateLimiter::tooManyAttempts($clave, self::RESUMENES_POR_MINUTO)) {
+                $resumen = null;
+                $avisoResumen = 'Pediste muchos resúmenes seguidos. Espera un minuto para volver a pedir el resumen automático.';
             } else {
+                RateLimiter::hit($clave, 60);
+                $resumen = app(ServicioDeIa::class)->resumir(DatosParaResumen::desde($criterios, $resultado));
+                $avisoResumen = $resumen === null ? 'No se pudo generar el resumen automático.' : null;
+            }
+
+            if ($resumen !== null) {
                 session()->put($this->claveResumen($criterios), $resumen); // para incluirlo en el PDF sin volver a llamar a la IA
             }
         }

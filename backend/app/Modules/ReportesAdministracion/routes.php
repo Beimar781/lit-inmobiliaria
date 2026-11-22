@@ -44,6 +44,6 @@ Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ','
 Route::middleware(['auth', RolMiddleware::class . ':' . Rol::ADMINISTRADOR . ',' . Rol::AGENTE . ',' . Rol::ASISTENTE])->group(function () {
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes.index');
     Route::post('/reportes/interpretar', [ReporteController::class, 'interpretar'])->middleware('throttle:10,1')->name('reportes.interpretar');
-    Route::get('/reportes/generar', [ReporteController::class, 'generar'])->name('reportes.generar');
-    Route::get('/reportes/exportar/{formato}', [ReporteController::class, 'exportar'])->name('reportes.exportar');
+    Route::get('/reportes/generar', [ReporteController::class, 'generar'])->middleware('throttle:reportes-generar')->name('reportes.generar');
+    Route::get('/reportes/exportar/{formato}', [ReporteController::class, 'exportar'])->middleware('throttle:reportes-exportar')->name('reportes.exportar');
 });
