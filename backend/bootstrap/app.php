@@ -17,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // El webhook de Stripe lo llama el servidor de Stripe (sin sesión ni token): su seguridad es la firma del mensaje.
         $middleware->validateCsrfTokens(except: ['stripe/webhook']);
+
+        // X-Content-Type-Options, X-Frame-Options y Referrer-Policy en todas las respuestas web.
+        $middleware->web(prepend: [\App\Http\Middleware\CabecerasDeSeguridad::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
