@@ -518,6 +518,92 @@ class CU20_ReportesConIaTest extends SistemaTestCase
         $this->get(route('reportes.index'))->assertSee('id="btn-detener-voz"', false)->assertSee('position-fixed d-none', false);
     }
 
+    // ------------------------------------------------- F-002: fechas relativas e interpretación del año
+
+    public function test_la_ia_recibe_la_fecha_de_hoy_en_bolivia_y_la_lista_de_periodos_pero_ningun_dato(): void
+    {
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-11-21 23:30:00', 'America/La_Paz'));
+        $this->iaFalsa(['tipo' => 'pagos']);
+        $this->actingAs($this->admin());
+
+        $this->interpretar('pagos de septiembre');
+
+        Http::assertSent(function (Request $p) {
+            $instruccion = $p['systemInstruction']['parts'][0]['text'];
+            $this->assertStringContainsString('Hoy es 2026-11-21 (sábado)', $instruccion);
+            $this->assertStringContainsString('America/La_Paz', $instruccion);
+            $this->assertStringContainsString('el año actual es 2026', $instruccion);
+            foreach (['hoy', 'ayer', 'esta_semana', 'semana_pasada', 'mes_pasado', 'ultimos_3_meses', 'ultimos_6_meses', 'este_anio', 'anio_pasado'] as $periodo) {
+                $this->assertStringContainsString($periodo, $instruccion);
+            }
+
+            return true;
+        });
+    }
+
+    public function test_una_fecha_con_el_anio_equivocado_se_corrige_al_anio_actual(): void
+    {
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-11-21 12:00:00', 'America/La_Paz'));
+        $this->actingAs($this->admin());
+
+        foreach ([
+            // [solicitud, tipo, lo que devuelve la IA, lo esperado]
+            ['pagos de septiembre', 'pagos', ['2023-09-01', '2023-09-30'], ['2026-09-01', '2026-09-30']],
+            ['visitas de ayer', 'visitas', ['2023-10-24', '2023-10-24'], ['2026-10-24', '2026-10-24']],
+            ['contratos de diciembre', 'contratos', ['2024-12-01', '2024-12-31'], ['2025-12-01', '2025-12-31']],     // diciembre de este año todavía no llega
+            ['visitas de diciembre', 'visitas', ['2024-12-01', '2024-12-31'], ['2026-12-01', '2026-12-31']],         // las visitas sí pueden ser futuras
+            ['pagos de septiembre de 2024', 'pagos', ['2024-09-01', '2024-09-30'], ['2024-09-01', '2024-09-30']],   // el usuario dijo el año: se respeta
+            ['pagos del 5 al 15 de octubre', 'pagos', ['2026-10-05', '2026-10-15'], ['2026-10-05', '2026-10-15']],   // ya estaba bien
+        ] as [$solicitud, $tipo, [$desde, $hasta], [$esperadoDesde, $esperadoHasta]]) {
+            $this->iaFalsa(['tipo' => $tipo, 'filtros' => ['desde' => $desde, 'hasta' => $hasta]]);
+            $destino = $this->interpretar($solicitud)->headers->get('Location');
+
+            $this->assertStringStartsWith(route('reportes.generar'), $destino, $solicitud);
+            $this->assertStringContainsString("desde={$esperadoDesde}", $destino, $solicitud);
+            $this->assertStringContainsString("hasta={$esperadoHasta}", $destino, $solicitud);
+        }
+    }
+
+    public function test_los_periodos_nuevos_los_calcula_el_sistema_con_la_fecha_de_hoy(): void
+    {
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-12-15 10:00:00', 'America/La_Paz')); // martes
+        $this->actingAs($this->admin());
+        $esperado = [
+            'hoy' => ['2026-12-15', '2026-12-15'], 'ayer' => ['2026-12-14', '2026-12-14'],
+            'esta_semana' => ['2026-12-14', '2026-12-15'], 'semana_pasada' => ['2026-12-07', '2026-12-13'],
+            'mes_pasado' => ['2026-11-01', '2026-11-30'], 'ultimos_3_meses' => ['2026-09-15', '2026-12-15'],
+            'ultimos_6_meses' => ['2026-06-15', '2026-12-15'], 'anio_pasado' => ['2025-01-01', '2025-12-31'],
+        ];
+
+        foreach ($esperado as $periodo => [$desde, $hasta]) {
+            $this->iaFalsa(['tipo' => 'pagos', 'periodo' => $periodo]);
+            $destino = $this->interpretar('pagos')->headers->get('Location');
+
+            $this->assertStringContainsString("desde={$desde}", $destino, $periodo);
+            $this->assertStringContainsString("hasta={$hasta}", $destino, $periodo);
+        }
+    }
+
+    public function test_si_la_frase_habla_de_un_periodo_y_la_ia_no_devuelve_fechas_no_se_genera_sin_filtro(): void
+    {
+        $this->actingAs($this->admin());
+
+        foreach (['pagos de los últimos 3 meses', 'ventas del año pasado', 'visitas de esta semana', 'contratos de septiembre', 'pagos de ayer'] as $solicitud) {
+            $this->iaFalsa(['tipo' => 'pagos']); // la IA entendió el tipo pero se olvidó del período
+            $destino = $this->interpretar($solicitud)->headers->get('Location');
+
+            $this->assertStringNotContainsString('/reportes/generar', $destino, $solicitud);
+            $this->get($destino)->assertOk()->assertSee('No pude entender el período de tiempo')->assertSee('Tipo: Pagos')->assertSee('Confirmar y generar');
+        }
+        $this->assertSame(0, Bitacora::where('accion', 'REPORTE_GENERADO')->count());
+
+        // Sin una expresión de tiempo (o solo "por mes" como agrupación) el reporte sale directo, como antes
+        foreach (['pagos', 'pagos agrupados por mes', 'reporte de pagos por estado'] as $solicitud) {
+            $this->iaFalsa(['tipo' => 'pagos']);
+            $this->assertStringStartsWith(route('reportes.generar'), $this->interpretar($solicitud)->headers->get('Location'), $solicitud);
+        }
+    }
+
     private function contratoDePrueba(): Contrato
     {
         return Contrato::create([

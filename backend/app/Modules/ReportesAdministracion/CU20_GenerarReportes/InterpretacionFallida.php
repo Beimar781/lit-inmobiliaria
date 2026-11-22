@@ -12,6 +12,7 @@ class InterpretacionFallida extends \RuntimeException
     public const NO_RECONOCIDO = 'No reconocí un reporte en tu solicitud. Reformúlala o usa los filtros manuales.';
     public const SIN_PERMISO = 'Este reporte no está permitido para tu rol.';
     public const RANGO = 'El rango de fechas no es válido.';
+    public const PERIODO = 'No pude entender el período de tiempo de tu solicitud. Elige las fechas en el formulario y confirma.';
 
     /**
      * @param string[] $entendido  líneas legibles de lo que sí se interpretó (ej.: «Tipo: Pagos»)
