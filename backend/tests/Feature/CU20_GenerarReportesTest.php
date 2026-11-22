@@ -14,6 +14,13 @@ use OpenSpout\Reader\XLSX\Reader;
 /** CU20: Generar reportes con filtros manuales y exportación (pasos 2 a 7 del documento, 6.2.4; el paso 1 se prepara aquí). */
 class CU20_GenerarReportesTest extends SistemaTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Reloj fijo (martes 15/12/2026, hora de Bolivia): las pruebas no dependen de la hora real ni de un cambio de día o de mes.
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-12-15 10:00:00', 'America/La_Paz'));
+    }
     private function cliente20(string $nombre = 'Cliente Reporte'): Cliente
     {
         static $n = 0;

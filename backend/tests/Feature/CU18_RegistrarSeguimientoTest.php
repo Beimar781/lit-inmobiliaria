@@ -10,6 +10,13 @@ use App\Models\Usuario;
 /** CU18: Registrar seguimiento de cliente. Un test por paso del documento (6.2.4). */
 class CU18_RegistrarSeguimientoTest extends SistemaTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Reloj fijo (martes 15/12/2026, hora de Bolivia): las pruebas no dependen de la hora real ni de un cambio de día o de mes.
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-12-15 10:00:00', 'America/La_Paz'));
+    }
     private function prospecto(?Usuario $agente = null, array $datos = []): Cliente
     {
         static $n = 0;

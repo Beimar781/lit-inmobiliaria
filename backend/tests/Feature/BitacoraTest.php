@@ -8,6 +8,13 @@ use App\Services\BitacoraService;
 /** Bitácora del sistema (solo Administrador): consulta con filtros y registro de eventos. */
 class BitacoraTest extends SistemaTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Reloj fijo (martes 15/12/2026, hora de Bolivia): las pruebas no dependen de la hora real ni de un cambio de día o de mes.
+        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-12-15 10:00:00', 'America/La_Paz'));
+    }
     private function registro(string $accion, string $modulo, string $descripcion, $usuario = null, ?string $fecha = null, ?array $detalle = null): Bitacora
     {
         return Bitacora::create([
