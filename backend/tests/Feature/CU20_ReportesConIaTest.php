@@ -308,7 +308,31 @@ class CU20_ReportesConIaTest extends SistemaTestCase
         $this->get(route('reportes.exportar', ['formato' => 'pdf'] + $parametros))->assertOk();
         $this->get(route('reportes.exportar', ['formato' => 'xlsx'] + $parametros))->assertOk();
         Http::assertSentCount(1);
-        $this->assertSame('Resumen de prueba del contrato.', session('resumen_reporte.' . md5(json_encode($parametros))));
+        $this->assertSame('Resumen de prueba del contrato.', session('resumen_reporte.texto'));
+        $this->assertSame(md5(json_encode($parametros)), session('resumen_reporte.clave'));
+    }
+
+    public function test_la_sesion_guarda_un_solo_resumen_y_no_uno_por_cada_consulta(): void
+    {
+        $this->contratoDePrueba();
+        $this->iaFalsa(null, 'Resumen de prueba.');
+        $this->actingAs($this->admin());
+
+        $this->get(route('reportes.generar', ['tipo' => 'contratos', 'con_resumen' => '1', 'origen' => 'ia']))->assertOk();
+        $this->get(route('reportes.generar', ['tipo' => 'propiedades', 'con_resumen' => '1', 'origen' => 'ia']))->assertOk();
+
+        $this->assertCount(2, session('resumen_reporte'), 'solo clave y texto del último resumen');
+        $this->assertSame(md5(json_encode(['tipo' => 'propiedades'])), session('resumen_reporte.clave'));
+        $this->assertNull(session('resumen_reporte.' . md5(json_encode(['tipo' => 'contratos']))));
+    }
+
+    public function test_exportar_sin_tipo_avisa_en_lugar_de_mostrar_acceso_denegado(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->get(route('reportes.exportar', ['formato' => 'pdf']))
+            ->assertRedirect(route('reportes.index'))
+            ->assertSessionHas('error', 'Elige el tipo de reporte.');
     }
 
     public function test_el_camino_manual_no_llama_a_la_ia_ni_muestra_resumen(): void

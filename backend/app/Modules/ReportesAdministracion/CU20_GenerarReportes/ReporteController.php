@@ -125,7 +125,7 @@ class ReporteController extends Controller
             }
 
             if ($resumen !== null) {
-                session()->put($this->claveResumen($criterios), $resumen); // para incluirlo en el PDF sin volver a llamar a la IA
+                session()->put('resumen_reporte', ['clave' => $this->claveResumen($criterios), 'texto' => $resumen]); // un solo resumen en sesión (el último), para el PDF sin volver a llamar a la IA
             }
         }
 
@@ -135,6 +135,11 @@ class ReporteController extends Controller
     public function exportar(ReporteRequest $request, string $formato): Response|BinaryFileResponse|RedirectResponse
     {
         abort_unless(in_array($formato, ['pdf', 'xlsx'], true), 404);
+
+        // Sin tipo no hay reporte que exportar: se avisa en lugar de mostrar un «acceso denegado» engañoso.
+        if (! $request->filled('tipo')) {
+            return redirect()->route('reportes.index')->with('error', 'Elige el tipo de reporte.');
+        }
 
         $criterios = $this->criteriosPermitidos($request);
         if ($criterios === null) {
@@ -175,7 +180,8 @@ class ReporteController extends Controller
 
         if ($formato === 'pdf') {
             // El resumen (si se generó al confirmar) va en el PDF; el Excel no lo lleva.
-            $resumen = session($this->claveResumen($criterios));
+            $guardado = session('resumen_reporte');
+            $resumen = is_array($guardado) && ($guardado['clave'] ?? null) === $this->claveResumen($criterios) ? ($guardado['texto'] ?? null) : null;
             $contenido = (new ExportadorPdf())->generar($resultado, $filtros, $usuario->nombre, $fechaHora, is_string($resumen) ? $resumen : null);
 
             return response($contenido, 200, [
@@ -186,6 +192,12 @@ class ReporteController extends Controller
 
         $carpeta = storage_path('app/reportes');
         File::ensureDirectoryExists($carpeta);
+        // Limpieza de archivos temporales que quedaron huérfanos (descarga cortada): se borran los de más de una hora.
+        foreach (File::glob($carpeta . DIRECTORY_SEPARATOR . 'rep_*.xlsx') ?: [] as $viejo) {
+            if (filemtime($viejo) < time() - 3600) {
+                @unlink($viejo);
+            }
+        }
         $ruta = $carpeta . DIRECTORY_SEPARATOR . uniqid('rep_', true) . '.xlsx';
         (new ExportadorExcel())->generar($resultado, $filtros, $usuario->nombre, $fechaHora, $ruta);
 
@@ -208,7 +220,7 @@ class ReporteController extends Controller
 
     private function claveResumen(CriteriosDeReporte $criterios): string
     {
-        return 'resumen_reporte.' . md5(json_encode($criterios->aParametros()));
+        return md5(json_encode($criterios->aParametros()));
     }
 
     private function denegado(): Response
