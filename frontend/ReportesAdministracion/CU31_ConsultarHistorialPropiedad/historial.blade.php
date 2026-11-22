@@ -79,11 +79,11 @@
                             <td>{{ $tipos[$c->tipo] ?? $c->tipo }}</td>
                             <td>{{ $c->usuario?->nombre ?? 'Sistema' }}</td>
                             <td class="text-end">
-                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#detalle-{{ $c->idhistorial }}">Ver detalle</button>
+                                <button class="btn btn-sm btn-outline-primary" type="button" data-detalle="detalle-{{ $c->idhistorial }}"
+                                        aria-expanded="false" aria-controls="detalle-{{ $c->idhistorial }}">Ver detalle</button>
                             </td>
                         </tr>
-                        <tr class="collapse" id="detalle-{{ $c->idhistorial }}">
+                        <tr hidden id="detalle-{{ $c->idhistorial }}">
                             <td colspan="4" class="bg-light">
                                 @if ($c->motivo)
                                     <p class="mb-2"><strong>Motivo:</strong> {{ $c->motivo }}</p>
@@ -119,3 +119,18 @@
     <div class="mt-3">{{ $cambios->links('pagination::bootstrap-5') }}</div>
 @endunless
 @endsection
+
+@push('scripts')
+    {{-- «Ver detalle» abre y cierra la fila con el valor anterior, el nuevo y el motivo (sin depender del JavaScript de Bootstrap). --}}
+    <script>
+        document.querySelectorAll('[data-detalle]').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                var fila = document.getElementById(boton.getAttribute('data-detalle'));
+                if (!fila) { return; }
+                fila.hidden = !fila.hidden;
+                boton.setAttribute('aria-expanded', fila.hidden ? 'false' : 'true');
+                boton.textContent = fila.hidden ? 'Ver detalle' : 'Ocultar detalle';
+            });
+        });
+    </script>
+@endpush

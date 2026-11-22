@@ -61,6 +61,31 @@
     @yield('contenido')
 </main>
 
+{{-- Foto de respaldo: si el archivo de una foto no se puede cargar (por ejemplo, se perdió del disco), se muestra «Sin foto» en lugar de un ícono roto. --}}
+<script>
+    (function () {
+        var SIN_FOTO = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#e9ecef"/>'
+            + '<text x="200" y="158" font-family="Arial, sans-serif" font-size="22" fill="#6c757d" text-anchor="middle">Sin foto</text></svg>');
+
+        function reemplazar(img) {
+            // No se tocan las imágenes del mapa (sus mosaicos pueden fallar sin conexión) ni las que ya se reemplazaron.
+            if (img.dataset.sinFoto || img.closest('.leaflet-container') || !img.getAttribute('src')) { return; }
+            img.dataset.sinFoto = '1';
+            img.src = SIN_FOTO;
+        }
+
+        document.addEventListener('error', function (e) {
+            if (e.target && e.target.tagName === 'IMG') { reemplazar(e.target); }
+        }, true);
+
+        // Las que ya habían fallado antes de que este script se ejecutara.
+        document.querySelectorAll('img').forEach(function (img) {
+            if (img.complete && img.naturalWidth === 0) { reemplazar(img); }
+        });
+    })();
+</script>
+
 @stack('scripts')
 </body>
 </html>

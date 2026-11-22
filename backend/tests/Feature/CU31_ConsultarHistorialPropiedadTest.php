@@ -49,7 +49,7 @@ class CU31_ConsultarHistorialPropiedadTest extends SistemaTestCase
         $respuesta = $this->actingAs($agente)->get(route('propiedades.historial', [$propiedad, 'tipo' => 'CAMBIO_ESTADO']))->assertOk();
 
         $respuesta->assertSee('Cambio de estado')->assertDontSee('Titulo inicial')->assertDontSee('<td>Modificación</td>', false)->assertDontSee('<td>Registro</td>', false);
-        $this->assertSame(1, substr_count($respuesta->getContent(), 'data-bs-target="#detalle-'));
+        $this->assertSame(1, substr_count($respuesta->getContent(), 'data-detalle="detalle-'));
     }
 
     public function test_paso_3_filtrar_por_rango_de_fechas_muestra_solo_los_del_rango_incluyendo_ambos_dias(): void
@@ -92,6 +92,22 @@ class CU31_ConsultarHistorialPropiedadTest extends SistemaTestCase
         $this->actingAs($this->agente())->get(route('propiedades.historial', $propiedad))->assertForbidden();
     }
 
+    public function test_el_boton_ver_detalle_funciona_sin_el_javascript_de_bootstrap(): void
+    {
+        $agente = $this->agente();
+        $propiedad = $this->propiedad([], $agente);
+        $this->cambio($propiedad, Historial::CAMBIO_ESTADO, '2026-11-10 09:30:00', $agente, ['estado' => 'DISPONIBLE'], ['estado' => 'RESERVADO'], 'Cliente dejó anticipo');
+
+        $html = $this->actingAs($agente)->get(route('propiedades.historial', $propiedad))->assertOk()->getContent();
+
+        // El layout no carga Bootstrap JS: el detalle se abre con un script propio y empieza oculto (hidden), no con data-bs-toggle.
+        $this->assertStringNotContainsString('data-bs-toggle', $html);
+        $this->assertStringNotContainsString('class="collapse"', $html);
+        $this->assertMatchesRegularExpression('/<button[^>]*data-detalle="detalle-\d+"[^>]*>Ver detalle<\/button>/', $html);
+        $this->assertMatchesRegularExpression('/<tr hidden id="detalle-\d+">/', $html);
+        $this->assertStringContainsString('fila.hidden = !fila.hidden', $html);
+        $this->assertStringNotContainsString('bootstrap.bundle', $html);
+    }
     public function test_el_administrador_ve_el_historial_de_una_propiedad_dada_de_baja(): void
     {
         $propiedad = $this->propiedad(['estadopropiedad' => Propiedad::BAJA], $this->agente());
@@ -141,7 +157,7 @@ class CU31_ConsultarHistorialPropiedadTest extends SistemaTestCase
 
         $respuesta = $this->actingAs($agente)->get(route('propiedades.historial', [$propiedad, 'tipo' => 'MODIFICACION']))->assertOk();
 
-        $this->assertSame(15, substr_count($respuesta->getContent(), 'data-bs-target="#detalle-'));
+        $this->assertSame(15, substr_count($respuesta->getContent(), 'data-detalle="detalle-'));
         $respuesta->assertSee('tipo=MODIFICACION&amp;page=2', false);
     }
 
